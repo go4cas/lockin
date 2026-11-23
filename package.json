@@ -1,0 +1,21 @@
+{
+  "name": "lockin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lock-In: a pub quiz app. Teams answer on their phones, the quiz plays on the TV, the host runs the night from a laptop or tablet.",
+  "engines": {
+    "bun": ">=1.4.0 <1.5.0"
+  },
+  "scripts": {
+    "dev": "bun scripts/build.ts dev",
+    "start": "bun src/server/main.ts serve",
+    "fixtures": "bun scripts/fixture-server.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.5",
+    "typescript": "5.9.3"
+  }
+}
