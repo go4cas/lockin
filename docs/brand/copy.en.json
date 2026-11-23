@@ -1,0 +1,116 @@
+{
+  "$comment": "Lock-In copy pools. The app picks a random line from a pool, avoiding the last one shown. Placeholders: {team}, {pub}, {round}, {n}, {seconds}. A venue theme can override or extend any pool.",
+  "taglines": [
+    "Lock in your answers.",
+    "The quiz that stays open late.",
+    "Answers locked. Next round's on you.",
+    "Phones out. For once, that's allowed.",
+    "Think fast. Drink slow.",
+    "No take-backs.",
+    "Where good guesses go to die.",
+    "Bragging rights, served weekly.",
+    "Your table versus the world. Well, the pub.",
+    "Confidently wrong since tonight.",
+    "The only test you'll enjoy.",
+    "Pens down. Phones up."
+  ],
+  "voice": {
+    "lobby": [
+      "Grab a drink. Pick a silly name.",
+      "{n} teams in. Room for more.",
+      "Warming up the questions. Warm up your brain.",
+      "Name your team. Choose wisely, it goes on the telly."
+    ],
+    "team_joined": [
+      "{team} has entered the building.",
+      "Welcome, {team}. Bold name.",
+      "{team} is here. The others look nervous.",
+      "{team} just joined. Fresh legs."
+    ],
+    "round_start": [
+      "Round {round}. Here we go.",
+      "Round {round}. Fresh start, same excuses.",
+      "Round {round}. Heads together.",
+      "Round {round}. Someone go to the bar first."
+    ],
+    "last_seconds": [
+      "Last chance… {seconds} seconds.",
+      "Commit to something.",
+      "Gut feeling time.",
+      "Tick tock.",
+      "Any answer beats no answer."
+    ],
+    "locked": [
+      "Locked. No take-backs.",
+      "Sealed. Signed. Probably right.",
+      "Too late to Google now.",
+      "Your answer is in the vault.",
+      "Locked in. Hold your nerve."
+    ],
+    "all_locked": [
+      "Everyone's in. Nice and quick.",
+      "All {n} teams locked. Moving on.",
+      "Full house. Let's see the damage."
+    ],
+    "no_answer": [
+      "Nothing from {team}. Bold strategy.",
+      "{team} went quiet on that one.",
+      "Blank from {team}. Mysterious."
+    ],
+    "joker_played": [
+      "{team} played their joker. Bold.",
+      "Double or nothing for {team}.",
+      "{team} is feeling lucky this round.",
+      "Joker's out for {team}. No pressure."
+    ],
+    "reveal": [
+      "Moment of truth.",
+      "Let's see who was paying attention.",
+      "Brace yourselves.",
+      "Answers coming up. Avert your eyes."
+    ],
+    "lead_change": [
+      "New leaders: {team}!",
+      "{team} takes the top spot.",
+      "All change at the top. Hello, {team}.",
+      "{team} has entered the chat. And first place."
+    ],
+    "big_climb": [
+      "{team} up {n} places. Suspicious.",
+      "Look out, {team} is coming.",
+      "{team} on the charge."
+    ],
+    "close_race": [
+      "One point in it.",
+      "Too close to call.",
+      "Tighter than the parking out back.",
+      "Nobody relax just yet."
+    ],
+    "halftime": [
+      "Halftime. Get your orders in.",
+      "Break time. Refill, regroup, rethink.",
+      "Halfway. Plenty of time to panic."
+    ],
+    "tiebreak": [
+      "We need a tiebreaker.",
+      "Level on points. One question settles it.",
+      "Closest guess wins. No pressure."
+    ],
+    "winner": [
+      "{team} wins! Drinks are on them.",
+      "Champions: {team}. Insufferable until next week.",
+      "{team} takes it. Bragging rights unlocked.",
+      "And the winner is… {team}!"
+    ],
+    "last_place": [
+      "{team}: there's always next week.",
+      "{team}, you were here, and that counts.",
+      "Wooden spoon to {team}. Wear it proudly."
+    ],
+    "goodbye": [
+      "That's a wrap. Same time next week?",
+      "Thanks for playing at {pub}. Get home safe.",
+      "Last orders. For real this time."
+    ]
+  }
+}
