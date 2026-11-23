@@ -1,0 +1,15 @@
+# Runtime data: never commit (TECH-SPEC 12.5)
+data/
+lockin-data/
+*.db
+*.db-wal
+*.db-shm
+auth.json
+config.json
+setup-code
+dist/
+
+# Tooling
+node_modules/
+.DS_Store
+*.log

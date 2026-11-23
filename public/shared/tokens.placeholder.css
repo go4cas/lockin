@@ -1,0 +1,87 @@
+/*
+ * Placeholder design tokens.
+ * Served at /static/shared/tokens.css only while docs/design/tokens.css (the
+ * Design thread's PR) is not merged. Same token names as Design's file, with
+ * its default values, so pages built now keep working when the real file lands.
+ * TV baseline: no color-mix(), clamp(), min() or max().
+ */
+:root {
+  --brand-bg: #17191b;
+  --brand-text: #edeae2;
+  --brand-accent: #ff7a5c;
+  --brand-accent-2: #3cc6b8;
+  --brand-surface: #1d1f21;
+  --brand-surface-2: #282a2b;
+  --brand-line: #393a3b;
+  --brand-text-muted: #a9a7a2;
+  --brand-on-accent: #17191b;
+  --brand-on-accent-2: #17191b;
+  --brand-accent-soft: #412a27;
+  --brand-accent-2-soft: #1e3837;
+  --brand-tv-bg: #17191b;
+  --brand-tv-bg-image: none;
+  --brand-tv-scrim: rgba(0, 0, 0, 0);
+  --brand-font-display: "Caveat Brush", "Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --brand-font-body: "Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  --color-bg: var(--brand-bg);
+  --color-surface: var(--brand-surface);
+  --color-surface-2: var(--brand-surface-2);
+  --color-line: var(--brand-line);
+  --color-text: var(--brand-text);
+  --color-text-muted: var(--brand-text-muted);
+  --color-action: var(--brand-accent);
+  --color-on-action: var(--brand-on-accent);
+  --color-action-soft: var(--brand-accent-soft);
+  --color-lock: var(--brand-accent);
+  --color-status: var(--brand-accent-2);
+  --color-on-status: var(--brand-on-accent-2);
+  --color-status-soft: var(--brand-accent-2-soft);
+  --color-correct: var(--brand-accent-2);
+  --color-correct-soft: var(--brand-accent-2-soft);
+  --color-wrong: var(--brand-text-muted);
+  --color-joker: #ffc145;
+  --color-danger: #ff5a5f;
+  --color-warning: #ffc145;
+  --color-focus: #ffffff;
+
+  --team-1: #3cc6b8;
+  --team-2: #ff7a5c;
+  --team-3: #ffc145;
+  --team-4: #5ab4ff;
+  --team-5: #b99cff;
+  --team-6: #a8d84e;
+  --team-7: #ff8fc7;
+  --team-8: #e2cfa6;
+  --team-on: #17191b;
+
+  --font-display: var(--brand-font-display);
+  --font-body: var(--brand-font-body);
+  --weight-regular: 400;
+  --weight-bold: 700;
+  --leading-tight: 1.1;
+  --leading-body: 1.3;
+
+  --radius-s: 6px;
+  --radius-m: 12px;
+  --radius-l: 20px;
+  --radius-pill: 999px;
+
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-slow: 600ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --host-tap: 44px;
+  --host-tap-primary: 64px;
+  --host-text-s: 13px;
+  --host-text-m: 15px;
+  --host-text-l: 19px;
+  --host-text-xl: 26px;
+  --host-space-1: 4px;
+  --host-space-2: 8px;
+  --host-space-3: 16px;
+  --host-space-4: 24px;
+  --host-space-5: 40px;
+  --host-sidebar-w: 280px;
+}

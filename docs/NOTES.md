@@ -119,6 +119,22 @@ Findings:
 - **Home-screen install needs HTTPS.** Hosted mode has it through Cloudflare.
 - **Round win with all-zero scores:** the spec says such a round has no winner (Cas to confirm).
 
+## B0 foundation: findings (2026-11-23)
+
+Built against TECH-SPEC as changed by PR 5 (hosted only). None of these change a contract type; they are details the spec left open, recorded so later threads find them.
+
+- **How modules plug in.** `src/server/app.ts` builds the `App` every module's `register(app)` receives: `route()`, `ws` (the socket hub), `auth`, `db`, `clock`, `files`, `onStart`/`onStop`, and `services`. `createApp()` calls every module's `register`, and `main.ts` (the CLI) only calls `startServer()`, so no build thread edits either file. The spec put the `register` calls in `main.ts`; they moved one file down so tests can start a server without the CLI.
+- **Cross-module services.** `app.services` holds `rules` (B2), `copyPicker` (B4) and `quizStore.saveAcceptedAnswer` (B3). Each module sets its own entry in `register` and reads others' only when it needs them, so register order does not matter.
+- **The engine's hooks into the socket hub (B1).** `app.ws.setCommandHandler`, `setViewProvider`, `setTeamTokenResolver`, `onConnect`, `onDisconnect`, `connections(role)`, `sendState`, `broadcastState`. The hub already enforces roles: a TV can send no command, a team only `team.join`, `team.rejoin`, `joker.play` and `answer.submit`, a host every other command (not the team ones), and a host command re-checks the session.
+- **Setup code file.** The setup code lives in `<dataDir>/setup-code` (mode 0600), so `lockin setup-code`, a separate process, prints the code the running server checks. It is made at start if missing, removed when the password is set, and renewed by `lockin reset-password`. It is not in the 5.1 layout and is git-ignored.
+- **The data folder cannot come from `config.json`**, because that file lives inside it. Flag, `LOCKIN_DATA`, then `./lockin-data`.
+- **Secure cookie.** Left off only when the public URL is plain `http://` on localhost or 127.0.0.1 (development); on any other address it is on.
+- **HTTP error codes for auth** (the spec names none): `already_set`, `setup_needed`, `bad_setup_code`, `weak_password`, `bad_password`, `too_many_tries` (429), `signed_out` (401), `forbidden_origin` (403). A wrong setup code counts towards the same 5-a-minute limit as a wrong password.
+- **Additions to `src/shared/`** (new exports, no changed types): `PHASES`, `COMMAND_NAMES`, `TEAM_COMMANDS`, `View`, `Flash` (typed from the prose in 10.4), `emptyLines()`, `DEFAULT_QUIZ_SETTINGS`, `defaultTheme()`, `defaultVenue()`, `HOLDING_PANELS`, `BUNDLED_FONTS`. `validateQuiz(json, { folderId?, mediaExists? })` takes an optional second argument for the folder-name and image checks; `validateTheme` and `validateVenue` return `{ ok: true, value } | { ok: false, problems }`. Missing settings, theme fields and venue fields take their defaults; wrong values are problems.
+- **Spec gap for B1:** `EngineState.lines` in 7.5 uses a `Line` type that is not defined anywhere. B1 owns that file and should define it (probably `string`).
+- **`ws-client.js` behaviour the spec did not fix:** reconnecting stops after `bye` with `moved`, `removed`, `signed_out` or `protocol`, and carries on after `night_closed`. A new `welcome` resets `seq` ordering, so a restarted server's first state always renders. When the page URL has `?fixture=`, it is passed on to `/ws` for the fixture server.
+- **Placeholders until other threads land:** `/static/shared/tokens.css` serves `public/shared/tokens.placeholder.css` (Design's token names and default values) until `docs/design/tokens.css` is merged; host pages link `/theme.css`, which answers 404 until B4, so browsers log a harmless stylesheet warning.
+
 ## Open questions
 
 - **Licence.** Cas chose to decide later. Recommendation is AGPL-3.0 (see topic 9). Until a licence is added, the public repo is "all rights reserved" by default, so outsiders cannot legally reuse or contribute; settle it before inviting contributors and before `v1.0.0`.

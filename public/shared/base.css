@@ -1,0 +1,60 @@
+/*
+ * Base styles shared by the TV, phone and host console.
+ * TV baseline (TECH-SPEC 3.3): flexbox and custom properties only; no grid,
+ * no flex gap, no clamp()/min()/max(), no :is()/:where().
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* "Reconnecting" states (TECH-SPEC 11.5); each screen places it. */
+.lockin-offline {
+  background: var(--color-warning);
+  color: #17191b;
+  font-weight: var(--weight-bold);
+  padding: 0.5em 1em;
+}
