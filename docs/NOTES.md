@@ -112,9 +112,11 @@ Full detail in [TECH-SPEC.md](TECH-SPEC.md).
 - **Theme file:** stores Design's branding inputs (name, logo, four colours, two fonts, TV background, copy overrides); the server expands them into `--brand-*` CSS properties, agreed with Design.
 - **Full views over the WebSocket:** the server sends each client its whole view after every change, which makes reconnecting simple and keeps answers off the TV and other teams' phones.
 
+- **Local mode moved to Later (Cas, 2026-11-23).** Hosted only for the pilot and the launch; local mode must not hold up the launch. Reasons: install friction for non-technical hosts (unsigned-app warnings on macOS and Windows unless paid signing, firewall prompts), guest Wi-Fi isolation and phones on mobile data cannot reach a laptop, home-screen install needs HTTPS, and Windows and Mac builds to test. Lock-In stays one binary (Linux x64), so local mode can be added later without a redesign (TECH-SPEC 4.8). REQUIREMENTS S-01 is now hosted only; S-02 is Later.
+- **Hosting:** stay on a VPS behind a Cloudflare tunnel rather than Cloudflare Workers and Durable Objects (discussed with Cas): Workers would be a stack change, move quizzes and themes out of plain files, and make self-hosting harder.
+
 Findings:
-- **Unsigned binaries warn on first open** (macOS Gatekeeper, Windows SmartScreen), and the first local-mode run asks for firewall permission. Run-sheet steps for the pilot; signing is a Launch decision.
-- **Home-screen install needs HTTPS.** It works in hosted mode (the pilot); in local mode phones get a plain home-screen shortcut.
+- **Home-screen install needs HTTPS.** Hosted mode has it through Cloudflare.
 - **Round win with all-zero scores:** the spec says such a round has no winner (Cas to confirm).
 
 ## Open questions
