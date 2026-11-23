@@ -102,6 +102,20 @@ What matters here: Lock-In is a server app that venues self-host or that someone
 
 - **Changes on review (Cas, 2026-11-23):** the joker is off by default; one phone per team with no viewer mode (a second phone gets a "this team already has a phone" message), replacing the configurable choice in topic 8; ties are two named steps, the **tie breaker** (most round wins, automatic) and then **sudden death**.
 
+## Design findings and decisions (2026-11-23)
+
+From the Design thread; detail and evidence in [docs/design/](design/README.md).
+
+- **Chalkboard is the default theme, adjusted.** Its colours pass contrast on the TV (chalk on blackboard 14.7:1), but chalk-coloured text on coral or teal fails (2.1:1, 1.8:1), so labels on filled colours are dark. Surfaces are now derived from background and text, so a venue only picks four colours.
+- **Fonts:** a textured chalk font loses about half its contrast at the back of the room (simulation in docs/design/img/test-font-distance.png). Default display font is Caveat Brush (solid brush strokes), used only for moment titles and host-voice lines. Body font is Atkinson Hyperlegible (made for legibility; distinct I/l/1). Both are bundled (OFL), so local mode needs no internet.
+- **TV sizes come from viewing distance.** Everything a team must read is comfortable to about 5 to 6 m on a 55" TV, and the timer, lock and room code to 10 m or more. Long picture questions are the weakest case, covered by the host reading aloud and the phone showing the question.
+- **TV CSS baseline** (with Architecture): Chromium 56 / Safari 11. No grid, flex gap, clamp() or color-mix() on the TV; a test checks it. Content stays inside a 5% overscan-safe area.
+- **Team colours:** 8, cycled by join order. Some pairs merge for colour-blind viewers, so a team is always its colour dot plus its name.
+- **Venue branding:** the branding screen sets name, logo, four colours, two fonts and the TV background; the server derives the rest (docs/design/branding.md). Low-contrast or light choices get plain-word warnings but can be saved (H-16).
+- **Sudden death is branded "Deadlock"**, with "Sudden death" always on screen too, in a fixed black-and-ember look that ignores the venue theme. Pending Cas's confirmation of the name.
+- **Copy pools:** `tiebreak` split into `tie_breaker` and `sudden_death`; added `sudden_death_again`, `sudden_death_won`, `sudden_death_shared` and `winner_shared`; two lines fixed. `no_answer` has no screen in `v1.0.0`. Placement rules in docs/design/copy-review.md.
+- **Mirrored HDMI risk:** if the host laptop mirrors its screen to the TV, the room sees the answers. The console has a "Hide answers on this screen" switch; the release run sheet should tell hosts to use an extended display.
+
 ## Open questions
 
 - **Licence.** Cas chose to decide later. Recommendation is AGPL-3.0 (see topic 9). Until a licence is added, the public repo is "all rights reserved" by default, so outsiders cannot legally reuse or contribute; settle it before inviting contributors and before `v1.0.0`.
