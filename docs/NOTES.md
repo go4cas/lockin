@@ -64,10 +64,13 @@ How the devices connect (explained to Cas): no device talks to another device di
 - **1 point per question.** A bonus question worth more is an idea for later.
 - **No negative marking** (a wrong answer scores 0) and **speed never affects score**.
 - **Joker is played before a round starts** and cannot be changed once the round begins. It can be played on the final round. Points in that round count double.
-- **Ties need sudden death.** Cas's idea: one question at a time, repeated until one tied team gets it right and the other does not. Interviewer's note: "first right" can go many rounds if both teams keep getting questions right or wrong, so the QM needs a stock of tiebreak questions; a closest-number question settles it in one go and matches the brief's "closest-guess tiebreaker". _Follow-up pending (see below)._
-- **Tie rule for positions:** if teams are level on points, the team with more round wins ranks higher; if still level, they share the position. Interviewer's note: "round win" needs defining (suggest: highest score in that round, joker included, shared top scores count as a win for each). Where sudden death fits alongside this rule is pending.
+- **Ties need sudden death.** Cas's idea: one question at a time, repeated until one tied team gets it right and the other does not. Interviewer's note: "first right" can go many rounds if both teams keep getting questions right or wrong, so the QM needs a stock of tiebreak questions; a closest-number question settles it in one go and matches the brief's "closest-guess tiebreaker". Cas chose **right/wrong sudden death**: tied teams answer one question; if exactly one is right, it wins; otherwise ask another. **The QM sets the maximum number of sudden-death questions; still tied after that, the teams share the position.**
+- **Tie rule for positions:** if teams are level on points, the team with more round wins ranks higher; if still level, they share the position. Interviewer's note: "round win" needs defining (suggest: highest score in that round, joker included, shared top scores count as a win for each).
+- **Configurable (both):** whether sudden death applies to first place only or to other places too, and whether a closest-number question scores the closest team only or every team within a range.
 
 ## Open questions
+
+- **How much is configurable for the pilot?** Cas answered "configurable" to many questions (team count, rounds, questions, lock mode, closest-number scoring, sudden-death scope and length). Each option needs a sensible default so a non-technical host never has to touch settings, and Requirements should decide which options ship for the pilot and which stay fixed at the default until later.
 
 - **MVP = pilot or launch?** Cas has two milestones. Suggest Requirements ranks Pilot / Launch / Later / Won't, or defines MVP as pilot and lists launch items separately. Raise with Cas in the Requirements thread.
 - **"Members" vs "no account".** Reusing *members* implies knowing who individual players are, while the brief says one device per team and no accounts. Needs a decision before team history is designed (Later).
