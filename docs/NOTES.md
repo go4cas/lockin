@@ -59,6 +59,13 @@ How the devices connect (explained to Cas): no device talks to another device di
 - **Acceptable alternatives for typed answers are added by the QM while marking**, not listed up front. Interviewer's note: once the QM accepts an answer, the same (or fuzzily same) answer from other teams on that question should be accepted too, so the QM marks each distinct answer once.
 - **AI help is wanted (interviewer suggests Later):** generating questions, and a new idea, checking the accuracy of the QM's questions and answers. The brief already lists an optional AI generator with host review. Points for Requirements/Architecture: it needs internet and an API key (a secret, so never in the repo), and it must stay optional so local mode and offline nights work without it.
 
+### 7. Scoring and the joker (2026-11-23)
+
+- **1 point per question.** A bonus question worth more is an idea for later.
+- **No negative marking** (a wrong answer scores 0) and **speed never affects score**.
+- **Joker is played before a round starts** and cannot be changed once the round begins. It can be played on the final round. Points in that round count double.
+- **Ties need sudden death.** Cas's idea: one question at a time, repeated until one tied team gets it right and the other does not. Interviewer's note: "first right" can go many rounds if both teams keep getting questions right or wrong, so the QM needs a stock of tiebreak questions; a closest-number question settles it in one go and matches the brief's "closest-guess tiebreaker". _Follow-up pending (see below)._
+
 ## Open questions
 
 - **MVP = pilot or launch?** Cas has two milestones. Suggest Requirements ranks Pilot / Launch / Later / Won't, or defines MVP as pilot and lists launch items separately. Raise with Cas in the Requirements thread.
