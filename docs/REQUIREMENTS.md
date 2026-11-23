@@ -708,6 +708,5 @@ These apply to all MVP features and are checked by Review on any PR that touches
 - **Host on the TV laptop or a separate device.** Architecture analyses this before Design commits to a console layout (N3).
 - **Host laptop platforms.** S-01 assumes Windows x64 and macOS arm64 for local mode. Cas to confirm what the pilot laptop runs.
 - **Server restart mid-night.** S-05 reads "teams rejoin without losing their score" as also covering a server restart, so accepted answers, marks and scores are saved as they happen. Architecture to confirm the cost.
-- **Sound, video and AI for the pilot?** Cas added sound and video clip questions, the AI question generator and the AI verifier. They are ranked Launch here because sound needs speakers the pilot pub may not have (N3) and AI needs internet and an API key (N6). Cas to confirm, or move any of them to MVP.
 - **Requirements-thread proposals (`R`).** Host login, removing a team, pausing or extending the timer, copy-pool editing and theme export at Launch, browser spellcheck with grammar check Later, and the defaults table were proposed to Cas on 2026-11-23 and not objected to. Cas to confirm in review.
 - **Smart-TV support list.** T-01 leaves the list of supported TV browsers and casting setups to Architecture, checked on real hardware before `v1.0.0`.
