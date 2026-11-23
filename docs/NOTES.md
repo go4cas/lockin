@@ -37,7 +37,8 @@ Findings to carry forward (interviewer's notes, not decisions):
 - **The pilot runs in hosted mode** (VPS behind Cloudflare).
 - **Pilot pub:** guest Wi-Fi with a password; good mobile signal inside.
 - **"Local first" means the client devices, not local mode.** A client (team phone at least) keeps working when its connection to the server breaks and syncs when it comes back. Hosted is still the pilot mode; local mode stays in the one binary for venues that can use it.
-- _Follow-up pending:_ how offline answers interact with the lock, and which clients must work offline (see below).
+- **Local-first clients are not MVP.** They are a Later feature. For Later, the interviewer's proposed rule (not yet agreed): the phone queues answers offline, the server accepts a late-synced answer only before that question or round is revealed, and the host sees it flagged "synced late" to accept or reject. Reason: a phone's clock cannot prove when an answer was typed, so an unflagged late answer invites Googling.
+- **MVP behaviour (interviewer's default, stated to Cas):** the lock is strict and server-side; an answer counts only if it reached the server before the lock. A phone that loses its connection shows a clear "offline, reconnecting" state, and on reconnect the team gets back its identity, answers and score (the brief's "rejoin without losing score" core feature). TV and host console show "reconnecting" and resume where they left off.
 
 How the devices connect (explained to Cas): no device talks to another device directly. Phones, TV and host console each talk only to the Lock-In server.
 - Hosted: every device needs internet to reach the VPS. Guest isolation on the Wi-Fi does not matter. If the pub's internet drops, phones on mobile data carry on; the host laptop and TV (on pub Wi-Fi) lose the server until they reconnect.
