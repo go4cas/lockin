@@ -107,7 +107,7 @@ The tie breaker asks no questions, so it is not a separate screen. It shows wher
 
 ## 11. Sudden death: "Deadlock" (T-08, P-09, H-14)
 
-Cas asked for sudden death to have its own branding. The design calls it **Deadlock**: a tie is a deadlock, and Lock-In is about locks. The screen always also says "Sudden death", so the name in S-07 is still on screen.
+Cas asked for sudden death to have its own branding, and chose the name **Deadlock** (2026-11-23): a tie is a deadlock, and Lock-In is about locks. The screen always also says "Sudden death", so the name in S-07 is still on screen.
 
 **Look:** the whole TV switches to a fixed palette that ignores the venue theme: near-black (`--deadlock-bg`), white, and one ember red (`--deadlock-ember`). The word DEADLOCK in heavy capitals with "LOCK" in ember, a chain rule under it, and the tied teams facing off: "Les Quizerables **vs** Agatha Quiztie" with their points and round wins. With three or more teams, they line up side by side.
 
