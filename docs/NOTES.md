@@ -102,12 +102,29 @@ What matters here: Lock-In is a server app that venues self-host or that someone
 
 - **Changes on review (Cas, 2026-11-23):** the joker is off by default; one phone per team with no viewer mode (a second phone gets a "this team already has a phone" message), replacing the configurable choice in topic 8; ties are two named steps, the **tie breaker** (most round wins, automatic) and then **sudden death**.
 
+## Architecture decisions and findings (2026-11-23)
+
+Full detail in [TECH-SPEC.md](TECH-SPEC.md).
+
+- **Host setup (N3, settled by Architecture):** the pilot's recommended setup is one laptop on HDMI with the TV as an extended display, plus an optional tablet or phone for the host. The console is designed laptop-first (1280 px) and must work on a tablet (768 px); it assumes it is never shown on the TV, and has an "Open TV screen" button. Several host devices can be signed in at once.
+- **TV support (T-01):** tested before `v1.0.0`: laptop over HDMI, Chrome "Cast tab" to a Chromecast or Google TV, and the pilot pub's own TV browser. Targeted but untested: Samsung Tizen 2018+, LG webOS 4+, Android TV, Fire TV Silk, AirPlay or Miracast extension. TV code follows a Chromium 56 / Safari 11 baseline (no CSS grid, no flex `gap`, no `?.`, classic scripts), enforced by a test.
+- **Server restart (S-05):** confirmed at low cost. Every change is written to SQLite before it is acknowledged.
+- **Theme file:** stores Design's branding inputs (name, logo, four colours, two fonts, TV background, copy overrides); the server expands them into `--brand-*` CSS properties, agreed with Design.
+- **Full views over the WebSocket:** the server sends each client its whole view after every change, which makes reconnecting simple and keeps answers off the TV and other teams' phones.
+
+- **Local mode moved to Later (Cas, 2026-11-23).** Hosted only for the pilot and the launch; local mode must not hold up the launch. Reasons: install friction for non-technical hosts (unsigned-app warnings on macOS and Windows unless paid signing, firewall prompts), guest Wi-Fi isolation and phones on mobile data cannot reach a laptop, home-screen install needs HTTPS, and Windows and Mac builds to test. Lock-In stays one binary (Linux x64), so local mode can be added later without a redesign (TECH-SPEC 4.8). REQUIREMENTS S-01 is now hosted only; S-02 is Later.
+- **Hosting:** stay on a VPS behind a Cloudflare tunnel rather than Cloudflare Workers and Durable Objects (discussed with Cas): Workers would be a stack change, move quizzes and themes out of plain files, and make self-hosting harder.
+
+Findings:
+- **Home-screen install needs HTTPS.** Hosted mode has it through Cloudflare.
+- **Round win with all-zero scores:** the spec says such a round has no winner (Cas to confirm).
+
 ## Design findings and decisions (2026-11-23)
 
 From the Design thread; detail and evidence in [docs/design/](design/README.md).
 
 - **Chalkboard is the default theme, adjusted.** Its colours pass contrast on the TV (chalk on blackboard 14.7:1), but chalk-coloured text on coral or teal fails (2.1:1, 1.8:1), so labels on filled colours are dark. Surfaces are now derived from background and text, so a venue only picks four colours.
-- **Fonts:** a textured chalk font loses about half its contrast at the back of the room (simulation in docs/design/img/test-font-distance.png). Default display font is Caveat Brush (solid brush strokes), used only for moment titles and host-voice lines. Body font is Atkinson Hyperlegible (made for legibility; distinct I/l/1). Both are bundled (OFL), so local mode needs no internet.
+- **Fonts:** a textured chalk font loses about half its contrast at the back of the room (simulation in docs/design/img/test-font-distance.png). Default display font is Caveat Brush (solid brush strokes), used only for moment titles and host-voice lines. Body font is Atkinson Hyperlegible (made for legibility; distinct I/l/1). Both are bundled (OFL), so screens never depend on an outside font service.
 - **TV sizes come from viewing distance.** Everything a team must read is comfortable to about 5 to 6 m on a 55" TV, and the timer, lock and room code to 10 m or more. Long picture questions are the weakest case, covered by the host reading aloud and the phone showing the question.
 - **TV CSS baseline** (with Architecture): Chromium 56 / Safari 11. No grid, flex gap, clamp() or color-mix() on the TV; a test checks it. Content stays inside a 5% overscan-safe area.
 - **Team colours:** 8, cycled by join order. Some pairs merge for colour-blind viewers, so a team is always its colour dot plus its name.
@@ -123,7 +140,7 @@ From the Design thread; detail and evidence in [docs/design/](design/README.md).
 - **Private pilot repo.** Recommendation is to drop it or keep it for venue data only, never a code fork (topic 9); Cas to confirm.
 - **MVP = pilot or launch?** Cas has two milestones (pilot at `v1.0.0`, then product launch). Requirements should rank Pilot / Launch / Later / Won't, or define MVP as the pilot and list launch items separately.
 - **How much is configurable for the pilot?** Cas answered "configurable" to many questions. Each option needs a sensible default so a non-technical host never touches settings, and Requirements should decide which options ship for the pilot and which stay fixed until later.
-- **Host on the TV laptop or a separate device?** Cas wants both supported, but analysed first (topic 3). Architecture should compare before Design commits to a console layout.
+- **Host on the TV laptop or a separate device?** Analysed by Architecture (see above and TECH-SPEC 1.1): both work; laptop on HDMI is the pilot default.
 - **"Members" vs "no account".** Reusing *members* across nights implies knowing individual players, while the brief says one device per team and no accounts. Decide before team history is designed (Later).
 - **Defaults to confirm:** halftime after round 3; design target of 20 teams (working at 30); second phone joins as a viewer by default; definition of a "round win" for the tie rule.
 - **Brief needs updating:** it says the repo "starts private" (it is public), lists a closest-guess tiebreaker (Cas chose right/wrong sudden death), and does not mention Quiz Start/End, prizes, sudden-death branding, spelling check or AI accuracy checks. The brief is raw material, so Requirements carries these forward rather than editing the brief.

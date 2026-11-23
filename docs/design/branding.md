@@ -74,7 +74,7 @@ Team colours are fixed and tested only against Lock-In's default background. On 
 
 ## Fonts
 
-Bundled in `v1.0.0`, so local mode needs no internet. All are SIL Open Font Licence 1.1; the licences sit next to the files in [fonts/](fonts/).
+Bundled in `v1.0.0`, so screens never depend on an outside font service (and local mode, now Later, will need no internet). All are SIL Open Font Licence 1.1; the licences sit next to the files in [fonts/](fonts/).
 
 | Font id | Family | Use | Look |
 |---|---|---|---|

@@ -58,8 +58,7 @@ Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed
 
 | ID | Feature | Rank |
 |---|---|---|
-| S-01 | One binary, hosted and local modes | MVP |
-| S-02 | Double-click start in local mode | MVP |
+| S-01 | One binary, hosted on a server | MVP |
 | S-03 | Host login | MVP |
 | S-04 | Strict server-side lock | MVP |
 | S-05 | Reconnect and rejoin | MVP |
@@ -115,26 +114,17 @@ Launch, Later and Won't items are listed at the end of each screen's section.
 
 ## Shared and server
 
-### S-01 One binary, hosted and local modes (MVP · B, N4)
+### S-01 One binary, hosted on a server (MVP · B, N4, C)
 
-As a venue, I want to run Lock-In from a single file, either on a server or on the host's laptop, so that there is one thing to install and update.
+As a venue, I want to run Lock-In from a single file on a server, so that there is one thing to install and update.
 
 Done when:
-- One build produces one executable per platform (Linux x64 for servers; Windows x64 and macOS arm64 for host laptops), with no runtime dependencies to install.
-- The same executable runs in **hosted mode** (on a VPS behind a Cloudflare tunnel, the pilot setup) and **local mode** (on the host's laptop on the pub's network).
-- In both modes, phones, TV and host console are served by that one process and talk only to it; no device talks to another device directly.
-- In local mode, the night runs with no internet connection at all.
+- One build produces one executable for Linux x64, with no runtime dependencies to install.
+- It runs on a VPS behind a Cloudflare tunnel (the pilot setup).
+- Phones, TV and host console are served by that one process and talk only to it; no device talks to another device directly.
 - The repo and the executable contain no secrets and no venue-specific data.
 
-### S-02 Double-click start in local mode (MVP · N1)
-
-As a non-technical host, I want to start Lock-In by double-clicking it, so that I never need a terminal on quiz night.
-
-Done when:
-- Double-clicking the executable on Windows or macOS starts the server and opens the host console in the default browser.
-- No terminal input and no config file editing are needed, on first run or after.
-- The host console shows the address and QR code that phones and the TV use, using the laptop's address on the local network.
-- If the laptop has no usable network address, the host console says so in plain words.
+(Local mode on the host's laptop, with a double-click start, is Later: S-02, decided by Cas on 2026-11-23.)
 
 ### S-03 Host login (MVP · R)
 
@@ -240,6 +230,7 @@ Done when:
 
 | ID | Feature | Rank | Source |
 |---|---|---|---|
+| S-02 | Local mode: Lock-In runs on the host's laptop on the pub's network with no internet, started by a double-click (Windows and macOS builds). Moved from MVP; must not hold up the launch (Cas, 2026-11-23) | Later | N1, N4, C |
 | S-20 | Licence chosen and added (recommendation: AGPL-3.0) | Launch | N9 |
 | S-21 | Self-hosting guide for other venues | Launch | B |
 | S-22 | Local-first phones: queue answers offline, sync late, host sees "synced late" to accept or reject | Later | N4 |
@@ -495,7 +486,7 @@ As a team arriving early, I want the TV to show when the quiz starts and how to 
 Done when:
 - From the set time before the planned start (H-17) until Quiz Start, the TV shows the holding page with the panels the venue chose, rotating or side by side as Design sets, while the join QR code and room code stay on screen.
 - The countdown matches the server's clock to within 1 second (plus TV lag), and shows "starting soon" once it passes zero until the host presses Quiz Start.
-- The home-screen guide is a short looping animation (GIF or CSS) for iPhone and Android, bundled with Lock-In, so it needs no internet in local mode.
+- The home-screen guide is a short looping animation (GIF or CSS) for iPhone and Android, bundled with Lock-In, so it loads from Lock-In itself with no outside service.
 - It needs no interaction and uses only basic CSS, like every TV screen (T-01).
 
 ### T-03 Question (MVP · B)
@@ -709,7 +700,6 @@ These apply to all MVP features and are checked by Review on any PR that touches
 
 - **Licence (S-20).** Still "decide later". It must be settled before `v1.0.0` (NOTES.md open questions), even though the licence file itself is ranked Launch.
 - **Private pilot repo.** Recommendation stands: drop it, or keep it for venue data only, never a code fork. Cas to confirm.
-- **Host on the TV laptop or a separate device.** Architecture analyses this before Design commits to a console layout (N3).
-- **Host laptop platforms.** S-01 assumes Windows x64 and macOS arm64 for local mode. Cas to confirm what the pilot laptop runs.
+- **Host on the TV laptop or a separate device.** Settled by Architecture: both work, laptop on HDMI is the pilot default (TECH-SPEC 1.1).
 - **Server restart mid-night.** S-05 reads "teams rejoin without losing their score" as also covering a server restart, so accepted answers, marks and scores are saved as they happen. Architecture to confirm the cost.
 - **Smart-TV support list.** T-01 leaves the list of supported TV browsers and casting setups to Architecture, checked on real hardware before `v1.0.0`.
