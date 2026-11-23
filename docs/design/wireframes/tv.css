@@ -110,7 +110,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
 
 /* Padlock */
 .lock { width: 30vh; height: 36vh; overflow: visible; }
-.lock .shackle { fill: none; stroke: var(--color-text); stroke-width: 11; stroke-linecap: round; }
+.lock .shackle { fill: none; stroke: var(--color-text); stroke-width: 11; }
+.lock .qmark { fill: none; stroke: var(--color-bg); stroke-width: 7.5; stroke-linecap: round; }
 .lock .body { fill: var(--color-lock); }
 .lock .hole { fill: var(--color-bg); }
 .lock.open .shackle { transform: translateY(-16px); }

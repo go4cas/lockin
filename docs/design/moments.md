@@ -55,7 +55,7 @@ The lock is Lock-In's signature, so it is the one moment with real choreography.
 | Time | What happens |
 |---|---|
 | 0 ms | Lock message arrives. Question and timer fade out (150 ms). |
-| 150 ms | The padlock appears with its question-mark shackle **open** (lifted 16 units). |
+| 150 ms | The Lock-In padlock (a "?" in its body) appears with its shackle **open** (lifted 16 units). |
 | 150 to 850 ms | The shackle **snaps down** (`--ease-snap`, overshoots and settles) and the body thuds (scale 1.06 and a 2° twist, then back). |
 | 450 ms | A ring in the main colour bursts out from the padlock and fades (900 ms). |
 | 600 ms | "Answers locked" (11vh, main colour) and the `locked` line (or `all_locked` when every team answered) fade up under it, with "5 of 6 teams answered". |

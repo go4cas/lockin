@@ -113,6 +113,7 @@ From the Design thread; detail and evidence in [docs/design/](design/README.md).
 - **Team colours:** 8, cycled by join order. Some pairs merge for colour-blind viewers, so a team is always its colour dot plus its name.
 - **Venue branding:** the branding screen sets name, logo, four colours, two fonts and the TV background; the server derives the rest (docs/design/branding.md). Low-contrast or light choices get plain-word warnings but can be saved (H-16).
 - **Sudden death is branded "Deadlock"**, with "Sudden death" always on screen too, in a fixed black-and-ember look that ignores the venue theme. Cas confirmed the name (2026-11-23).
+- **Logo changed (Cas, 2026-11-23):** the question-mark shackle could read as a bent padlock, so the mark is now a normal closed padlock with a "?" cut into the body, its dot as the keyhole (docs/design/logo/).
 - **Copy pools:** `tiebreak` split into `tie_breaker` and `sudden_death`; added `sudden_death_again`, `sudden_death_won`, `sudden_death_shared` and `winner_shared`; two lines fixed. `no_answer` has no screen in `v1.0.0`. Placement rules in docs/design/copy-review.md.
 - **Mirrored HDMI risk:** if the host laptop mirrors its screen to the TV, the room sees the answers. The console has a "Hide answers on this screen" switch; the release run sheet should tell hosts to use an extended display.
 

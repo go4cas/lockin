@@ -11,6 +11,7 @@ The design for the three Lock-In screens: the host console, the TV display and t
 | [copy-review.md](copy-review.md) | The copy pools checked against the screens, and the changes made to `docs/brand/copy.en.json`. |
 | [wireframes/](wireframes/) | Mid-fidelity HTML wireframes (`tv.html`, `phone.html`, `host.html`) that use `tokens.css` and the bundled fonts. Open one with `?s=<screen id>`, and add `&theme=brass-and-oak` or `&theme=neon-taproom` to see a venue theme. |
 | [img/](img/) | Renders of every wireframe and the test images below. |
+| [logo/](logo/) | The Lock-In mark as SVG, for dark and light backgrounds. |
 | [fonts/](fonts/) | The bundled fonts (WOFF2, Latin) and their SIL Open Font Licences. |
 | [tools/](tools/) | `derive.ts` (derived brand tokens and readability checks, the reference for the server and the branding screen), `tokens.test.ts`, the render script and the viewing-distance simulation. |
 
@@ -29,6 +30,7 @@ The brief's Chalkboard concept was tested on four things: contrast, TV legibilit
 | Team colours: teal, coral, amber, sky, lilac, lime | Up to 30 teams, so colours repeat. A colour-blindness simulation of 8 colours shows some pairs merge (sky and lilac for deuteranopia, amber and lime for protanopia). | **8 team colours** (`--team-1`..`--team-8`: the six plus pink and sand), cycled by join order. Each is at least 6.9:1 on the background. **Colour is never a team's only marker**: the team name is always next to its dot. |
 | Teal for status | Teal is also a team colour, so "teal = correct" could be read as "the teal team". | Right answers always carry a tick and a word; wrong answers **fade** (muted text), they never turn red, which also fits "never mean". |
 | A chalkboard texture | Images behind text reduce contrast and cost memory on old TVs. | **Flat colour by default.** A venue can set a TV background picture; Lock-In always lays a 78% scrim of the background colour over it. |
+| Logo: a padlock whose shackle is a question mark, the keyhole as its dot | Cas found it could read as a bent padlock to new users. Three directions were drawn and shown at TV-header, phone-icon and browser-tab size ([img/test-logo-options.png](img/test-logo-options.png)). | **Option A, chosen by Cas:** a normal closed padlock with a question mark cut into the body; the dot of the "?" is the keyhole. Reads as a padlock first and a question second at every size. Files in [logo/](logo/). The "answers locked" moment still snaps the shackle shut. |
 | Brass & Oak, Neon Taproom theme ideas | Built as sample venue themes through the same token pipeline ([img/tv-lobby--brass-and-oak.png](img/tv-lobby--brass-and-oak.png), [img/tv-locked--neon-taproom.png](img/tv-locked--neon-taproom.png)). Both pass every readability check. | The token system works for very different looks with four colours and one font choice. The samples live in `wireframes/themes/` as fixtures, not as shipped themes. |
 
 ## TV rules
