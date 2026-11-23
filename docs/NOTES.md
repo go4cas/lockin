@@ -44,6 +44,14 @@ How the devices connect (explained to Cas): no device talks to another device di
 - Hosted: every device needs internet to reach the VPS. Guest isolation on the Wi-Fi does not matter. If the pub's internet drops, phones on mobile data carry on; the host laptop and TV (on pub Wi-Fi) lose the server until they reconnect.
 - Local: the server is the host's laptop, so phones and TV must reach the laptop across the pub's Wi-Fi. No internet needed, but guest isolation (common on guest networks) blocks it outright, and phones on mobile data cannot reach it.
 
+### 5. League, prizes and seasons (2026-11-23)
+
+- **Two milestones, not one.** Cas distinguishes the **pilot** (first nights at the one pub) from the **product launch**. League, weekly standings and hall of fame are not needed for the pilot but are needed before launch. Requirements should make clear whether "MVP" means pilot or launch (see open questions).
+- **Prizes:** an optional space to show the night's prizes (for example on the TV in the lobby, at halftime and at the winner moment). The app does not manage or award prizes; the host announces them.
+- **Keep event history from day 1.** Every night's teams, scores and results are stored from the first pilot night, so a later league or hall of fame has real data. Affects the data model from B0 onward even though no league screens exist yet.
+- **Reusing teams and members across nights is a bonus** (nice to have, not pilot).
+
 ## Open questions
 
-_Collected as the interview goes._
+- **MVP = pilot or launch?** Cas has two milestones. Suggest Requirements ranks Pilot / Launch / Later / Won't, or defines MVP as pilot and lists launch items separately. Raise with Cas in the Requirements thread.
+- **"Members" vs "no account".** Reusing *members* implies knowing who individual players are, while the brief says one device per team and no accounts. Needs a decision before team history is designed (Later).
