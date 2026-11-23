@@ -65,6 +65,7 @@ How the devices connect (explained to Cas): no device talks to another device di
 - **No negative marking** (a wrong answer scores 0) and **speed never affects score**.
 - **Joker is played before a round starts** and cannot be changed once the round begins. It can be played on the final round. Points in that round count double.
 - **Ties need sudden death.** Cas's idea: one question at a time, repeated until one tied team gets it right and the other does not. Interviewer's note: "first right" can go many rounds if both teams keep getting questions right or wrong, so the QM needs a stock of tiebreak questions; a closest-number question settles it in one go and matches the brief's "closest-guess tiebreaker". _Follow-up pending (see below)._
+- **Tie rule for positions:** if teams are level on points, the team with more round wins ranks higher; if still level, they share the position. Interviewer's note: "round win" needs defining (suggest: highest score in that round, joker included, shared top scores count as a win for each). Where sudden death fits alongside this rule is pending.
 
 ## Open questions
 
