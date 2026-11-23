@@ -36,7 +36,8 @@ Findings to carry forward (interviewer's notes, not decisions):
 
 - **The pilot runs in hosted mode** (VPS behind Cloudflare).
 - **Pilot pub:** guest Wi-Fi with a password; good mobile signal inside.
-- **Resilience goal: "local first, if we can".** Cas wants the night to survive a dropped connection where possible. _Pending confirmation of what this means in practice (see the follow-up below)._
+- **"Local first" means the client devices, not local mode.** A client (team phone at least) keeps working when its connection to the server breaks and syncs when it comes back. Hosted is still the pilot mode; local mode stays in the one binary for venues that can use it.
+- _Follow-up pending:_ how offline answers interact with the lock, and which clients must work offline (see below).
 
 How the devices connect (explained to Cas): no device talks to another device directly. Phones, TV and host console each talk only to the Lock-In server.
 - Hosted: every device needs internet to reach the VPS. Guest isolation on the Wi-Fi does not matter. If the pub's internet drops, phones on mobile data carry on; the host laptop and TV (on pub Wi-Fi) lose the server until they reconnect.
