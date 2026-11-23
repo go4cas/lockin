@@ -1,0 +1,14 @@
+/* Wireframe base: bundled fonts and resets. Shared by tv.html, phone.html and host.html.
+   In the app, the server writes the @font-face rules for the theme's fonts (TECH-SPEC). */
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; src: url(../fonts/atkinson-hyperlegible-400.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; src: url(../fonts/atkinson-hyperlegible-700.woff2) format("woff2"); }
+@font-face { font-family: "Caveat Brush"; src: url(../fonts/caveat-brush-400.woff2) format("woff2"); }
+@font-face { font-family: "Alfa Slab One"; src: url(../fonts/alfa-slab-one-400.woff2) format("woff2"); }
+@font-face { font-family: "Bebas Neue"; src: url(../fonts/bebas-neue-400.woff2) format("woff2"); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
+.screen { display: none; }
+.screen.on { display: block; }
+.wf-note { display: none; } /* design notes inside frames are hidden in renders */

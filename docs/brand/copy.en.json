@@ -1,5 +1,5 @@
 {
-  "$comment": "Lock-In copy pools. The app picks a random line from a pool, avoiding the last one shown. Placeholders: {team}, {pub}, {round}, {n}, {seconds}. A venue theme can override or extend any pool.",
+  "$comment": "Lock-In copy pools. The app picks a random line from a pool, avoiding the last one shown. Placeholders: {team}, {pub}, {round}, {n}, {seconds}. A line is skipped when a placeholder has no value, and a line with {n} is skipped when n is less than 2. Where each pool is shown: docs/design/copy-review.md. A venue theme can override or extend any pool.",
   "taglines": [
     "Lock in your answers.",
     "The quiz that stays open late.",
@@ -17,7 +17,7 @@
   "voice": {
     "lobby": [
       "Grab a drink. Pick a silly name.",
-      "{n} teams in. Room for more.",
+      "{n} teams in so far.",
       "Warming up the questions. Warm up your brain.",
       "Name your team. Choose wisely, it goes on the telly."
     ],
@@ -34,7 +34,7 @@
       "Round {round}. Someone go to the bar first."
     ],
     "last_seconds": [
-      "Last chance… {seconds} seconds.",
+      "Last chance. Get it in.",
       "Commit to something.",
       "Gut feeling time.",
       "Tick tock.",
@@ -91,16 +91,42 @@
       "Break time. Refill, regroup, rethink.",
       "Halfway. Plenty of time to panic."
     ],
-    "tiebreak": [
-      "We need a tiebreaker.",
-      "Level on points. One question settles it.",
-      "Closest guess wins. No pressure."
+    "tie_breaker": [
+      "Level on points. Round wins split them.",
+      "Same score. {team} won more rounds.",
+      "Tied on points, not on round wins."
+    ],
+    "sudden_death": [
+      "Level on points, level on round wins. One question at a time.",
+      "Deadlock. Somebody has to blink.",
+      "Sudden death. One question, no mercy.",
+      "{n} teams, one place. Hold your nerve."
+    ],
+    "sudden_death_again": [
+      "Still level. Next question.",
+      "Nobody blinked. Go again.",
+      "Still deadlocked. Another one."
+    ],
+    "sudden_death_won": [
+      "Deadlock broken. {team} held their nerve.",
+      "{team} picks the lock.",
+      "Settled. {team} takes it."
+    ],
+    "sudden_death_shared": [
+      "Unbreakable. You'll have to share.",
+      "Still level. Call it a draw.",
+      "Deadlocked to the end. Shared it is."
     ],
     "winner": [
       "{team} wins! Drinks are on them.",
       "Champions: {team}. Insufferable until next week.",
       "{team} takes it. Bragging rights unlocked.",
       "And the winner is… {team}!"
+    ],
+    "winner_shared": [
+      "Joint champions: {team}!",
+      "It's a tie at the top. Take a bow, {team}.",
+      "Champions together: {team}. Share nicely."
     ],
     "last_place": [
       "{team}: there's always next week.",
