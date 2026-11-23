@@ -32,6 +32,16 @@ Findings to carry forward (interviewer's notes, not decisions):
 - Tab casting usually needs desktop Chrome and adds lag; a Fire stick does not cast a browser tab. The "answers locked" moment must look right with a second or two of lag on the TV.
 - A smart TV or cast receiver must reach the Lock-In server, so it has the same network question as the phones (topic 4).
 
+### 4. Network: local or hosted (2026-11-23)
+
+- **The pilot runs in hosted mode** (VPS behind Cloudflare).
+- **Pilot pub:** guest Wi-Fi with a password; good mobile signal inside.
+- **Resilience goal: "local first, if we can".** Cas wants the night to survive a dropped connection where possible. _Pending confirmation of what this means in practice (see the follow-up below)._
+
+How the devices connect (explained to Cas): no device talks to another device directly. Phones, TV and host console each talk only to the Lock-In server.
+- Hosted: every device needs internet to reach the VPS. Guest isolation on the Wi-Fi does not matter. If the pub's internet drops, phones on mobile data carry on; the host laptop and TV (on pub Wi-Fi) lose the server until they reconnect.
+- Local: the server is the host's laptop, so phones and TV must reach the laptop across the pub's Wi-Fi. No internet needed, but guest isolation (common on guest networks) blocks it outright, and phones on mobile data cannot reach it.
+
 ## Open questions
 
 _Collected as the interview goes._
