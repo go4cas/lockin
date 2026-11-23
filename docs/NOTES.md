@@ -76,6 +76,23 @@ How the devices connect (explained to Cas): no device talks to another device di
 - **Replacing a team's phone:** the team's phone shows a short rejoin code, and the host can also move a team to a new phone from the console. The team keeps its name, answers and score.
 - **No late joining.** The night has explicit **Quiz Start** and **Quiz End** events. Joining is open before Quiz Start and closed after it (rejoining an existing team still works). Quiz End closes the night and is the point where results are saved to history (topic 5).
 
+### 9. Open source and venue branding (2026-11-23)
+
+- **The `lockin` repo is already public** (the brief says it "starts private"; that is out of date). Everything committed here is public from now on, so the no-secrets, no-venue-data rule applies to every commit, including these notes.
+- **Release path:** build and test in the public repo up to `v1.0.0`, then take it to the pilot pub. So the pilot runs `v1.0.0`.
+- **A private, branded pilot repo exists.** Interviewer's recommendation (pending Cas's agreement): do not fork the code for the pilot. Treat a venue's branding as data: uploaded through the host's settings screen, stored on the server's data folder as plain files, and covered by backups. A private repo is then only useful, if at all, for the venue's own data (theme files, quiz packs, deploy settings), never a copy of the code. This keeps one codebase and avoids a fork that drifts.
+- **Venue themes are made by non-technical people** (pub staff, designers). So branding needs a settings screen (name, logo, colours, fonts, TV background, copy lines) rather than hand-editing a theme file. The theme file stays the stored format, and can be exported and imported.
+- **The pilot pub uses its own branding**, with the small "Powered by Lock-In" credit.
+- **Licence: pending Cas's choice.** See the recommendation below.
+
+#### Licence recommendation
+
+What matters here: Lock-In is a server app that venues self-host or that someone could run as a paid hosted service; it has no runtime dependencies, so there are no licence-compatibility constraints; and venues' own themes and quiz packs are data, not code, so no licence touches them.
+
+- **AGPL-3.0 (recommended).** Free for any pub to run, modified or not. Anyone who runs a *modified* version as a service for others must publish their changes. Stops a company taking Lock-In, improving it in private and selling it as a closed hosted service. Cas, as copyright holder, can still run a paid hosted version. Cost: some companies avoid AGPL code, and if Cas ever wants to sell other licences, outside contributions need a contributor agreement.
+- **MIT or Apache-2.0.** Anyone can do anything, including a closed paid service built on it. Most adoption and least friction; Apache-2.0 adds a patent grant. Choose this if wide reuse matters more than keeping improvements open.
+- **MPL-2.0.** A middle ground: changes to Lock-In's own files must be shared when distributed, but the network-service loophole stays open, so it does not stop a closed hosted service.
+
 ## Open questions
 
 - **How much is configurable for the pilot?** Cas answered "configurable" to many questions (team count, rounds, questions, lock mode, closest-number scoring, sudden-death scope and length). Each option needs a sensible default so a non-technical host never has to touch settings, and Requirements should decide which options ship for the pilot and which stay fixed at the default until later.
