@@ -197,6 +197,12 @@ describe("validateTheme", () => {
     ].sort());
   });
 
+  test("the body font must be Atkinson Hyperlegible or an upload (Design's branding.md)", () => {
+    const r = validateTheme({ format: "lockin.theme/1", fonts: { display: { bundled: "atkinson-hyperlegible" }, body: { bundled: "bebas-neue" } } });
+    expect(messages(r)).toEqual(['"bebas-neue" is a headline font. The body font must be Atkinson Hyperlegible or an uploaded font.']);
+    expect(validateTheme({ format: "lockin.theme/1", fonts: { body: { bundled: "atkinson-hyperlegible" } } }).ok).toBe(true);
+  });
+
   test("rejects a wrong format or non-object", () => {
     expect(validateTheme({ format: "other" }).ok).toBe(false);
     expect(validateTheme([]).ok).toBe(false);

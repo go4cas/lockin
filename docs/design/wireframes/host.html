@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lock-In host console wireframes</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="host.css">
+<script src="wf.js"></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="mark" viewBox="0 0 100 120"><path d="M28 58 V36 A22 22 0 0 1 72 36 V58" fill="none" stroke="currentColor" stroke-width="11"/><rect x="10" y="54" width="80" height="62" rx="13" fill="var(--color-lock)"/><path d="M40 75 A10 10 0 1 1 55.5 83.3 C51.5 86 50 88 50 92" fill="none" stroke="var(--color-bg)" stroke-width="7.5" stroke-linecap="round"/><circle cx="50" cy="104" r="4.6" fill="var(--color-bg)"/></symbol>
+  <symbol id="tick" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+
+<!-- H-01 quiz library -->
+<section class="screen" id="library"><div class="hc">
+  <nav class="nav"><div class="brand"><svg width="24" height="29" style="color:var(--color-text)"><use href="#mark"/></svg>Lock-In</div><a class="on">Quizzes</a><a>Past nights</a><a>Venue settings</a></nav>
+  <div class="main">
+    <div class="row between"><h1>Quizzes</h1><button class="btn primary">+ New quiz</button></div>
+    <table>
+      <tr><th>Quiz</th><th>Rounds</th><th>Last edited</th><th>Status</th><th></th></tr>
+      <tr><td><b>Thursday 27 Nov</b></td><td>6 &times; 5</td><td>Today, 14:02</td><td><span class="pill ok"><i></i>Ready</span></td><td style="text-align:right"><button class="btn primary">Open a night</button> <button class="btn ghost">Edit</button> <button class="btn ghost" aria-label="More">&#8943;</button></td></tr>
+      <tr><td><b>Christmas special</b></td><td>8 &times; 5</td><td>Yesterday</td><td><span class="pill warn"><i></i>3 questions need answers</span></td><td style="text-align:right"><button class="btn ghost">Edit</button> <button class="btn ghost">&#8943;</button></td></tr>
+      <tr><td><b>Thursday 20 Nov</b></td><td>6 &times; 5</td><td>20 Nov</td><td><span class="pill"><i></i>Used 20 Nov</span></td><td style="text-align:right"><button class="btn ghost">Duplicate</button> <button class="btn ghost">&#8943;</button></td></tr>
+    </table>
+    <div class="muted s">A quiz that is not ready can't open a night. Duplicate, rename and delete are under &#8943;. Delete asks first.</div>
+  </div>
+</div></section>
+
+<!-- H-02 / H-03 / H-04 quiz builder -->
+<section class="screen" id="builder"><div class="hc" style="grid-template-columns:260px 1fr">
+  <nav class="nav" style="gap:2px">
+    <a style="padding:0;min-height:36px">&#8592; Quizzes</a>
+    <div style="font-weight:700;margin:6px 0 10px">Thursday 27 Nov <span class="pill ok" style="margin-left:4px">Saved</span></div>
+    <a>Settings</a>
+    <a>1 &middot; General knowledge</a><a>2 &middot; Science</a><a class="on">3 &middot; Movies</a>
+    <div style="padding-left:24px;display:flex;flex-direction:column;gap:2px" class="s"><a style="min-height:36px">Q1 Who directed Jaws?</a><a style="min-height:36px;color:var(--color-text)">Q2 Which film won the first&hellip;</a><a style="min-height:36px">Q3 Picture: name the film</a><a style="min-height:36px">Q4 &hellip;</a><a style="min-height:36px">+ Add question</a></div>
+    <a>4 &middot; Picture round</a><a>5 &middot; Music-free music</a><a>6 &middot; Final round</a><a>Sudden death (3)</a><a style="color:var(--color-status)">+ Add round</a>
+  </nav>
+  <div class="main" style="gap:14px">
+    <div class="row between"><h1>Round 3 &middot; Question 2</h1><div class="row"><button class="btn ghost">&#8593;</button><button class="btn ghost">&#8595;</button><button class="btn danger">Delete</button></div></div>
+    <div><label class="l">Question</label><textarea class="input" spellcheck="true">Which film won the first ever Academy Award for Best Picture?</textarea><div class="muted s" style="margin-top:4px">61 of 200 characters. Spelling mistakes are underlined as you type.</div></div>
+    <div class="row" style="gap:24px;align-items:flex-start">
+      <div><label class="l">Answer type</label><div class="seg"><span class="on">Text</span><span>Choice</span><span>Number</span><span>Closest</span><span>Date or time</span></div></div>
+      <div><label class="l">Picture</label><button class="btn ghost">Add a picture</button></div>
+      <div><label class="l">Timer</label><div class="seg"><span class="on">Quiz default (60 s)</span><span>Custom</span></div></div>
+    </div>
+    <div><label class="l">Correct answer</label><input class="input" value="Wings" spellcheck="true"></div>
+    <div><label class="l">Also accept</label><div class="row" style="flex-wrap:wrap"><span class="pill" style="font-size:14px;padding:8px 12px">Wings (1927) &times;</span><span class="pill" style="font-size:14px;padding:8px 12px">+ Add</span></div><div class="muted s" style="margin-top:4px">You can also accept answers while marking. They are saved here.</div></div>
+    <div><label class="l">Note for the host (not shown to teams)</label><input class="input" value="Silent film, 1927. Clara Bow."></div>
+  </div>
+</div></section>
+
+<!-- H-05 / H-06 / H-15 night lobby -->
+<section class="screen" id="lobby"><div class="hc run">
+  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Thursday 27 Nov</b><span class="pill ok"><i></i>Lobby open</span><span style="margin-left:auto" class="s muted">TV</span><span class="pill ok"><i></i>Connected</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="runbody">
+    <div class="stage">
+      <div class="row" style="gap:24px;align-items:flex-start">
+        <div class="card row" style="gap:16px"><img class="qr-s" src="qr-placeholder.svg" alt=""><div><h3>Teams join at</h3><div style="font-weight:700">quiz.example.com</div><h3 style="margin-top:10px">Room code</h3><div style="font-size:30px;font-weight:700;letter-spacing:.15em">KXBT</div></div></div>
+        <div class="card" style="flex:1"><h3>Put this on the TV</h3><div style="font-weight:700;margin:4px 0 8px">quiz.example.com/tv</div><div class="s muted">Open it in the TV's browser, or cast this tab from a laptop. The TV needs no remote after that.</div></div>
+      </div>
+      <div class="row" style="gap:16px">
+        <div class="card" style="flex:1"><h3>Planned start</h3><div class="row" style="margin-top:6px"><input class="input" value="19:30" style="width:110px"><span class="s muted">Holding page with countdown from 19:00</span></div></div>
+        <div class="card" style="flex:1"><h3>Prizes tonight</h3><div class="s" style="margin-top:6px"><b style="color:var(--color-joker)">1st</b> R300 bar tab &nbsp; <b style="color:var(--color-joker)">2nd</b> A round of shots</div><button class="btn ghost" style="margin-top:6px">Edit prizes</button></div>
+      </div>
+      <div class="card" style="flex:1;overflow:hidden"><div class="row between"><h3>Teams (6)</h3><span class="s muted">Rename, move to a new phone or remove from the &#8943; menu</span></div>
+        <div data-render="teamTable" data-n="6"></div></div>
+    </div>
+    <div class="side">
+      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px">Lobby: QR code, room code, 6 teams</div></div>
+      <div class="sec s muted">Joining closes when you start. Teams that drop out can still rejoin.</div>
+      <div class="next-wrap"><button class="btn next">Start the quiz &#9654;</button><div class="s muted" style="text-align:center">6 teams. Starts round 1: General knowledge</div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- H-08 run a question (per-question lock) -->
+<section class="screen" id="run"><div class="hc run">
+  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Movies</b><span class="s muted">Question 2 of 5</span><span style="margin-left:auto" class="s muted">Room <b class="code" style="font-size:15px">KXBT</b></span><span class="pill ok"><i></i>TV</span><span class="pill warn"><i></i>1 team offline</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="runbody">
+    <div class="stage">
+      <div class="steps-line"><span class="done">Q1 locked</span><span class="now">Q2 timer running</span><span>Q3</span><span>Q4</span><span>Q5</span><span>Mark</span><span>Reveal</span><span>Leaderboard</span></div>
+      <div class="qbig">Which film won the first ever Academy Award for Best Picture?</div>
+      <div class="ans"><svg width="22" height="22" style="color:var(--color-correct)"><use href="#tick"/></svg>Answer: <b>Wings</b><button class="btn ghost reveal-btn" style="margin-left:12px">Hide answers on this screen</button></div>
+      <div class="card s"><b>Note:</b> Silent film, 1927. Clara Bow.</div>
+      <div class="card row" style="gap:24px">
+        <div class="clock">0:42</div>
+        <div class="row"><button class="btn">Pause</button><button class="btn">+15 s</button><button class="btn danger">Lock now</button></div>
+        <div style="margin-left:auto;text-align:right"><div style="font-size:26px;font-weight:700">4 <span class="muted" style="font-size:16px">of 6 answered</span></div></div>
+      </div>
+      <div class="muted s">You can mark Q1 now (it's locked), or mark the whole round at the end.</div>
+    </div>
+    <div class="side">
+      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px">Question 2 &middot; timer 42 &middot; 4 of 6 answered</div></div>
+      <div class="sec teams" style="flex:1"><h3 style="margin-bottom:6px">Teams</h3><div data-render="teamAnswered"></div></div>
+      <div class="next-wrap"><button class="btn next">Lock now</button><div class="s muted" style="text-align:center">Or wait: it locks by itself at 0:00. Next: show question 3.</div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- H-10 marking and the review queue -->
+<section class="screen" id="marking"><div class="hc run">
+  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Marking</b><span class="pill warn" style="margin-left:8px">7 left to mark</span><span style="margin-left:auto" class="pill ok"><i></i>TV</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="runbody">
+    <div class="stage" style="gap:10px">
+      <div class="row between"><div><h3>Question 2 of 5</h3><div style="font-weight:700;font-size:19px">Which film won the first ever Academy Award for Best Picture?</div><div class="s">Accepted: <b style="color:var(--color-correct)">Wings</b>, Wings (1927)</div></div><div class="seg"><span>Q1</span><span class="on">Q2 &middot; 3</span><span>Q3 &middot; 2</span><span>Q4 &middot; 2</span><span>Q5 &#10003;</span></div></div>
+      <div class="s muted">Exact matches are already marked right (3 teams). Each answer below is marked once for every team that gave it.</div>
+      <div class="group"><div><div class="a">Wngs</div><div class="who">Quiz Khalifa &middot; <span class="near">close to "Wings"</span></div></div><div class="row"><button class="btn ok">&#10003; Accept</button><button class="btn ghost">&#10007; Reject</button></div></div>
+      <div class="group"><div><div class="a">Sunrise</div><div class="who">The Usual Suspects, Universally Challenged (2 teams)</div></div><div class="row"><button class="btn ok">&#10003; Accept</button><button class="btn ghost">&#10007; Reject</button></div></div>
+      <div class="group" style="opacity:.55"><div><div class="a">&mdash; no answer &mdash;</div><div class="who">Tequila Mockingbird</div></div><div class="pill">Scores 0</div></div>
+    </div>
+    <div class="side">
+      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px">"Round 3 is in. The quizmaster is marking."</div></div>
+      <div class="sec s muted">Accepting adds the answer to this question's accepted list in the quiz, so it is right next time too.</div>
+      <div class="next-wrap"><button class="btn next" disabled style="opacity:.45">Reveal answers</button><div class="s muted" style="text-align:center">7 answers left to mark before the reveal</div><button class="btn ghost">Skip the reveal, go to the leaderboard</button></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- H-11 reveal / leaderboard steps -->
+<section class="screen" id="reveal"><div class="hc run">
+  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Reveal</b><span style="margin-left:auto" class="pill ok"><i></i>TV</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="runbody">
+    <div class="stage">
+      <div class="steps-line"><span class="done">Q1</span><span class="now">Q2 answer</span><span>Q3</span><span>Q4</span><span>Q5</span><span>Leaderboard</span><span>Halftime</span></div>
+      <div class="qbig" style="font-size:22px">Which film won the first ever Academy Award for Best Picture?</div>
+      <div class="ans"><b>Wings</b> &middot; <span class="s">4 of 6 right</span></div>
+      <table><tr><th>Team</th><th>Answer</th><th>Mark</th></tr>
+        <tr><td>Les Quizerables</td><td>Wings</td><td><span class="pill ok">Right</span> <button class="btn ghost" style="min-height:36px">Change</button></td></tr>
+        <tr><td>Quiz Khalifa</td><td>Wngs</td><td><span class="pill ok">Right</span> <button class="btn ghost" style="min-height:36px">Change</button></td></tr>
+        <tr><td>The Usual Suspects</td><td>Sunrise</td><td><span class="pill">Wrong</span> <button class="btn ghost" style="min-height:36px">Change</button></td></tr></table>
+      <div class="s muted">Disputes: change any mark until Quiz End. Scores update straight away; past changes are kept in the night's history.</div>
+    </div>
+    <div class="side">
+      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px">Q2 answer: Wings &middot; 4 of 6</div></div>
+      <div class="next-wrap"><button class="btn next">Show answer 3 &#9654;</button><div class="s muted" style="text-align:center">Then: leaderboard, then halftime (after round 3)</div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- H-14 sudden death -->
+<section class="screen" id="deadlock"><div class="hc run">
+  <div class="topbar" style="background:var(--deadlock-bg)"><b style="color:var(--deadlock-ember);letter-spacing:.2em">DEADLOCK</b><span class="s muted">Sudden death for 1st place</span><span style="margin-left:auto" class="pill ok"><i></i>TV</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="runbody">
+    <div class="stage">
+      <div class="card" style="border-color:var(--deadlock-ember)"><div class="row between"><div><h3>Tied for 1st after the tie breaker</h3><div style="font-size:20px;font-weight:700;margin-top:4px">Les Quizerables vs Agatha Quiztie</div><div class="s muted">31 points and 2 round wins each</div></div><div class="s">Question <b>1</b> of up to 3</div></div></div>
+      <div class="qbig">In what year did the Berlin Wall fall?</div>
+      <div class="ans">Answer: <b>1989</b> <span class="pill">Number, exact</span></div>
+      <table><tr><th>Team</th><th>Answer</th><th></th></tr><tr><td>Les Quizerables</td><td>Answered</td><td></td></tr><tr><td>Agatha Quiztie</td><td class="muted">Waiting</td><td></td></tr></table>
+      <div class="s muted">If exactly one team is right, it takes 1st. If both are right or both wrong, ask the next one. After 3 questions they share 1st.</div>
+    </div>
+    <div class="side">
+      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px;background:var(--deadlock-bg)">Deadlock &middot; question 1 &middot; 23 s</div></div>
+      <div class="next-wrap"><button class="btn next" style="background:var(--deadlock-ember);color:#fff">Lock now</button><div class="s muted" style="text-align:center">Then mark and reveal who was right</div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- H-16 venue branding with live preview and warnings -->
+<section class="screen" id="branding"><div class="hc">
+  <nav class="nav"><div class="brand"><svg width="24" height="29" style="color:var(--color-text)"><use href="#mark"/></svg>Lock-In</div><a>Quizzes</a><a>Past nights</a><a class="on">Venue settings</a></nav>
+  <div class="main">
+    <div class="row between"><h1>Venue settings</h1><div class="seg"><span class="on">Branding</span><span>Holding page</span><span>Prizes</span><span>Host password</span></div></div>
+    <div class="split">
+      <div class="form">
+        <div><label class="l">Venue name</label><input class="input" value="Daylight Bar"><div class="s muted" style="margin-top:4px">Shown on the TV and phones, and in lines like "Thanks for playing at Daylight Bar".</div></div>
+        <div class="row"><div style="flex:1"><label class="l">Logo</label><button class="btn ghost">Upload PNG, SVG or JPEG</button></div><div style="flex:1"><label class="l">TV background</label><div class="seg"><span class="on">Colour</span><span>Picture</span></div></div></div>
+        <div><label class="l">Colours</label>
+          <div class="row" style="gap:14px;flex-wrap:wrap">
+            <div class="row"><span class="swatch" style="background:#f4efe4"></span><span class="s">Background</span></div>
+            <div class="row"><span class="swatch" style="background:#5c5c5c"></span><span class="s">Text</span></div>
+            <div class="row"><span class="swatch" style="background:#ffd54f"></span><span class="s">Main</span></div>
+            <div class="row"><span class="swatch" style="background:#9ad0c2"></span><span class="s">Second</span></div>
+          </div></div>
+        <div class="row"><div style="flex:1"><label class="l">Headline font</label><div class="seg"><span class="on" style="font-family:'Caveat Brush'">Chalk</span><span style="font-family:'Alfa Slab One'">Sign</span><span style="font-family:'Bebas Neue'">Neon</span><span>Upload</span></div></div></div>
+        <div class="warn-box"><b>This may be hard to read in a pub.</b><br>&bull; A light background glares on a TV in a dim room and makes phones hard to use.<br>&bull; The main colour doesn't stand out from the background (1.2 : 1, aim for 3 : 1).<br>&bull; Text is a little faint for the back of the room (5.8 : 1, aim for 7 : 1).<br><span class="muted">You can still save it.</span> <a style="color:var(--color-status);font-weight:700">Reset to Lock-In colours</a></div>
+        <div class="row"><button class="btn primary">Save</button><button class="btn ghost">Cancel</button></div>
+      </div>
+      <div><h3>Preview</h3>
+        <div class="preview" style="margin-top:8px">
+          <div style="position:relative;width:448px;height:252px;overflow:hidden;border-radius:6px;border:1px solid var(--color-line)"><iframe src="tv.html?s=lobby&amp;theme=too-light" style="width:1280px;height:720px;transform:scale(.35);transform-origin:0 0;border:0;position:absolute"></iframe></div>
+          <div style="position:relative;width:150px;height:325px;overflow:hidden;border-radius:16px;border:1px solid var(--color-line)"><iframe src="phone.html?s=lobby&amp;theme=too-light" style="width:390px;height:844px;transform:scale(.385);transform-origin:0 0;border:0;position:absolute"></iframe></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- H-17 holding page settings -->
+<section class="screen" id="holding"><div class="hc">
+  <nav class="nav"><div class="brand"><svg width="24" height="29" style="color:var(--color-text)"><use href="#mark"/></svg>Lock-In</div><a>Quizzes</a><a>Past nights</a><a class="on">Venue settings</a></nav>
+  <div class="main">
+    <div class="row between"><h1>Venue settings</h1><div class="seg"><span>Branding</span><span class="on">Holding page</span><span>Prizes</span><span>Host password</span></div></div>
+    <div class="card" style="max-width:640px"><label class="l">Show the holding page from</label><div class="row"><input class="input" value="30" style="width:90px"><span>minutes before the planned start</span></div><div class="s muted" style="margin-top:6px">Before that, the TV shows the plain lobby. Without a planned start time there is no countdown.</div></div>
+    <div class="card" style="max-width:640px"><h3 style="margin-bottom:8px">Panels (they take turns, 12 seconds each; joining stays on screen)</h3>
+      <div class="row between" style="min-height:48px"><span>Countdown to the start</span><span class="toggle"></span></div>
+      <div class="row between" style="min-height:48px"><span>Teams that have joined</span><span class="toggle"></span></div>
+      <div class="row between" style="min-height:48px"><span>How to join</span><span class="toggle"></span></div>
+      <div class="row between" style="min-height:48px"><span>Put the quiz on your home screen</span><span class="toggle"></span></div>
+      <div class="row between" style="min-height:48px"><span>Brand animation</span><span class="toggle"></span></div>
+      <div class="row between" style="min-height:48px"><span>Prizes</span><span class="toggle"></span></div>
+    </div>
+  </div>
+</div></section>
+
+<script>
+function teamTable(el) {
+  var h = "<table><tr><th>Team</th><th>Phone</th><th></th></tr>";
+  for (var i = 0; i < +el.getAttribute("data-n"); i++) h += '<tr><td><span class="row"><i class="dot" style="background:var(--team-' + (i % 8 + 1) + ')"></i><b>' + LI.teams[i] + '</b></span></td><td>' + (i === 4 ? '<span class="pill warn"><i></i>Offline</span>' : '<span class="pill ok"><i></i>Connected</span>') + '</td><td style="text-align:right"><button class="btn ghost" style="min-height:36px">&#8943;</button></td></tr>';
+  el.innerHTML = h + "</table>";
+}
+function teamAnswered(el) {
+  var st = ["Answered", "Answered", "Answered", "Thinking", "Offline", "Answered"], h = "";
+  for (var i = 0; i < 6; i++) h += '<div class="tm"><i class="dot" style="background:var(--team-' + (i % 8 + 1) + ')"></i><span class="n">' + LI.teams[i] + '</span>' +
+    (st[i] === "Answered" ? '<span class="pill ok">&#10003; Answered</span>' : st[i] === "Offline" ? '<span class="pill warn"><i></i>Offline</span>' : '<span class="pill">Not yet</span>') + "</div>";
+  el.innerHTML = h;
+}
+</script>
+</body>
+</html>

@@ -119,6 +119,21 @@ Findings:
 - **Home-screen install needs HTTPS.** Hosted mode has it through Cloudflare.
 - **Round win with all-zero scores:** the spec says such a round has no winner (Cas to confirm).
 
+## Design findings and decisions (2026-11-23)
+
+From the Design thread; detail and evidence in [docs/design/](design/README.md).
+
+- **Chalkboard is the default theme, adjusted.** Its colours pass contrast on the TV (chalk on blackboard 14.7:1), but chalk-coloured text on coral or teal fails (2.1:1, 1.8:1), so labels on filled colours are dark. Surfaces are now derived from background and text, so a venue only picks four colours.
+- **Fonts:** a textured chalk font loses about half its contrast at the back of the room (simulation in docs/design/img/test-font-distance.png). Default display font is Caveat Brush (solid brush strokes), used only for moment titles and host-voice lines. Body font is Atkinson Hyperlegible (made for legibility; distinct I/l/1). Both are bundled (OFL), so screens never depend on an outside font service.
+- **TV sizes come from viewing distance.** Everything a team must read is comfortable to about 5 to 6 m on a 55" TV, and the timer, lock and room code to 10 m or more. Long picture questions are the weakest case, covered by the host reading aloud and the phone showing the question.
+- **TV CSS baseline** (with Architecture): Chromium 56 / Safari 11. No grid, flex gap, clamp() or color-mix() on the TV; a test checks it. Content stays inside a 5% overscan-safe area.
+- **Team colours:** 8, cycled by join order. Some pairs merge for colour-blind viewers, so a team is always its colour dot plus its name.
+- **Venue branding:** the branding screen sets name, logo, four colours, two fonts and the TV background; the server derives the rest (docs/design/branding.md). Low-contrast or light choices get plain-word warnings but can be saved (H-16).
+- **Sudden death is branded "Deadlock"**, with "Sudden death" always on screen too, in a fixed black-and-ember look that ignores the venue theme. Cas confirmed the name (2026-11-23).
+- **Logo changed (Cas, 2026-11-23):** the question-mark shackle could read as a bent padlock, so the mark is now a normal closed padlock with a "?" cut into the body, its dot as the keyhole (docs/design/logo/).
+- **Copy pools:** `tiebreak` split into `tie_breaker` and `sudden_death`; added `sudden_death_again`, `sudden_death_won`, `sudden_death_shared` and `winner_shared`; two lines fixed. `no_answer` has no screen in `v1.0.0`. Placement rules in docs/design/copy-review.md.
+- **Mirrored HDMI risk:** if the host laptop mirrors its screen to the TV, the room sees the answers. The console has a "Hide answers on this screen" switch; the release run sheet should tell hosts to use an extended display.
+
 ## B0 foundation: findings (2026-11-23)
 
 Built against TECH-SPEC as changed by PR 5 (hosted only). None of these change a contract type; they are details the spec left open, recorded so later threads find them.
@@ -133,7 +148,7 @@ Built against TECH-SPEC as changed by PR 5 (hosted only). None of these change a
 - **Additions to `src/shared/`** (new exports, no changed types): `PHASES`, `COMMAND_NAMES`, `TEAM_COMMANDS`, `View`, `Flash` (typed from the prose in 10.4), `emptyLines()`, `DEFAULT_QUIZ_SETTINGS`, `defaultTheme()`, `defaultVenue()`, `HOLDING_PANELS`, `BUNDLED_FONTS`. `validateQuiz(json, { folderId?, mediaExists? })` takes an optional second argument for the folder-name and image checks; `validateTheme` and `validateVenue` return `{ ok: true, value } | { ok: false, problems }`. Missing settings, theme fields and venue fields take their defaults; wrong values are problems.
 - **Spec gap for B1:** `EngineState.lines` in 7.5 uses a `Line` type that is not defined anywhere. B1 owns that file and should define it (probably `string`).
 - **`ws-client.js` behaviour the spec did not fix:** reconnecting stops after `bye` with `moved`, `removed`, `signed_out` or `protocol`, and carries on after `night_closed`. A new `welcome` resets `seq` ordering, so a restarted server's first state always renders. When the page URL has `?fixture=`, it is passed on to `/ws` for the fixture server.
-- **Placeholders until other threads land:** `/static/shared/tokens.css` serves `public/shared/tokens.placeholder.css` (Design's token names and default values) until `docs/design/tokens.css` is merged; host pages link `/theme.css`, which answers 404 until B4, so browsers log a harmless stylesheet warning.
+- **Design files served by B0:** `/static/shared/tokens.css` is `docs/design/tokens.css`; `/static/fonts/<id>.woff2` is `docs/design/fonts/<id>-400.woff2` (Design's files carry a weight, the spec names fonts by id), and other files in `docs/design/fonts/` by their own names; `/static/logo/<file>` is `docs/design/logo/`. The theme validator follows `branding.md`: any bundled font can be the display font, only `atkinson-hyperlegible` the body font. Host pages link `/theme.css`, which answers 404 until B4, so browsers log a harmless stylesheet warning until then.
 
 ## Open questions
 

@@ -63,16 +63,28 @@ export function safeRelative(path: string): string | null {
   return segs.join("/");
 }
 
-/** Design's tokens until docs/design/tokens.css is merged (TECH-SPEC 9.1). */
+/** The default theme: Design's tokens, served at /static/shared/tokens.css (TECH-SPEC 9.1). */
 export const TOKENS_PATH = "docs/design/tokens.css";
-export const TOKENS_PLACEHOLDER = "public/shared/tokens.placeholder.css";
 
-/** Maps a /static/... URL path to a repo-relative file path, or null. */
+/**
+ * Maps a /static/... URL path to a repo-relative file path, or null.
+ *   shared/tokens.css   -> docs/design/tokens.css
+ *   fonts/<id>.woff2    -> docs/design/fonts/<id>-400.woff2 (TECH-SPEC 5.3 names fonts by id);
+ *   fonts/<file>        -> docs/design/fonts/<file> (e.g. atkinson-hyperlegible-700.woff2, OFL-*.txt)
+ *   logo/<file>         -> docs/design/logo/<file> (the Lock-In mark)
+ *   anything else       -> public/<path>
+ */
 export function staticPath(rest: string, files: FileSource): string | null {
   const rel = safeRelative(rest);
   if (!rel) return null;
-  if (rel === "shared/tokens.css") return files.exists(TOKENS_PATH) ? TOKENS_PATH : TOKENS_PLACEHOLDER;
-  if (rel.startsWith("fonts/")) return `docs/design/${rel}`;
+  if (rel === "shared/tokens.css") return TOKENS_PATH;
+  if (rel.startsWith("fonts/")) {
+    const exact = `docs/design/${rel}`;
+    const byId = /^fonts\/([a-z0-9-]+)\.woff2$/.exec(rel);
+    if (!files.exists(exact) && byId) return `docs/design/fonts/${byId[1]}-400.woff2`;
+    return exact;
+  }
+  if (rel.startsWith("logo/")) return `docs/design/${rel}`;
   return `public/${rel}`;
 }
 

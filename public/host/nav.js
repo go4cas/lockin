@@ -17,7 +17,13 @@
   const home = document.createElement("a");
   home.href = "/host";
   home.className = "host-brand";
-  home.textContent = "Lock-In";
+  const mark = document.createElement("img");
+  mark.src = "/static/logo/lockin-mark.svg";
+  mark.alt = "";
+  mark.width = 30;
+  mark.height = 36;
+  home.appendChild(mark);
+  home.appendChild(document.createTextNode("Lock-In"));
   nav.appendChild(home);
 
   const list = document.createElement("ul");

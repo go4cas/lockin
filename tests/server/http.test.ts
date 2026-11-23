@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { PAGE_CSP, Router } from "../../src/server/http.ts";
-import { TOKENS_PATH, TOKENS_PLACEHOLDER, diskSource, safeRelative, staticPath } from "../../src/server/static.ts";
+import { TOKENS_PATH, diskSource, safeRelative, staticPath } from "../../src/server/static.ts";
 import { startTestServer, type TestServer } from "../helpers/server.ts";
 
 let s: TestServer;
@@ -64,13 +64,23 @@ describe("static files (TECH-SPEC 9.1, 4.5)", () => {
     expect(again.status).toBe(304);
   });
 
-  test("/static/shared/tokens.css is Design's file, or the placeholder until it is merged", async () => {
+  test("/static/shared/tokens.css is Design's docs/design/tokens.css", async () => {
     const res = await s.fetch("/static/shared/tokens.css");
     expect(res.status).toBe(200);
-    const files = diskSource();
-    const expected = files.exists(TOKENS_PATH) ? TOKENS_PATH : TOKENS_PLACEHOLDER;
-    expect(await res.text()).toBe(readFileSync(expected, "utf8"));
+    expect(await res.text()).toBe(readFileSync(TOKENS_PATH, "utf8"));
     expect(res.headers.get("content-type")).toBe("text/css; charset=utf-8");
+  });
+
+  test("bundled fonts are served by id and by file name, and the logo from docs/design", async () => {
+    const byId = await s.fetch("/static/fonts/caveat-brush.woff2");
+    expect(byId.status).toBe(200);
+    expect(byId.headers.get("content-type")).toBe("font/woff2");
+    expect(new Uint8Array(await byId.arrayBuffer())).toEqual(new Uint8Array(readFileSync("docs/design/fonts/caveat-brush-400.woff2")));
+    expect((await s.fetch("/static/fonts/atkinson-hyperlegible-700.woff2")).status).toBe(200);
+    expect((await s.fetch("/static/fonts/OFL-caveat-brush.txt")).status).toBe(200);
+    const logo = await s.fetch("/static/logo/lockin-mark.svg");
+    expect(logo.status).toBe(200);
+    expect(logo.headers.get("content-type")).toBe("image/svg+xml");
   });
 
   test("refuses paths that leave public/", async () => {

@@ -115,8 +115,10 @@ export const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
 
 export const HOLDING_PANELS: readonly HoldingPanel[] = ["countdown", "teams", "join", "install", "animation", "prizes"];
 
-/** Bundled font ids (Design, docs/design/fonts). Display may use any; body defaults to atkinson-hyperlegible. */
+/** Bundled font ids (Design, docs/design/branding.md). Display may use any of them. */
 export const BUNDLED_FONTS: readonly string[] = ["caveat-brush", "alfa-slab-one", "bebas-neue", "atkinson-hyperlegible"];
+/** The only bundled body font (Design, docs/design/branding.md). */
+export const BUNDLED_BODY_FONTS: readonly string[] = ["atkinson-hyperlegible"];
 
 export function defaultTheme(): ThemeFile {
   return {
@@ -444,11 +446,14 @@ function assetPath(v: unknown, exts: string[]): boolean {
   return exts.includes(ext);
 }
 
-function validateFont(v: unknown, path: string, label: string, add: (p: string, m: string) => void): FontRef | null | undefined {
+function validateFont(v: unknown, path: string, label: "display" | "body", add: (p: string, m: string) => void): FontRef | null | undefined {
   if (v === null || v === undefined) return null;
   if (isObj(v) && typeof v.bundled === "string") {
-    if (BUNDLED_FONTS.includes(v.bundled)) return { bundled: v.bundled };
-    add(path, `The ${label} font "${v.bundled}" is not one of Lock-In's bundled fonts.`);
+    const allowed = label === "body" ? BUNDLED_BODY_FONTS : BUNDLED_FONTS;
+    if (allowed.includes(v.bundled)) return { bundled: v.bundled };
+    add(path, label === "body" && BUNDLED_FONTS.includes(v.bundled)
+      ? `"${v.bundled}" is a headline font. The body font must be Atkinson Hyperlegible or an uploaded font.`
+      : `The ${label} font "${v.bundled}" is not one of Lock-In's bundled fonts.`);
     return undefined;
   }
   if (isObj(v) && v.file !== undefined) {
