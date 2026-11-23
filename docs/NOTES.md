@@ -69,6 +69,13 @@ How the devices connect (explained to Cas): no device talks to another device di
 - **Tie rule for positions:** if teams are level on points, the team with more round wins ranks higher; if still level, they share the position. Interviewer's note: "round win" needs defining (suggest: highest score in that round, joker included, shared top scores count as a win for each).
 - **Configurable (both):** whether sudden death applies to first place only or to other places too, and whether a closest-number question scores the closest team only or every team within a range.
 
+### 8. Joining and team names (2026-11-23)
+
+- **No name approval or rude-word filter.** The QM can rename a team from the console.
+- **A second phone joining an existing team** either joins as a viewer or gets a "this team already has a phone" message; **configurable**. Default to be set by Requirements (interviewer suggests viewer, since teammates will want to see the question).
+- **Replacing a team's phone:** the team's phone shows a short rejoin code, and the host can also move a team to a new phone from the console. The team keeps its name, answers and score.
+- **No late joining.** The night has explicit **Quiz Start** and **Quiz End** events. Joining is open before Quiz Start and closed after it (rejoining an existing team still works). Quiz End closes the night and is the point where results are saved to history (topic 5).
+
 ## Open questions
 
 - **How much is configurable for the pilot?** Cas answered "configurable" to many questions (team count, rounds, questions, lock mode, closest-number scoring, sudden-death scope and length). Each option needs a sensible default so a non-technical host never has to touch settings, and Requirements should decide which options ship for the pilot and which stay fixed at the default until later.
