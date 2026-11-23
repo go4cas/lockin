@@ -15,7 +15,7 @@ This is the feature list for Lock-In. It turns the candidate features in [BRIEF.
 
 ### IDs and sources
 
-Features are grouped by screen and numbered: `S` shared and server, `H` host console, `T` TV display, `P` team phone. IDs are stable: a cut feature keeps its number and moves rank instead of being renumbered. Each feature names its source: `B` for the brief, `N3` for topic 3 of the interview notes, and `R` for features agreed during the Requirements thread.
+Features are grouped by screen and numbered: `S` shared and server, `H` host console, `T` TV display, `P` team phone. IDs are stable: a cut feature keeps its number and moves rank instead of being renumbered. Each feature names its source: `B` for the brief, `N3` for topic 3 of the interview notes, `R` for features proposed in the Requirements thread and agreed by Cas, and `C` for features Cas added during the Requirements thread (2026-11-23).
 
 Every MVP feature has a user story and "Done when" criteria. Each criterion is meant to be checkable by Review, by a test or by a short manual run-through.
 
@@ -49,6 +49,9 @@ A non-technical host must be able to run a night without opening a settings scre
 | Maximum sudden-death questions | 1 to 10 | 3 | N7 |
 | Closest-number scoring | Closest team only, every team within a range | Closest team only | N7 |
 | Prizes (venue, editable per night) | Free text per place, or none | None | N5 |
+| Holding page starts (venue) | 0 to 120 minutes before the planned start | 30 minutes | C |
+| Holding page panels (venue) | Countdown, teams, how to join, home-screen guide, brand animation, prizes | All on | C |
+| Planned start time (per night) | A time, or none | None | C |
 
 Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed never affects score, the joker doubles a round's points, joining closes at Quiz Start, the position tie rule (S-07), and how typed answers are auto-marked (H-10).
 
@@ -69,20 +72,21 @@ Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed
 | S-11 | Capacity | MVP |
 | H-01 | Quiz library | MVP |
 | H-02 | Quiz builder | MVP |
-| H-03 | Question types | MVP |
+| H-03 | Question media and answer types | MVP |
 | H-04 | Spelling check in the builder | MVP |
 | H-05 | Open a night and run the lobby | MVP |
 | H-06 | Manage teams | MVP |
 | H-07 | Quiz Start and Quiz End | MVP |
 | H-08 | Run questions and the timer | MVP |
 | H-09 | Run a per-round lock | MVP |
-| H-10 | Marking and the review queue | MVP |
+| H-10 | Marking, moderation and the review queue | MVP |
 | H-11 | Reveal and leaderboard | MVP |
 | H-12 | Halftime | MVP |
 | H-13 | Change a mark (disputes) | MVP |
 | H-14 | Sudden death | MVP |
 | H-15 | Prizes | MVP |
 | H-16 | Venue branding | MVP |
+| H-17 | Pre-quiz holding page settings | MVP |
 | T-01 | Open the TV display | MVP |
 | T-02 | Lobby | MVP |
 | T-03 | Question | MVP |
@@ -94,6 +98,7 @@ Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed
 | T-09 | Winner and goodbye | MVP |
 | T-10 | Venue theme and credit | MVP |
 | T-11 | Reconnecting | MVP |
+| T-12 | Pre-quiz holding page | MVP |
 | P-01 | Join a team | MVP |
 | P-02 | Second phone on a team | MVP |
 | P-03 | Waiting screens | MVP |
@@ -103,6 +108,7 @@ Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed
 | P-07 | Score and position | MVP |
 | P-08 | Offline and rejoin | MVP |
 | P-09 | Sudden death | MVP |
+| P-10 | Add to home screen | MVP |
 
 Launch, Later and Won't items are listed at the end of each screen's section.
 
@@ -170,7 +176,7 @@ As a team, I want simple, fair scoring, so that I always know what a question is
 
 Done when:
 - A correct answer scores 1 point. A wrong or missing answer scores 0. There is no negative marking and speed never affects score.
-- Closest-number questions score as set for the quiz (default: the closest team scores, and teams sharing the closest distance all score; option: every team within the question's range scores).
+- Closest-number questions (and date or time questions set to closeness) score as set for the quiz (default: the closest team scores, and teams sharing the closest distance all score; option: every team within the question's range scores).
 - A team's points in its joker round count double, including after any mark is changed.
 - With the joker on, each team can play it once per night, on any round including the last, before that round starts.
 - Sudden-death questions do not add to a team's score; they only decide the tied position.
@@ -266,16 +272,27 @@ Done when:
 - The builder works on a laptop and a tablet, with no hand-editing of Markdown or JSON.
 - Questions cannot be edited while a night using that quiz is running (N6).
 
-#### H-03 Question types (MVP · B)
+#### H-03 Question media and answer types (MVP · B, C)
 
-As a QM, I want the question types a real pub quiz uses, so that I can write the rounds I already run.
+As a QM, I want the question and answer types a real pub quiz uses, so that I can write the rounds I already run.
 
-Done when the builder supports:
-- **Typed answer**: question text and one correct answer. More accepted answers can be added in the builder or while marking (H-10).
-- **Multiple choice**: question text, 2 to 6 options, one correct option.
-- **Picture**: an uploaded image (JPEG, PNG or WebP, resized for the TV) with a typed or multiple-choice answer.
-- **Closest number**: question text and a numeric answer; with "within range" scoring, the range is set per question.
-- Each question can also have an optional host-only note (for example a pronunciation or a source).
+A question is its text plus optional media, and one answer type. Any media can go with any answer type.
+
+Done when the builder supports this question media:
+- **Text only.**
+- **Image**: an uploaded image (JPEG, PNG or WebP, resized for the TV) shown with the question.
+- (Sound and video clips are Launch, H-24 and H-25.)
+
+And these answer types:
+- **Free text**: one correct answer. More accepted answers can be added in the builder or while marking (H-10).
+- **Multiple choice**: 2 to 6 options, one correct option.
+- **Number**: a numeric answer, marked exact (correct or wrong).
+- **Closest number**: a numeric answer scored by closeness (S-06); with "within range" scoring, the range is set per question.
+- **Date or time**: the answer is a year, a date, or a time of day, chosen per question; the phone shows a matching input, and it is marked exact, or scored by closeness like closest number if the QM picks that.
+
+And:
+- Each question can have an optional host-only note (for example a pronunciation or a source).
+- The quiz file format (S-09) leaves room for more media and answer types without breaking existing quizzes.
 
 #### H-04 Spelling check in the builder (MVP · N6)
 
@@ -297,6 +314,7 @@ Done when:
 - The host console shows the room code, the join QR code, the TV address, and each team as it joins (name, colour, number of phones).
 - Only one night runs at a time on one Lock-In.
 - Prizes for the night can be set or changed here (H-15).
+- The host can set the night's planned start time, which drives the holding page countdown (H-17). It is optional; without it, the holding page shows no countdown.
 
 #### H-06 Manage teams (MVP · N8, R)
 
@@ -337,15 +355,16 @@ Done when:
 - After the last question, the host starts the round timer (the quiz's timer length) or locks the round straight away.
 - When the round locks, all its answers lock together and the "answers locked" moment plays once.
 
-#### H-10 Marking and the review queue (MVP · B, N1, N6, R)
+#### H-10 Marking, moderation and the review queue (MVP · B, N1, N6, R, C)
 
 As a host, I want the obvious answers marked for me and the borderline ones put in front of me, so that I mark each distinct answer only once.
 
 Done when:
-- Multiple-choice and closest-number answers are marked automatically when they lock.
+- Multiple-choice, number, closest-number and date or time answers are marked automatically when they lock.
 - A typed answer that exactly matches an accepted answer after normalising (case, spaces, punctuation, accents and a leading "the", "a" or "an") is marked correct automatically.
 - Every other typed answer goes to the review queue, grouped by distinct normalised answer, and close matches (fuzzy matching) are shown first with the nearest accepted answer.
 - Accepting an answer adds it to the question's accepted answers and marks every team that gave the same normalised answer on that question correct. Rejecting marks them all wrong.
+- The QM moderates equivalent answers that no fuzzy match would catch, such as "JFK" for "John F Kennedy": accepting "JFK" once marks every team that typed "JFK" (or "J.F.K.") correct on that question.
 - The host can mark during a round (any locked question) or at the end of a round; both work in the same quiz.
 - The round cannot be revealed until every answer in it is marked; the console shows how many are left.
 - Accepted answers added while marking are saved back to the quiz file.
@@ -387,13 +406,23 @@ Done when:
 - After the maximum number of sudden-death questions (default 3), or if the tiebreak list runs out, the teams share the position.
 - With more than two teams tied, a right answer from more than one team removes only the teams that were wrong, and sudden death goes on among the rest.
 
-#### H-15 Prizes (MVP · N5)
+#### H-17 Pre-quiz holding page settings (MVP · C)
+
+As a venue, I want the TV and phones to show a holding page before the quiz starts, so that the room knows when it starts and teams are ready on time.
+
+Done when:
+- The holding page shows from a set number of minutes before the planned start (venue setting, default 30) until Quiz Start; before that the TV shows the plain lobby (T-02).
+- The venue chooses which panels it shows: countdown to the planned start, registered teams, how to join, how to add Lock-In to the phone's home screen (an animated guide, P-10), a brand animation, and prizes. All are on by default; panels with nothing to show (no prizes, no start time) are skipped.
+- The panel set is open to more panels later without a new setting screen design.
+- A night opened less than the set minutes before its start goes straight to the holding page.
+
+#### H-15 Prizes (MVP · N5, C)
 
 As a host, I want to show the night's prizes, so that teams know what they are playing for.
 
 Done when:
 - The host can enter optional prize text for one or more places (for example "1st: a bar tab"), set per venue and editable per night.
-- The TV shows them in the lobby, at halftime and at the winner moment. With no prizes set, nothing about prizes shows.
+- The TV shows them in the lobby, on the holding page, at halftime and at the winner moment. Team phones show them in the lobby, at halftime and at the end of the night. With no prizes set, nothing about prizes shows.
 - The app does not award or track prizes.
 
 #### H-16 Venue branding (MVP · B, N9)
@@ -416,16 +445,16 @@ Done when:
 | H-21 | Hall of fame | Launch | B, N5 |
 | H-22 | Theme export and import | Launch | N9 |
 | H-23 | Edit copy pools in the branding screen | Launch | N9, R |
-| H-24 | Music round with audio clips, with a "this round needs sound in the room" message | Later | B, N3 |
-| H-25 | Video round, with the same sound message | Later | N3 |
+| H-24 | Sound clips in questions (music rounds), with a "this round needs sound in the room" message in the builder | Launch | B, N3, C |
+| H-25 | Video clips in questions, with the same sound message | Launch | N3, C |
 | H-26 | Picture revealed bit by bit | Later | B |
 | H-27 | Wager rounds | Later | B |
 | H-28 | Bonus questions worth more than 1 point | Later | N7 |
 | H-29 | Paper mode: type in scores from paper sheets | Later | B |
 | H-30 | Import questions from the Open Trivia DB or other formats | Later | B, N6 |
 | H-31 | Grammar check in the builder | Later | N6, R |
-| H-32 | AI question generator, host reviews every question; optional, needs internet and an API key kept out of the repo | Later | B, N6 |
-| H-33 | AI check of questions and answers for accuracy, same conditions | Later | N6 |
+| H-32 | AI question generator, the QM reviews every question; optional, needs internet and an API key kept out of the repo | Launch | B, N6, C |
+| H-33 | AI verifier: checks the QM's questions and answers for accuracy, same conditions | Launch | N6, C |
 | H-34 | Editing questions during a night | Won't | N6 |
 | H-35 | Name approval or a rude-word filter | Won't | N8 |
 | H-36 | Awarding or tracking prizes | Won't | N5 |
@@ -454,6 +483,16 @@ As a team arriving at the pub, I want the TV to show me how to join, so that I c
 Done when:
 - The TV shows a QR code and the room code, large enough to scan and read from across the room, plus the joined teams in their colours.
 - It shows `lobby` and `team_joined` lines, and prizes when set.
+
+### T-12 Pre-quiz holding page (MVP · C)
+
+As a team arriving early, I want the TV to show when the quiz starts and how to get ready, so that we are set up before the first question.
+
+Done when:
+- From the set time before the planned start (H-17) until Quiz Start, the TV shows the holding page with the panels the venue chose, rotating or side by side as Design sets, while the join QR code and room code stay on screen.
+- The countdown matches the server's clock to within 1 second (plus TV lag), and shows "starting soon" once it passes zero until the host presses Quiz Start.
+- The home-screen guide is a short looping animation (GIF or CSS) for iPhone and Android, bundled with Lock-In, so it needs no internet in local mode.
+- It needs no interaction and uses only basic CSS, like every TV screen (T-01).
 
 ### T-03 Question (MVP · B)
 
@@ -537,7 +576,7 @@ Done when:
 | ID | Feature | Rank | Source |
 |---|---|---|---|
 | T-20 | League table and hall of fame screens | Launch | B, N5 |
-| T-21 | Music and video playback | Later | B, N3 |
+| T-21 | Sound and video playback on the TV (with H-24, H-25) | Launch | B, N3, C |
 | T-22 | Interaction on the TV (remote control input) | Won't | N3 |
 
 ---
@@ -572,6 +611,7 @@ As a team, I want the phone to show what is happening between questions, so that
 
 Done when:
 - The phone shows a clear state for the lobby, waiting for the next question, marking, reveal, leaderboard, halftime and the end of the night.
+- Before Quiz Start, the phone shows the countdown to the planned start (when set), the prizes (when set) and a link to the home-screen guide (P-10).
 
 ### P-04 Play the joker (MVP · B, N7)
 
@@ -588,7 +628,7 @@ Done when:
 As a team, I want to type or tap our answer and change it until the lock, so that we can argue it out at the table.
 
 Done when:
-- The phone shows the question text, the timer and an input fitting the type: a text box for typed answers, buttons for multiple choice, a number box for closest number. Picture questions show the picture.
+- The phone shows the question text, the timer and an input fitting the answer type: a text box for free text, buttons for multiple choice, a number box for number and closest number, and a year, date or time picker for date or time. Questions with an image show the image.
 - The team can change its answer any number of times before the lock; the phone shows the answer the server has received.
 - In per-round lock mode, the team can move between the round's open questions and answer them in any order.
 - The phone works one-handed in a dim room: dark by default, text readable at arm's length, tap targets at least 44 px.
@@ -626,13 +666,24 @@ Done when:
 - Only tied teams can answer each sudden-death question; their phone shows it like P-05.
 - Other phones show that sudden death is on and which teams are in it.
 
+### P-10 Add to home screen (MVP · C)
+
+As a team that comes every week, I want Lock-In as an icon on my phone's home screen, so that it opens full screen like an app without a store.
+
+Done when:
+- The phone page is an installable web app (PWA): it has a web app manifest and icons, and opens full screen from the home screen on iPhone (Safari) and Android (Chrome), using the venue's name and logo.
+- Installing it is optional: joining in the browser (P-01) works exactly the same without it.
+- Opening it from the home screen goes to the current venue's join page, or straight back into the team's night if it is still running (S-05).
+- A guide on the phone and on the holding page (T-12) shows how to add it on iPhone and Android.
+- It does not queue answers offline (that is Later, P-20).
+
 ### Team phone: Launch, Later and Won't
 
 | ID | Feature | Rank | Source |
 |---|---|---|---|
 | P-20 | Queue answers offline and sync late (with S-22) | Later | N4 |
 | P-21 | Anti-Googling: flag a team that leaves the quiz tab | Later | B |
-| P-22 | An app to install | Won't | B |
+| P-22 | An app from an app store, or any install needed to play | Won't | B |
 | P-23 | One player per phone, Kahoot-style | Won't | B |
 | P-24 | Late joining of new teams after Quiz Start | Won't | N8 |
 
@@ -657,4 +708,6 @@ These apply to all MVP features and are checked by Review on any PR that touches
 - **Host on the TV laptop or a separate device.** Architecture analyses this before Design commits to a console layout (N3).
 - **Host laptop platforms.** S-01 assumes Windows x64 and macOS arm64 for local mode. Cas to confirm what the pilot laptop runs.
 - **Server restart mid-night.** S-05 reads "teams rejoin without losing their score" as also covering a server restart, so accepted answers, marks and scores are saved as they happen. Architecture to confirm the cost.
+- **Sound, video and AI for the pilot?** Cas added sound and video clip questions, the AI question generator and the AI verifier. They are ranked Launch here because sound needs speakers the pilot pub may not have (N3) and AI needs internet and an API key (N6). Cas to confirm, or move any of them to MVP.
+- **Requirements-thread proposals (`R`).** Host login, removing a team, pausing or extending the timer, copy-pool editing and theme export at Launch, browser spellcheck with grammar check Later, and the defaults table were proposed to Cas on 2026-11-23 and not objected to. Cas to confirm in review.
 - **Smart-TV support list.** T-01 leaves the list of supported TV browsers and casting setups to Architecture, checked on real hardware before `v1.0.0`.

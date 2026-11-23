@@ -93,6 +93,13 @@ What matters here: Lock-In is a server app that venues self-host or that someone
 - **MIT or Apache-2.0.** Anyone can do anything, including a closed paid service built on it. Most adoption and least friction; Apache-2.0 adds a patent grant. Choose this if wide reuse matters more than keeping improvements open.
 - **MPL-2.0.** A middle ground: changes to Lock-In's own files must be shared when distributed, but the network-service loophole stays open, so it does not stop a closed hosted service.
 
+## Requirements decisions (2026-11-23)
+
+- **MVP means the pilot** (`v1.0.0`). Ranks are MVP, Launch (needed before the public launch), Later and Won't (Cas chose this on the Requirements thread).
+- **Cas added:** more answer types (free text, multiple choice, number, closest number, date or time); image, sound and video questions; the AI question generator and AI verifier; QM moderation of equivalent free-text answers ("JFK" for "John F Kennedy"); a configurable pre-quiz holding page (countdown, registered teams, a guide to adding Lock-In to the phone's home screen, a brand animation); prizes on TV and phones.
+- **Ranking proposed, pending Cas:** image questions, the new answer types, moderation, the holding page, the home-screen (PWA) install and prizes on phones are MVP. Sound and video questions and both AI features are Launch, because sound needs speakers (topic 3) and AI needs internet and an API key (topic 6).
+- **Proposed by Requirements, not objected to:** host login, removing a team, pausing or extending the timer, copy-pool editing and theme export moved to Launch, browser spellcheck for the pilot with grammar check Later, and the defaults table in REQUIREMENTS.md.
+
 ## Open questions
 
 - **Licence.** Cas chose to decide later. Recommendation is AGPL-3.0 (see topic 9). Until a licence is added, the public repo is "all rights reserved" by default, so outsiders cannot legally reuse or contribute; settle it before inviting contributors and before `v1.0.0`.
