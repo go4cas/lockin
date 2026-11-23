@@ -51,6 +51,14 @@ How the devices connect (explained to Cas): no device talks to another device di
 - **Keep event history from day 1.** Every night's teams, scores and results are stored from the first pilot night, so a later league or hall of fame has real data. Affects the data model from B0 onward even though no league screens exist yet.
 - **Reusing teams and members across nights is a bonus** (nice to have, not pilot).
 
+### 6. The questions (2026-11-23)
+
+- **A regular quizmaster (QM) writes the questions, a couple of days ahead.**
+- **They are written on paper today.** So the QM types every question into Lock-In: the quiz builder must be a friendly screen a non-technical QM can use, not hand-edited Markdown or JSON. Plain files can still be the stored format, written by the builder. Import from other formats is not a pilot need.
+- **No editing questions on the night.** Instead, a spelling and grammar check in the builder is a wanted feature, so mistakes are caught before the night.
+- **Acceptable alternatives for typed answers are added by the QM while marking**, not listed up front. Interviewer's note: once the QM accepts an answer, the same (or fuzzily same) answer from other teams on that question should be accepted too, so the QM marks each distinct answer once.
+- **AI help is wanted (interviewer suggests Later):** generating questions, and a new idea, checking the accuracy of the QM's questions and answers. The brief already lists an optional AI generator with host review. Points for Requirements/Architecture: it needs internet and an API key (a secret, so never in the repo), and it must stay optional so local mode and offline nights work without it.
+
 ## Open questions
 
 - **MVP = pilot or launch?** Cas has two milestones. Suggest Requirements ranks Pilot / Launch / Later / Won't, or defines MVP as pilot and lists launch items separately. Raise with Cas in the Requirements thread.
