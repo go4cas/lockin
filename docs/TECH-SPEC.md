@@ -328,12 +328,13 @@ export interface ThemeFile {
   copy: Record<string, { mode: "replace" | "add"; lines: string[] }>;  // key = copy pool key
 }
 export type Hex = string;                      // "#rrggbb", sRGB
-export type FontRef = { bundled: string }      // a font id listed in docs/design/branding.md
+export type FontRef = { bundled: string }      // display: "caveat-brush" (default), "alfa-slab-one", "bebas-neue",
+                                               //   "atkinson-hyperlegible"; body: "atkinson-hyperlegible" (default)
                     | { file: string };        // "assets/<file>", WOFF2, WOFF or TTF <= 2 MB
 ```
 
 - **`GET /theme.css`** is generated from the theme file: resolved `--brand-*` custom properties (derived colours such as surfaces, muted text, text-on-accent and lines are computed on the server as sRGB mixes using Design's formulas, because old TV engines have no `color-mix()`) and `@font-face` rules for uploaded fonts. Pages load `/static/shared/tokens.css` (the default theme) and then `/theme.css` on top.
-- Theme asset files are served from `/theme/assets/<file>`.
+- Theme asset files are served from `/theme/assets/<file>`. Bundled fonts are the WOFF2 files in `docs/design/fonts/` (OFL licensed, licences shipped alongside), embedded in the binary and served from `/static/fonts/<id>.woff2`.
 - Every view carries `venue.themeVersion` (a hash of `theme.json`); when it changes, pages reload `/theme.css?v=<version>` (H-16 "from the next screen they show").
 - Readability warnings (H-16) are computed on the branding screen with the contrast rules in `docs/design/`.
 - Theme export and import (H-22, Launch) will zip `theme/`; nothing in the format stops that.
@@ -359,7 +360,8 @@ Unknown panel names are ignored, so more panels can be added later (H-17).
 ### 5.5 Copy pools
 
 - The default pools are `docs/brand/copy.en.json` (embedded in the binary). The theme's `copy` replaces or adds to any pool by key.
-- The engine asks for lines by **pool key**. Keys used by the engine: `lobby`, `team_joined`, `round_start`, `last_seconds`, `locked`, `all_locked`, `no_answer`, `joker_played`, `reveal`, `lead_change`, `big_climb`, `close_race`, `halftime`, `tie_breaker`, `sudden_death`, `winner`, `last_place`, `goodbye`. Design is splitting `tiebreak` into `tie_breaker` and `sudden_death`; until that lands, a missing pool falls back to `tiebreak`, and a missing pool with no fallback gives no line (the screen shows without one).
+- The engine asks for lines by **pool key**. Keys used by the engine (Design's copy review, `docs/design/copy-review.md`): `lobby`, `team_joined`, `round_start`, `last_seconds`, `locked`, `all_locked`, `no_answer`, `joker_played`, `reveal`, `lead_change`, `big_climb`, `close_race`, `halftime`, `tie_breaker`, `sudden_death`, `sudden_death_again` (everyone right or everyone wrong, next question follows), `sudden_death_won` (`{team}` took the place), `sudden_death_shared` (still tied after the maximum), `winner`, `winner_shared` (`{team}` is the names joined as "A, B and C"), `last_place`, `goodbye`. The old `tiebreak` pool is gone. A missing pool gives no line (the screen shows without one).
+- **Selection rules:** a line containing `{n}` is skipped when `n < 2`. A leaderboard shows at most one line, chosen in this order: `tie_breaker` (only when the tie breaker decided 1st place), `lead_change` (1st place changed hands), `close_race` (top two within 1 point), `big_climb` (a team rose 3 or more places since the last leaderboard).
 - Lines are picked on the server (B4's `CopyPicker`, section 8.6), so the TV and phones agree and "never the same line twice in a row" holds per pool for the whole night.
 
 ---
@@ -610,7 +612,7 @@ export interface Rules {
   resolveSuddenDeath(teamIds: string[], rightIds: string[]):
     { winner: string | null; remaining: string[] };
   leaderboardLine(before: StandingRow[] | null, after: StandingRow[]):
-    "lead_change" | "big_climb" | "close_race" | null;
+    "tie_breaker" | "lead_change" | "close_race" | "big_climb" | null;   // priority order in 5.5
 }
 
 export interface AnswerGroup {
@@ -685,7 +687,7 @@ export interface CopyPicker {
 }
 ```
 
-It merges the default pools with the theme's `copy`, skips lines whose placeholders have no value, avoids the index in `last[key]` when the pool has more than one usable line, and fills the placeholders. The engine stores the returned index in `copyLast`.
+It merges the default pools with the theme's `copy`, skips lines whose placeholders have no value and lines with `{n}` when `n < 2`, avoids the index in `last[key]` when the pool has more than one usable line, and fills the placeholders. The engine stores the returned index in `copyLast`.
 
 ---
 
@@ -879,7 +881,9 @@ export interface SuddenDeathPublic {
 export interface Lines {           // copy lines per screen slot (10.4); null = show no line
   lobby: string | null; round: string | null; question: string | null; locked: string | null;
   reveal: string | null; leaderboard: string | null; halftime: string | null;
-  suddenDeath: string | null; winner: string | null; lastPlace: string | null; goodbye: string | null;
+  suddenDeath: string | null;      // sudden_death at the start, then sudden_death_again / _won / _shared after each reveal
+  winner: string | null;           // winner, or winner_shared for a shared first place
+  lastPlace: string | null; goodbye: string | null;
 }
 
 export interface TvView extends Common {
@@ -950,7 +954,7 @@ export interface HostView extends Common {
 
 ### 10.4 Lines and flashes
 
-- **Lines** are copy lines tied to the screen the room is looking at. The engine picks a new line when a screen starts (for example `lines.locked` when a question locks: from `all_locked` if every team answered, else from `locked`) and keeps it while that screen is up, so a reconnecting TV shows the same line. `lines.question` holds the `round_start` line until the first question, then the `last_seconds` line in the last 10 s. `lines.leaderboard` comes from `leaderboardLine`. `lines.lobby` is renewed every 45 s while in the lobby.
+- **Lines** are copy lines tied to the screen the room is looking at. The engine picks a new line when a screen starts (for example `lines.locked` when a question locks: from `all_locked` if every team answered, else from `locked`) and keeps it while that screen is up, so a reconnecting TV shows the same line. `lines.question` holds the `round_start` line until the first question, then the `last_seconds` line in the last 10 s. `lines.leaderboard` comes from `leaderboardLine` (priority in 5.5). `lines.lobby` is renewed every 45 s while in the lobby.
 - **Flashes** are short events: `{ id: number; key: "team_joined" | "joker_played" | "no_answer"; line: string; teamId: string | null; at: number }`. A client shows a flash once when its `id` is new and drops it after 6 s. A `no_answer` flash is only in the view of the team concerned.
 
 ### 10.5 Command acknowledgements
@@ -1157,7 +1161,7 @@ Done when:
 - Asset uploads (logo, TV background, fonts) are checked by type and size, stored under generated names, and served per 12.4.
 - The branding page (`public/host/brand/`) sets name, logo, the four colours, fonts (bundled list or upload) and TV background, shows a live TV and phone preview, and warns (without blocking) on failed contrast rules.
 - The venue page sets default prizes and the holding page minutes and panels.
-- `CopyPicker` (8.6) merges default and theme pools, fills placeholders, skips lines with missing values, never repeats the last line, and falls back from `tie_breaker`/`sudden_death` to `tiebreak`; tested.
+- `CopyPicker` (8.6) merges default and theme pools, fills placeholders, skips lines with missing values and `{n}` lines when `n < 2`, and never repeats the last line; tested.
 
 ### B5 Host console: run the night and history
 
