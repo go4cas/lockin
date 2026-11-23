@@ -102,13 +102,28 @@ What matters here: Lock-In is a server app that venues self-host or that someone
 
 - **Changes on review (Cas, 2026-11-23):** the joker is off by default; one phone per team with no viewer mode (a second phone gets a "this team already has a phone" message), replacing the configurable choice in topic 8; ties are two named steps, the **tie breaker** (most round wins, automatic) and then **sudden death**.
 
+## Architecture decisions and findings (2026-11-23)
+
+Full detail in [TECH-SPEC.md](TECH-SPEC.md).
+
+- **Host setup (N3, settled by Architecture):** the pilot's recommended setup is one laptop on HDMI with the TV as an extended display, plus an optional tablet or phone for the host. The console is designed laptop-first (1280 px) and must work on a tablet (768 px); it assumes it is never shown on the TV, and has an "Open TV screen" button. Several host devices can be signed in at once.
+- **TV support (T-01):** tested before `v1.0.0`: laptop over HDMI, Chrome "Cast tab" to a Chromecast or Google TV, and the pilot pub's own TV browser. Targeted but untested: Samsung Tizen 2018+, LG webOS 4+, Android TV, Fire TV Silk, AirPlay or Miracast extension. TV code follows a Chromium 56 / Safari 11 baseline (no CSS grid, no flex `gap`, no `?.`, classic scripts), enforced by a test.
+- **Server restart (S-05):** confirmed at low cost. Every change is written to SQLite before it is acknowledged.
+- **Theme file:** stores Design's branding inputs (name, logo, four colours, two fonts, TV background, copy overrides); the server expands them into `--brand-*` CSS properties, agreed with Design.
+- **Full views over the WebSocket:** the server sends each client its whole view after every change, which makes reconnecting simple and keeps answers off the TV and other teams' phones.
+
+Findings:
+- **Unsigned binaries warn on first open** (macOS Gatekeeper, Windows SmartScreen), and the first local-mode run asks for firewall permission. Run-sheet steps for the pilot; signing is a Launch decision.
+- **Home-screen install needs HTTPS.** It works in hosted mode (the pilot); in local mode phones get a plain home-screen shortcut.
+- **Round win with all-zero scores:** the spec says such a round has no winner (Cas to confirm).
+
 ## Open questions
 
 - **Licence.** Cas chose to decide later. Recommendation is AGPL-3.0 (see topic 9). Until a licence is added, the public repo is "all rights reserved" by default, so outsiders cannot legally reuse or contribute; settle it before inviting contributors and before `v1.0.0`.
 - **Private pilot repo.** Recommendation is to drop it or keep it for venue data only, never a code fork (topic 9); Cas to confirm.
 - **MVP = pilot or launch?** Cas has two milestones (pilot at `v1.0.0`, then product launch). Requirements should rank Pilot / Launch / Later / Won't, or define MVP as the pilot and list launch items separately.
 - **How much is configurable for the pilot?** Cas answered "configurable" to many questions. Each option needs a sensible default so a non-technical host never touches settings, and Requirements should decide which options ship for the pilot and which stay fixed until later.
-- **Host on the TV laptop or a separate device?** Cas wants both supported, but analysed first (topic 3). Architecture should compare before Design commits to a console layout.
+- **Host on the TV laptop or a separate device?** Analysed by Architecture (see above and TECH-SPEC 1.1): both work; laptop on HDMI is the pilot default.
 - **"Members" vs "no account".** Reusing *members* across nights implies knowing individual players, while the brief says one device per team and no accounts. Decide before team history is designed (Later).
 - **Defaults to confirm:** halftime after round 3; design target of 20 teams (working at 30); second phone joins as a viewer by default; definition of a "round win" for the tie rule.
 - **Brief needs updating:** it says the repo "starts private" (it is public), lists a closest-guess tiebreaker (Cas chose right/wrong sudden death), and does not mention Quiz Start/End, prizes, sudden-death branding, spelling check or AI accuracy checks. The brief is raw material, so Requirements carries these forward rather than editing the brief.
