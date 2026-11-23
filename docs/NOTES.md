@@ -83,7 +83,7 @@ How the devices connect (explained to Cas): no device talks to another device di
 - **A private, branded pilot repo exists.** Interviewer's recommendation (pending Cas's agreement): do not fork the code for the pilot. Treat a venue's branding as data: uploaded through the host's settings screen, stored on the server's data folder as plain files, and covered by backups. A private repo is then only useful, if at all, for the venue's own data (theme files, quiz packs, deploy settings), never a copy of the code. This keeps one codebase and avoids a fork that drifts.
 - **Venue themes are made by non-technical people** (pub staff, designers). So branding needs a settings screen (name, logo, colours, fonts, TV background, copy lines) rather than hand-editing a theme file. The theme file stays the stored format, and can be exported and imported.
 - **The pilot pub uses its own branding**, with the small "Powered by Lock-In" credit.
-- **Licence: pending Cas's choice.** See the recommendation below.
+- **Licence: decide later** (Cas, 2026-11-23). The repo stays public without a licence for now; the recommendation below stands for when it is picked up.
 
 #### Licence recommendation
 
@@ -95,7 +95,7 @@ What matters here: Lock-In is a server app that venues self-host or that someone
 
 ## Open questions
 
-- **Licence.** Recommendation is AGPL-3.0 (see topic 9); Cas to choose. The repo is public without a licence until then.
+- **Licence.** Cas chose to decide later. Recommendation is AGPL-3.0 (see topic 9). Until a licence is added, the public repo is "all rights reserved" by default, so outsiders cannot legally reuse or contribute; settle it before inviting contributors and before `v1.0.0`.
 - **Private pilot repo.** Recommendation is to drop it or keep it for venue data only, never a code fork (topic 9); Cas to confirm.
 - **MVP = pilot or launch?** Cas has two milestones (pilot at `v1.0.0`, then product launch). Requirements should rank Pilot / Launch / Later / Won't, or define MVP as the pilot and list launch items separately.
 - **How much is configurable for the pilot?** Cas answered "configurable" to many questions. Each option needs a sensible default so a non-technical host never touches settings, and Requirements should decide which options ship for the pilot and which stay fixed until later.
