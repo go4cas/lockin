@@ -28,8 +28,8 @@ Every MVP feature has a user story and "Done when" criteria. Each criterion is m
 - **Reveal**: showing the correct answers for a round, after marking.
 - **Joker**: a team's choice of one round in which its points count double.
 - **Round win**: the highest score in a round, joker included. Teams sharing the top score each get a round win.
-- **Sudden death**: the tiebreak. Tied teams answer one question at a time until exactly one of them is right.
-- **Viewer**: a second phone on a team that can see the screen but cannot answer.
+- **Tie breaker**: the first way a points tie is settled. The team with more round wins ranks higher. No questions are asked.
+- **Sudden death**: the second way, used only when the tie breaker leaves teams level. Tied teams answer one question at a time until exactly one of them is right.
 
 ## Pilot settings and defaults
 
@@ -42,9 +42,8 @@ A non-technical host must be able to run a night without opening a settings scre
 | Halftime | After any round, or none | After round 3 (after round ⌈rounds ÷ 2⌉ for other lengths) | N2 |
 | Lock mode | Per question, per round | Per question | N2 |
 | Timer length | 10 to 300 seconds, per quiz, overridable per question | 60 seconds | N2, R |
-| Joker | On, off | On | N7 |
+| Joker | On, off | Off | N7, C |
 | Maximum teams | 2 to 30 | 30 | N2 |
-| Second phone on a team (venue) | Joins as viewer, refused with a message | Joins as viewer | N8 |
 | Sudden death applies to | First place only, every tied place | First place only | N7 |
 | Maximum sudden-death questions | 1 to 10 | 3 | N7 |
 | Closest-number scoring | Closest team only, every team within a range | Closest team only | N7 |
@@ -53,7 +52,7 @@ A non-technical host must be able to run a night without opening a settings scre
 | Holding page panels (venue) | Countdown, teams, how to join, home-screen guide, brand animation, prizes | All on | C |
 | Planned start time (per night) | A time, or none | None | C |
 
-Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed never affects score, the joker doubles a round's points, joining closes at Quiz Start, the position tie rule (S-07), and how typed answers are auto-marked (H-10).
+Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed never affects score, the joker doubles a round's points, joining closes at Quiz Start, one phone per team (a second phone is refused with a message, P-02), the tie breaker and when sudden death follows it (S-07), and how typed answers are auto-marked (H-10).
 
 ## Summary
 
@@ -65,7 +64,7 @@ Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed
 | S-04 | Strict server-side lock | MVP |
 | S-05 | Reconnect and rejoin | MVP |
 | S-06 | Scoring and joker | MVP |
-| S-07 | Positions and ties | MVP |
+| S-07 | Positions, tie breaker and sudden death | MVP |
 | S-08 | Event history from night one | MVP |
 | S-09 | Quizzes and themes stored as plain files | MVP |
 | S-10 | Copy pools | MVP |
@@ -100,7 +99,7 @@ Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed
 | T-11 | Reconnecting | MVP |
 | T-12 | Pre-quiz holding page | MVP |
 | P-01 | Join a team | MVP |
-| P-02 | Second phone on a team | MVP |
+| P-02 | One phone per team | MVP |
 | P-03 | Waiting screens | MVP |
 | P-04 | Play the joker | MVP |
 | P-05 | Answer a question | MVP |
@@ -181,14 +180,19 @@ Done when:
 - With the joker on, each team can play it once per night, on any round including the last, before that round starts.
 - Sudden-death questions do not add to a team's score; they only decide the tied position.
 
-### S-07 Positions and ties (MVP · N7)
+### S-07 Positions, tie breaker and sudden death (MVP · N7, C)
 
 As a host, I want the leaderboard order to follow clear rules, so that I never have to settle a tie by hand.
 
+Ties are settled in two separate steps, each with its own name on screen:
+
+1. **Tie breaker** (automatic, no questions): teams level on points rank by number of round wins (see "Round win" above).
+2. **Sudden death** (H-14): only if teams are still level after the tie breaker, and only for a position sudden death applies to.
+
 Done when:
 - Teams rank by total points.
-- Teams level on points rank by number of round wins (see "Round win" above).
-- Teams still level share the position, unless sudden death (H-14) applies to that position and decides it.
+- Teams level on points are ranked by the tie breaker, and the leaderboard shows that the tie breaker decided it.
+- Teams still level after the tie breaker share the position, unless sudden death applies to that position and decides it.
 - A team still tied after the maximum sudden-death questions shares the position.
 - Tests cover a shared round win, a joker round win and a three-way tie.
 
@@ -228,7 +232,7 @@ Done when:
 As a venue, I want the app to handle a busy night, so that it never slows down when the room is full.
 
 Done when:
-- A load test with 30 teams (one phone each, plus 30 viewer phones), one TV and one host console runs a full 6×5 quiz with no dropped answers.
+- A load test with 30 teams (one phone each), one TV and one host console runs a full 6×5 quiz with no dropped answers.
 - At 30 teams, answers show as received on the host console within 1 second on the test server.
 - Layouts are designed for up to 20 teams and still work at 30 (see T-06).
 
@@ -323,7 +327,7 @@ As a host, I want to fix team problems from the console, so that a rude name, a 
 Done when:
 - The host can rename any team at any time; the new name shows on the TV and the team's phone.
 - The host can remove a team before Quiz Start, after confirming.
-- The host can move a team to a new phone: the console shows a one-time code or QR that the new phone opens, and the team keeps its name, answers and score. The old phone becomes a viewer or is disconnected.
+- The host can move a team to a new phone: the console shows a one-time code or QR that the new phone opens, and the team keeps its name, answers and score. The old phone is disconnected.
 - The host can see which teams are disconnected right now.
 
 #### H-07 Quiz Start and Quiz End (MVP · N8)
@@ -400,10 +404,10 @@ Done when:
 As a host, I want a tie settled by sudden death, so that there is one winner when it matters.
 
 Done when:
-- After the last round, if teams are tied for a position that sudden death applies to (first place by default), the console offers sudden death for those teams.
-- Sudden-death questions are written in the builder in a separate tiebreak list per quiz, as typed-answer, multiple-choice or closest-number questions.
+- After the last round, if teams are still tied after the tie breaker (S-07) for a position that sudden death applies to (first place by default), the console offers sudden death for those teams.
+- Sudden-death questions are written in the builder in a separate sudden-death list per quiz, as typed-answer, multiple-choice or closest-number questions.
 - Each sudden-death question goes only to the tied teams; other phones and the TV show that sudden death is on. If exactly one tied team is right, it takes the position; otherwise the next question is asked.
-- After the maximum number of sudden-death questions (default 3), or if the tiebreak list runs out, the teams share the position.
+- After the maximum number of sudden-death questions (default 3), or if the sudden-death list runs out, the teams share the position.
 - With more than two teams tied, a right answer from more than one team removes only the teams that were wrong, and sudden death goes on among the rest.
 
 #### H-17 Pre-quiz holding page settings (MVP · C)
@@ -543,7 +547,7 @@ Done when:
 As a room, I want sudden death to feel like an event, so that the tie-break is the tensest moment of the night.
 
 Done when:
-- Sudden death has its own look and copy (`tiebreak` pool, reviewed by Design so it fits right/wrong sudden death), and names the tied teams.
+- Sudden death has its own look and copy (Design splits the `tiebreak` copy pool into a tie-breaker pool and a sudden-death pool), and names the tied teams.
 - Each sudden-death question shows like T-03 and locks like T-04, then reveals which tied teams were right.
 - It ends with the decided position, or the shared position if still tied.
 
@@ -596,14 +600,13 @@ Done when:
 - When the maximum number of teams is reached, a new team is told so plainly.
 - It works on the current and previous major versions of Safari on iOS and Chrome on Android.
 
-### P-02 Second phone on a team (MVP · N8)
+### P-02 One phone per team (MVP · N8, C)
 
-As a teammate, I want to see the question on my own phone, so that the whole table can follow along.
+As a team, I want only our own phone to answer for us, so that nobody else can change our answers.
 
 Done when:
-- With the default setting, a second phone picking an existing team joins as a viewer: it sees what the team phone sees but cannot answer or play the joker.
-- With the other setting, it is told "this team already has a phone".
-- Viewers do not count toward the maximum number of teams.
+- A second phone that tries to join an existing team, by typing the same name, is told plainly that this team already has a phone and is pointed to the rejoin code (P-08) if its team's phone has died.
+- There is no viewer mode and no setting for this.
 
 ### P-03 Waiting screens (MVP · B)
 
@@ -686,6 +689,7 @@ Done when:
 | P-22 | An app from an app store, or any install needed to play | Won't | B |
 | P-23 | One player per phone, Kahoot-style | Won't | B |
 | P-24 | Late joining of new teams after Quiz Start | Won't | N8 |
+| P-25 | Viewer mode: teammates follow on their own phones | Won't | N8, C |
 
 ---
 

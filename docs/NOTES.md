@@ -100,6 +100,8 @@ What matters here: Lock-In is a server app that venues self-host or that someone
 - **Ranking:** image questions, the new answer types, moderation, the holding page, the home-screen (PWA) install and prizes on phones are MVP. Sound and video questions and both AI features are Launch (Cas confirmed), because sound needs speakers (topic 3) and AI needs internet and an API key (topic 6).
 - **Proposed by Requirements, not objected to:** host login, removing a team, pausing or extending the timer, copy-pool editing and theme export moved to Launch, browser spellcheck for the pilot with grammar check Later, and the defaults table in REQUIREMENTS.md.
 
+- **Changes on review (Cas, 2026-11-23):** the joker is off by default; one phone per team with no viewer mode (a second phone gets a "this team already has a phone" message), replacing the configurable choice in topic 8; ties are two named steps, the **tie breaker** (most round wins, automatic) and then **sudden death**.
+
 ## Open questions
 
 - **Licence.** Cas chose to decide later. Recommendation is AGPL-3.0 (see topic 9). Until a licence is added, the public repo is "all rights reserved" by default, so outsiders cannot legally reuse or contribute; settle it before inviting contributors and before `v1.0.0`.
