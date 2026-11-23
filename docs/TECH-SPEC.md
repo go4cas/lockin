@@ -9,7 +9,7 @@ Sections 5 to 11 are **contracts**. The TypeScript blocks in them are normative:
 1. Decisions on the open items
 2. System overview
 3. Stack and code rules
-4. Runtime: one binary, two modes
+4. Runtime: one binary, hosted
 5. Data folder and file formats
 6. Data model (SQLite)
 7. The night: state machine
@@ -37,7 +37,7 @@ Three setups are realistic. All talk only to the server, so the software support
 | TV reliability | Best: a normal desktop browser, wired | Best | Weakest: old TV engines, cast lag of 1 to 2 s, remote-control typing |
 | Host mobility | Tied to the TV's cable | Free to walk the room | Free |
 | Risk | **Mirrored display shows the console, and its answers, to the room.** Moving a window to the TV and making it full screen is fiddly for staff | Two devices to keep charged and signed in | TV setup on the night depends on the TV model |
-| Network | Laptop needs the server (internet in hosted mode) | Same | TV needs the server too |
+| Network | Laptop needs the server (internet) | Same | TV needs the server too |
 
 **Decision:**
 
@@ -58,22 +58,17 @@ The TV page is plain HTML, CSS and classic scripts that run on old engines (sect
 
 The TV page does not need casting software of its own: Cast tab mirrors a Chrome tab, so it inherits the 1 to 2 s lag that T-04 already allows for.
 
-### 1.3 Host laptop platforms (S-01)
+### 1.3 Platforms and local mode (S-01, S-02)
 
-**Pending Cas's choice** (asked on the thread). This spec assumes the recommended answer: **Windows x64 and macOS arm64** for local mode, plus **Linux x64** for the VPS. Adding macOS x64 or Linux arm64 is one more `--target` in the build script and one more machine to test; nothing else changes.
-
-Two platform facts the Release thread has to handle (recorded as findings in NOTES.md):
-
-- **Unsigned apps warn on first open.** macOS Gatekeeper blocks a double-clicked unsigned binary (the host must right-click, then Open, once); Windows SmartScreen shows "Windows protected your PC" (More info, then Run anyway). Signing costs money (Apple Developer Program, a Windows code-signing certificate). For the pilot, which is hosted, this is a run-sheet step, not a blocker.
-- **First run asks for network permission.** Windows Firewall and macOS ask whether Lock-In may accept incoming connections. The host must allow it, or phones cannot reach the laptop in local mode.
+**Local mode is Later (Cas, 2026-11-23).** It does not hold up the pilot or the launch. Until then Lock-In is built for one platform, **Linux x64**, and runs only in hosted mode on a VPS. The design keeps local mode possible: the server is one process with no dependency on the VPS or Cloudflare, so adding it later is the extra work listed in 4.8, not a redesign.
 
 ### 1.4 Server restart during a night (S-05)
 
 Confirmed, at low cost. Every state change is written to SQLite in the same step that applies it, before the client gets its acknowledgement (section 6.3). `bun:sqlite` is synchronous and in WAL mode a write takes well under a millisecond, so this is cheap even at 30 teams answering at once. On start, the server reloads any open night and carries on (section 7.6).
 
-### 1.5 Home-screen install in local mode (P-10)
+### 1.5 Home-screen install (P-10)
 
-A full web-app install needs a secure context (HTTPS). Hosted mode has HTTPS through Cloudflare, so P-10 works as written there. In local mode phones open `http://<laptop address>`, so iPhone and Android can only add a **home-screen shortcut**: it opens the join page but not full screen, and with no service worker. Getting HTTPS on a pub LAN needs a certificate the phones trust, which is not practical. P-10 is checked in hosted mode; local mode gets the shortcut. (Open question 15.3.)
+A full web-app install needs a secure context (HTTPS). Hosted mode has HTTPS through Cloudflare, so P-10 works as written. (Local mode, when it comes, would only get a home-screen shortcut; see 4.8.)
 
 ---
 
@@ -110,7 +105,7 @@ Each build thread owns the paths marked for it. A thread changes another thread'
 ```
 package.json, tsconfig.json, bunfig.toml        B0
 .github/workflows/ci.yml                        B0
-scripts/build.ts                                B0 (dev run), B8 (compile targets, packaging)
+scripts/build.ts                                B0 (dev run), B8 (compile and packaging)
 scripts/fixture-server.ts                       B0
 src/shared/protocol.ts                          B0  contract: WS envelope, commands, views (section 10)
 src/shared/formats.ts                           B0  contract: quiz, theme, venue file types and validators (section 5)
@@ -125,7 +120,6 @@ src/server/night/                               B1  engine, commands, views, per
 src/server/rules/                               B2  pure marking, scoring, positions
 src/server/quizzes/                             B3  quiz store, media store, quiz REST
 src/server/branding/                            B4  theme, venue settings, /theme.css, copy pools
-src/server/local/                               B8  LAN address, browser open, single instance
 src/server/qr/                                  B8  QR code encoder and /qr routes
 public/shared/                                  B0  ws-client.js, clock.js, base.css, view helpers
 public/host/index.html, host.css, nav           B0  console shell, login and setup pages
@@ -155,7 +149,7 @@ Browser files may use JSDoc types with `// @ts-check` and `import('../../src/sha
 
 ---
 
-## 4. Runtime: one binary, two modes
+## 4. Runtime: one binary, hosted
 
 ### 4.1 Commands
 
@@ -163,62 +157,61 @@ The one executable, `lockin`, takes an optional subcommand:
 
 | Command | What it does |
 |---|---|
-| `lockin` (or a double-click) | Starts the server. Mode from config; default `local`. |
-| `lockin serve --mode hosted` | Starts in hosted mode (what systemd runs on the VPS). |
+| `lockin` or `lockin serve` | Starts the server (what systemd runs on the VPS). |
 | `lockin reset-password` | Removes the host password and prints a new setup code (S-03). |
 | `lockin setup-code` | Prints the current setup code if no password is set. |
 | `lockin --version` | Prints the version. |
 
 ### 4.2 Configuration
 
-Precedence: command-line flag, then environment variable, then `config.json` in the data folder, then the default. No one has to edit any of it in local mode.
+Precedence: command-line flag, then environment variable, then `config.json` in the data folder, then the default. The Release thread's systemd unit sets them; hosts never touch them.
 
 | Key | Flag / env | Default | Notes |
 |---|---|---|---|
-| `mode` | `--mode` / `LOCKIN_MODE` | `local` | `local` or `hosted` |
-| `dataDir` | `--data` / `LOCKIN_DATA` | see 4.3 | |
-| `port` | `--port` / `LOCKIN_PORT` | local: 8080 (first free up to 8099, then remembered in `config.json`); hosted: 8080 | |
-| `bind` | `--bind` / `LOCKIN_BIND` | local: `0.0.0.0`; hosted: `127.0.0.1` | Hosted only listens for the Cloudflare tunnel on the same machine |
-| `publicUrl` | `--public-url` / `LOCKIN_PUBLIC_URL` | local: `http://<LAN address>:<port>`; hosted: required | Used for QR codes, join links and the TV address |
-| `openBrowser` | `--no-open` | local: true; hosted: false | |
+| `dataDir` | `--data` / `LOCKIN_DATA` | `./lockin-data` | systemd sets `/var/lib/lockin` |
+| `port` | `--port` / `LOCKIN_PORT` | 8080 | |
+| `bind` | `--bind` / `LOCKIN_BIND` | `127.0.0.1` | Only the Cloudflare tunnel on the same machine connects |
+| `publicUrl` | `--public-url` / `LOCKIN_PUBLIC_URL` | required | For example `https://quiz.example.com`. Used for QR codes, join links and the TV address. The server refuses to start without it. |
 
-`config.json` holds only these keys. It never holds secrets.
+`config.json` holds only these keys. It never holds secrets. (A `mode` key is reserved for local mode, 4.8.)
 
 ### 4.3 Data folder
 
-- Local mode on Windows: `%APPDATA%\Lock-In\`. On macOS: `~/Library/Application Support/Lock-In/`. On Linux: `~/.local/share/lockin/`.
-- Hosted mode: `--data`, normally `/var/lib/lockin/` (set by the Release thread's systemd unit).
-- The host console's settings page shows the data folder's path so it can be backed up or copied.
+- Set by `--data`, normally `/var/lib/lockin/` on the VPS.
+- The host console's settings page shows the data folder's path. Moving Lock-In to another server is: install the binary, copy this folder, point the Cloudflare tunnel at the new server (RELEASE.md).
 
 ### 4.4 Start-up sequence
 
 1. Read config, create the data folder and its subfolders if missing, open `lockin.db`, run migrations.
 2. Load the theme, venue settings and the quiz list. A file that fails validation is reported in the log and on the console (quiz marked "not ready"); it never stops the server.
 3. Reload an open night if there is one (7.6).
-4. Start listening. **Local mode only:** if the port is taken by another Lock-In (`GET /api/ping` answers `{"app":"lockin"}`), open the browser at that one and exit; if taken by something else, try the next port.
-5. **Local mode only:** pick the LAN address (4.5) and open `http://localhost:<port>/host` in the default browser (`start` on Windows, `open` on macOS, `xdg-open` on Linux).
-6. Log the addresses and, if no host password is set, the setup code.
+4. Start listening.
+5. Log the public URL and, if no host password is set, the setup code.
 
-### 4.5 Local mode addresses (S-02)
+### 4.5 Behind Cloudflare
 
-- The server lists network interfaces and picks a private IPv4 address (10/8, 172.16/12, 192.168/16) on a physical interface, skipping loopback, link-local (169.254/16) and virtual adapters (names containing `vEthernet`, `docker`, `vmnet`, `utun`, `VirtualBox`, `WSL`).
-- If there are several, the console lists them and lets the host pick; the choice is remembered in `config.json`.
-- If there is none, the console says, in plain words, that the laptop is not on a network and phones will not be able to join.
-- QR codes and the join link use `http://<address>:<port>`.
-
-### 4.6 Hosted mode
-
-- Listens on `127.0.0.1` only; `cloudflared` on the same VPS forwards the public hostname to it. Cloudflare provides HTTPS and WSS.
-- `publicUrl` must be set (for example `https://quiz.example.com`); the server refuses to start in hosted mode without it.
-- The client's IP for rate limits comes from `CF-Connecting-IP` in hosted mode only.
+- `cloudflared` on the same VPS forwards the public hostname to `127.0.0.1:<port>`. Cloudflare provides HTTPS and WSS.
+- The client's IP for rate limits comes from `CF-Connecting-IP`.
 - Cloudflare closes idle WebSockets after 100 s, so clients ping every 25 s (10.6).
 - Static files get `Cache-Control: no-cache` with ETags, so Cloudflare and browsers never serve a stale app after an update.
 
-### 4.7 Packaging
+### 4.6 Packaging
 
-- `bun run build` (B8) runs `bun build --compile` once per target: `bun-linux-x64`, `bun-windows-x64`, `bun-darwin-arm64` (plus any targets added by 1.3).
+- `bun run build` (B8) runs `bun build --compile --target=bun-linux-x64`, producing `dist/lockin-linux-x64`.
 - Everything in `public/`, `docs/brand/copy.en.json`, `docs/design/tokens.css`, bundled fonts and the default theme assets are **embedded in the binary** through a generated `src/server/embedded.ts` (a map from URL path to a file imported `with { type: "file" }`). In development (`bun run dev`) the same paths are served from disk.
-- macOS: the release also wraps the binary in a minimal `Lock-In.app` folder (an `Info.plist` and the binary), so a double-click does not open a Terminal window. Windows: a console window stays open while Lock-In runs, titled "Lock-In: close this window to stop the quiz".
+
+### 4.7 Development
+
+`bun run dev` starts the server from source with `--public-url http://localhost:8080` and `--bind 127.0.0.1`, serving `public/` from disk. To try phones on a laptop's Wi-Fi during development, run it with `--bind 0.0.0.0 --public-url http://<laptop address>:8080`.
+
+### 4.8 Local mode (Later, S-02)
+
+Not built until it is ranked again. Kept here so the work is known when it is:
+
+- `--mode local`: bind `0.0.0.0`; `publicUrl` from the laptop's LAN address (private IPv4 on a physical interface, skipping loopback, link-local and virtual adapters; the host picks if there are several; a plain-English problem if there is none); open the browser at `/host`; a second launch opens the running one; data folder in the OS app-data folder.
+- Builds for Windows x64 and macOS arm64, a macOS `.app` wrapper, a titled Windows console window.
+- Setup from the laptop itself (loopback) may skip the setup code.
+- Known costs: unsigned apps warn on first open (macOS Gatekeeper, Windows SmartScreen) unless signed, which costs money every year; the first run asks for firewall permission; guest Wi-Fi isolation and phones on mobile data cannot reach a laptop; phones get only a home-screen shortcut over plain HTTP.
 
 ---
 
@@ -709,7 +702,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `GET /theme.css` | B4 | Venue theme (5.3) |
 | `GET /theme/assets/:file` | B4 | Theme assets |
 | `GET /manifest.webmanifest` | B7 | Web app manifest with venue name and logo |
-| `GET /sw.js` | B7 | Service worker (hosted mode only; caches the app shell, never answers) |
+| `GET /sw.js` | B7 | Service worker (caches the app shell, never answers) |
 | `GET /media/q/:questionId` | B1 | A question's image for the open night: served to anyone only once the question has been shown; to host sessions always (so images cannot leak answers early) |
 | `GET /media/quiz/:quizId/:file` | B3 | Quiz media for the builder; host only |
 | `GET /qr/join.svg` | B8 | QR code for the join URL with the room code |
@@ -725,8 +718,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `POST /api/auth/setup` | B0 | `{ password, setupCode? }` → `{ ok: true }` and the session cookie |
 | `POST /api/auth/login` | B0 | `{ password }` → `{ ok: true }` and the cookie (public, rate-limited) |
 | `POST /api/auth/logout` | B0 | → `{ ok: true }` |
-| `GET /api/server` | B8 | → `{ mode, version, dataDir, publicUrl, tvUrl, joinUrl, addresses: { address, iface }[], chosenAddress, problem: string \| null }` |
-| `POST /api/server/address` | B8 | `{ address }` → same as GET (local mode only) |
+| `GET /api/server` | B8 | → `{ version, dataDir, publicUrl, tvUrl, joinUrl }` |
 | `GET /api/quizzes` | B3 | → `{ quizzes: { id, title, rounds, questions, updatedAt, ready, problems }[] }` |
 | `POST /api/quizzes` | B3 | `{ title }` → `{ quiz: QuizFile }` (default shape: 6 rounds of 5 empty questions, default settings) |
 | `GET /api/quizzes/:id` | B3 | → `{ quiz: QuizFile, ready, problems }` |
@@ -1009,18 +1001,18 @@ The engine builds the views after each change and sends: the TV view once and re
 
 ## 12. Security
 
-The repo is public, and Lock-In runs on the open internet in hosted mode. Threats that matter: someone in the pub taking over the quiz, a team answering for another team or after the lock, and secrets leaking into the repo.
+The repo is public, and Lock-In runs on the open internet. Threats that matter: someone in the pub taking over the quiz, a team answering for another team or after the lock, and secrets leaking into the repo.
 
 ### 12.1 Host password (S-03)
 
 - Stored in `<dataDir>/auth.json` as `{ "passwordHash": "<Bun.password argon2id hash>", "setAt": <time> }`. Never plain text, never in the repo or the database backups' file names.
 - Minimum 8 characters. No other rules (non-technical hosts).
-- **First run:** while `auth.json` is missing, `/host` shows the setup page. In **local mode**, a setup request from the laptop itself (`127.0.0.1` or `::1`, with no proxy headers) needs no code. Every other setup request, including all requests in **hosted mode** (where the tunnel makes every request look local), must include the **setup code**: 8 characters from the rejoin alphabet, generated at start, printed to the log and shown by `lockin setup-code`. This stops a stranger setting the password on a fresh VPS.
-- **Forgotten password:** run `lockin reset-password` on the machine (hosted: over SSH, per the run sheet), or in local mode delete `auth.json` from the data folder and restart. Both sign out every session.
+- **First run:** while `auth.json` is missing, `/host` shows the setup page. Every setup request must include the **setup code** (requests through the tunnel all look local, so the source address proves nothing): 8 characters from the rejoin alphabet, generated at start, printed to the log and shown by `lockin setup-code`. This stops a stranger setting the password on a fresh VPS.
+- **Forgotten password:** run `lockin reset-password` on the VPS (over SSH, per the run sheet), or delete `auth.json` from the data folder and restart. Both sign out every session.
 
 ### 12.2 Host sessions
 
-- Login sets cookie `lockin_host`: 32 random bytes, base64url; `HttpOnly`, `SameSite=Strict`, `Path=/`, `Secure` in hosted mode; 7 days, renewed on use (so a night never needs a second login, S-03). The server stores only its SHA-256 in `host_sessions`.
+- Login sets cookie `lockin_host`: 32 random bytes, base64url; `HttpOnly`, `SameSite=Strict`, `Path=/`, `Secure` (except on `http://localhost` in development); 7 days, renewed on use (so a night never needs a second login, S-03). The server stores only its SHA-256 in `host_sessions`.
 - Login is rate-limited to 5 failures per minute per client IP, then a 1-minute wait.
 - Logout deletes the session. A password change or reset deletes all sessions.
 
@@ -1034,7 +1026,7 @@ The repo is public, and Lock-In runs on the open internet in hosted mode. Threat
 ### 12.4 Web hardening
 
 - Every response: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and a `Content-Security-Policy` of `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'` on pages. Uploaded files (including SVG logos) are served with `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox` and are only ever shown through `<img>`, so script in an SVG cannot run.
-- Mutating HTTP requests and WebSocket upgrades must have an `Origin` that matches the request's own host (or `publicUrl` in hosted mode); otherwise `403`.
+- Mutating HTTP requests and WebSocket upgrades must have an `Origin` that matches `publicUrl`; otherwise `403`.
 - All input is validated against the formats in sections 5 and 10 (lengths, types, ranges) before use; text is always rendered with `textContent`, never `innerHTML`, in every page.
 
 ### 12.5 Secrets and venue data in the repo
@@ -1077,7 +1069,7 @@ B0 Foundation  ──(Cas merges)──▶  wave 1, all in parallel:
                                     B1 Night engine        B2 Rules
                                     B3 Quiz builder        B4 Branding and venue
                                     B5 Host run console    B6 TV display
-                                    B7 Team phone          B8 Local mode, packaging, QR
+                                    B7 Team phone          B8 Packaging and QR codes
                                   ──(all merged)──▶ B9 Load, end-to-end and hardening
 ```
 
@@ -1103,10 +1095,10 @@ Every build PR, in addition to its own list:
 Done when:
 - `package.json` (no `dependencies`; `devDependencies` only `typescript` and `@types/bun`), `tsconfig.json` (strict), `.gitignore` (12.5) and a CI workflow running typecheck and tests on PRs exist.
 - `src/shared/protocol.ts`, `formats.ts` and `rules-api.ts` contain the contract types from sections 5, 8 and 10 exactly, plus `validateQuiz`, `validateTheme` and `validateVenue` with tests for valid and invalid files, and plain-English problem messages.
-- `bun run dev` starts the server; `lockin serve --mode hosted --public-url …` and the default local mode both start (no browser opening yet, that is B8); config precedence (4.2) and data folder creation work, with tests.
+- `bun run dev` and `lockin serve --public-url …` start the server; it refuses to start without a public URL; config precedence (4.2) and data folder creation work, with tests.
 - `lockin.db` is created with the schema in 6.2 through a migration runner that records `schema_version`; a test opens a fresh database and checks every table.
 - HTTP router, static serving of `public/` and `docs/design/tokens.css` (or a placeholder until Design merges), security headers (12.4) and `GET /api/ping` work.
-- Host auth (12.1, 12.2) works: setup with and without the setup code by mode and source address, login, logout, rate limit, session cookie, `lockin reset-password` and `lockin setup-code`; tests cover each.
+- Host auth (12.1, 12.2) works: setup only with the setup code, login, logout, rate limit, session cookie, `lockin reset-password` and `lockin setup-code`; tests cover each.
 - `/ws` accepts `hello` for each role, rejects a `host` hello without a session, answers `ping` with `pong`, enforces the 5 s hello timeout, and routes `cmd` to a registered handler (with a stub that answers `wrong_phase` until B1 lands).
 - `public/shared/ws-client.js` (reconnecting client with backoff, hello, ack tracking, `seq` ordering) and `clock.js` (offset) exist, follow the TV baseline, and are tested against the server.
 - `public/host/` shell: login and setup pages, and navigation to Library, Branding, Run night and History pages (empty placeholders owned by B3, B4, B5).
@@ -1199,19 +1191,17 @@ Done when:
 - Token storage and automatic rejoin (11.1), rejoin code in a team menu, `/m/:code` takeover, and the "moved to another phone" screen on `bye`.
 - Offline bar and "not sent" state per 11.5.
 - Dark by default, tap targets at least 44 px, readable at 390×844; screenshots of every fixture in the PR.
-- Manifest with venue name and logo, icons, and a service worker that caches only the app shell (hosted mode); installs and opens full screen on iPhone Safari and Android Chrome in hosted mode (checked by hand); in local mode the page still works and the guide explains the shortcut (1.5).
+- Manifest with venue name and logo, icons, and a service worker that caches only the app shell; installs and opens full screen on iPhone Safari and Android Chrome (checked by hand).
 
-### B8 Local mode, packaging and QR codes
+### B8 Packaging and QR codes
 
-**Covers:** S-01, S-02, `/qr/*`, `/api/server*`.
+**Covers:** S-01, `/qr/*`, `/api/server`.
 
 Done when:
 - `src/server/qr/` encodes QR codes (byte mode, error correction M, versions 1 to 10) as SVG with no dependencies; tests decode known vectors (compare module matrices with published examples).
 - `/qr/join.svg`, `/qr/tv.svg`, `/qr/move/:code.svg` work, with host-only checks.
-- LAN address selection, interface filtering and the "no network" problem (4.5) work and are unit-tested with sample interface lists; `/api/server` and `/api/server/address` work.
-- Local start opens the browser at `/host`; a second double-click opens the browser at the running one instead of starting another (4.4).
-- `bun run build` produces `dist/lockin-linux-x64`, `dist/lockin-windows-x64.exe` and `dist/lockin-darwin-arm64` (per 1.3) with `public/`, copy and tokens embedded; a test runs the Linux binary from an empty folder and fetches `/api/ping`, `/tv` and `/static/shared/ws-client.js`.
-- macOS `.app` wrapper and the Windows console title (4.7) are produced; double-click is checked by hand on Windows and macOS and recorded in the PR.
+- `/api/server` works.
+- `bun run build` produces `dist/lockin-linux-x64` with `public/`, copy, tokens and fonts embedded; a test runs the binary from an empty folder and fetches `/api/ping`, `/tv` and `/static/shared/ws-client.js`.
 
 ### B9 Load, end-to-end and hardening
 
@@ -1227,9 +1217,6 @@ Done when:
 
 ## 15. Open questions
 
-1. **Host laptop platforms (1.3).** Asked on the thread; the spec assumes Windows x64 and macOS arm64.
-2. **The pilot pub's TV.** Which TV (or Chromecast, or laptop on HDMI) the pilot pub has decides which smart-TV browser is tested before `v1.0.0` (1.2). Cas to find out.
-3. **Home-screen install in local mode (1.5).** Full install only works in hosted mode; local mode gets a shortcut. Fine for the pilot (hosted); confirm it is acceptable for local-mode venues at launch.
-4. **"Hide answers" switch on the console (1.1).** A guard against a mirrored TV showing the console. Small, but a scope addition, so it needs Cas's yes before Design or B5 adds it.
-5. **Round win when everyone scores 0 (8.3).** This spec says such a round has no winner. Cas to confirm.
-6. **Signing the binaries (1.3).** Unsigned builds need a one-time "open anyway" on macOS and Windows. Fine for the pilot; signing costs money and is a Launch decision.
+1. **The pilot pub's TV.** Which TV (or Chromecast, or laptop on HDMI) the pilot pub has decides which smart-TV browser is tested before `v1.0.0` (1.2). Cas to find out.
+2. **"Hide answers" switch on the console (1.1).** A guard against a mirrored TV showing the console. Small, but a scope addition, so it needs Cas's yes before Design or B5 adds it.
+3. **Round win when everyone scores 0 (8.3).** This spec says such a round has no winner. Cas to confirm.
