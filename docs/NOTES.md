@@ -95,7 +95,11 @@ What matters here: Lock-In is a server app that venues self-host or that someone
 
 ## Open questions
 
-- **How much is configurable for the pilot?** Cas answered "configurable" to many questions (team count, rounds, questions, lock mode, closest-number scoring, sudden-death scope and length). Each option needs a sensible default so a non-technical host never has to touch settings, and Requirements should decide which options ship for the pilot and which stay fixed at the default until later.
-
-- **MVP = pilot or launch?** Cas has two milestones. Suggest Requirements ranks Pilot / Launch / Later / Won't, or defines MVP as pilot and lists launch items separately. Raise with Cas in the Requirements thread.
-- **"Members" vs "no account".** Reusing *members* implies knowing who individual players are, while the brief says one device per team and no accounts. Needs a decision before team history is designed (Later).
+- **Licence.** Recommendation is AGPL-3.0 (see topic 9); Cas to choose. The repo is public without a licence until then.
+- **Private pilot repo.** Recommendation is to drop it or keep it for venue data only, never a code fork (topic 9); Cas to confirm.
+- **MVP = pilot or launch?** Cas has two milestones (pilot at `v1.0.0`, then product launch). Requirements should rank Pilot / Launch / Later / Won't, or define MVP as the pilot and list launch items separately.
+- **How much is configurable for the pilot?** Cas answered "configurable" to many questions. Each option needs a sensible default so a non-technical host never touches settings, and Requirements should decide which options ship for the pilot and which stay fixed until later.
+- **Host on the TV laptop or a separate device?** Cas wants both supported, but analysed first (topic 3). Architecture should compare before Design commits to a console layout.
+- **"Members" vs "no account".** Reusing *members* across nights implies knowing individual players, while the brief says one device per team and no accounts. Decide before team history is designed (Later).
+- **Defaults to confirm:** halftime after round 3; design target of 20 teams (working at 30); second phone joins as a viewer by default; definition of a "round win" for the tie rule.
+- **Brief needs updating:** it says the repo "starts private" (it is public), lists a closest-guess tiebreaker (Cas chose right/wrong sudden death), and does not mention Quiz Start/End, prizes, sudden-death branding, spelling check or AI accuracy checks. The brief is raw material, so Requirements carries these forward rather than editing the brief.
