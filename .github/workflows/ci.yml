@@ -19,6 +19,8 @@ jobs:
         with:
           bun-version: 1.4.5
       - run: bun install --frozen-lockfile
+      - name: Tools the deploy/ tests use
+        run: command -v sqlite3 && command -v shellcheck || { sudo apt-get update -qq && sudo apt-get install -y -qq sqlite3 shellcheck; }
       - run: bun run typecheck
       - run: bun test
 
