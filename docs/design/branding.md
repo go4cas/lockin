@@ -33,7 +33,7 @@ Only `--brand-*` tokens change per venue. Team colours, the joker mark, sudden-d
 
 ## Derived tokens
 
-The server (for /theme.css) and the branding screen (for its preview) compute these from the four colours. `mix(a, b, w)` is a straight sRGB mix, `a + (b - a) × w` per channel, rounded; it matches CSS `color-mix(in srgb, a, b w)`, which old TVs lack, so values are always resolved. The reference implementation is [tools/derive.ts](tools/derive.ts); tests compare it with tokens.css.
+The server (for /theme.css) and the branding screen (for its preview) compute these from the four colours. `mix(a, b, w)` is a straight sRGB mix, `a + (b - a) × w` per channel, rounded; it matches CSS `color-mix(in srgb, a, b w)`, which the display baseline lacks (TECH-SPEC 3.3), so values are always resolved. The reference implementation is [tools/derive.ts](tools/derive.ts); tests compare it with tokens.css.
 
 | Id | Token | Rule | Default result |
 |---|---|---|---|

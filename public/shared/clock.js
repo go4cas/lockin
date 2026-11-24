@@ -1,6 +1,7 @@
 // @ts-check
 // Server clock offset (TECH-SPEC 10.6). Shared by the display, phone and host console.
-// Display baseline: ES2017 classic script, no modules, no ?. or ??, no object spread.
+// Classic script, loaded with a plain <script> tag before a page's Arrow module (TECH-SPEC 3.4).
+// Follows the display baseline (TECH-SPEC 3.3).
 (/** @param {any} root */ function (root) {
   "use strict";
   var LockIn = root.LockIn || (root.LockIn = {});

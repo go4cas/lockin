@@ -4,7 +4,7 @@ Each moment as the room experiences it, across all three screens at once. The ho
 
 Two rules apply to every moment:
 
-- **The display may be up to 2 seconds late** (casting, old TVs). Nothing on the display is timed against the phones or the host; each screen plays its moment when its own message arrives. A moment never shows before the server's event (T-04).
+- **The display may be up to 2 seconds late** (casting, slow smart TVs). Nothing on the display is timed against the phones or the host; each screen plays its moment when its own message arrives. A moment never shows before the server's event (T-04).
 - **Nothing relies on sound** (T-04, N3).
 
 ## 1. Join (T-02, P-01, P-02, H-05)

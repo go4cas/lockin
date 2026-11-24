@@ -34,7 +34,7 @@ Three setups are realistic. All talk only to the server, so the software support
 |---|---|---|---|
 | Devices for the host | 1 | 2 | 1 (plus the display) |
 | How the display gets the picture | Laptop's second screen (extended display), display page full screen | Same as A | Smart-TV browser, or "Cast tab" from desktop Chrome to a Chromecast |
-| Display reliability | Best: a normal desktop browser, wired | Best | Weakest: old TV engines, cast lag of 1 to 2 s, remote-control typing |
+| Display reliability | Best: a normal desktop browser, wired | Best | Weakest: the TV's own browser may be older than the baseline (1.2), cast lag of 1 to 2 s, remote-control typing |
 | Host mobility | Tied to the TV's cable | Free to walk the room | Free |
 | Risk | **Mirrored display shows the console, and its answers, to the room.** Moving a window to the display and making it full screen is fiddly for staff | Two devices to keep charged and signed in | Display setup on the night depends on the TV model |
 | Network | Laptop needs the server (internet) | Same | Display needs the server too |
@@ -43,18 +43,20 @@ Three setups are realistic. All talk only to the server, so the software support
 
 - **The pilot's recommended setup is A**, upgraded to **B** when the host wants to walk around. It avoids smart-TV quirks on night one, and the laptop is needed anyway.
 - **The console layout is designed for a laptop first (1280 px and up) and works on a tablet (768 px and up).** A phone-sized console is not a target for `v1.0.0`.
-- **The console assumes it is never on the display.** To cut the mirroring risk in setup A, the console has an **"Open display" button** that opens `/display` in a new window, and the run sheet (Release) shows how to set "extend" rather than "mirror" on Windows and macOS. Design may add a "hide answers" switch on the console; that would be a small scope addition, so it goes to Cas first (open question 15.4).
+- **The console assumes it is never on the display.** To cut the mirroring risk in setup A, the console has an **"Open display" button** that opens `/display` in a new window, and the run sheet (Release) shows how to set "extend" rather than "mirror" on Windows and macOS. Design may add a "hide answers" switch on the console; that would be a small scope addition, so it goes to Cas first (open question 15.2).
 - **Several host devices can be signed in at once** (S-03). Commands are applied in the order the server receives them, and every console shows the same state.
 
 ### 1.2 Smart TVs and casting (T-01)
 
-The display page is plain HTML, CSS and classic scripts that run on old engines (section 3.3). Support has three tiers:
+**Decided by Cas (2026-11-24): the display supports modern browsers only.** The display page is an ArrowJS page like the console and the phones (3.1), and its baseline is Chromium 86 / Safari 14 class engines (3.3). That is roughly smart TVs from 2022 onwards, plus any current desktop browser or Chromecast. Pubs with an older TV use a laptop over HDMI or a Chromecast instead. A vanilla fallback display page for older TVs is **not** planned for `v1.0.0`; it can be added later if users report displays that don't work (15.4).
+
+Support has three tiers:
 
 | Tier | Setups | What it means |
 |---|---|---|
-| **Supported, tested before `v1.0.0`** | A laptop over HDMI with current Chrome, Edge, Firefox or Safari. "Cast tab" from desktop Chrome to a Chromecast or Google TV. The smart-TV browser at the pilot pub (whatever it is). | Checked by hand on real hardware (T-01). |
-| **Targeted, not tested** | Samsung Tizen browser (2018 TVs and newer), LG webOS browser (webOS 4 and newer), Android TV and Google TV browsers, Fire TV Silk browser, AirPlay or Miracast screen extension from a laptop (behaves like HDMI). | The code follows the baseline in 3.3, so these should work; bugs are fixed when reported. |
-| **Not supported** | Casting a browser tab to a Fire TV stick (not possible), anything that needs input on the display (T-22), browsers older than the baseline. | |
+| **Supported, tested before `v1.0.0`** | A laptop over HDMI with current Chrome, Edge, Firefox or Safari. "Cast tab" from desktop Chrome to a Chromecast or Google TV. The smart-TV browser at the pilot pub (Cas reports modern TVs; model to confirm, 15.1). | Checked by hand on real hardware (T-01). |
+| **Targeted, not tested** | Smart-TV browsers at or above the baseline in 3.3 (roughly Samsung Tizen and LG webOS models from 2022 onwards; check the browser version, not the year), Android TV and Google TV browsers with Chromium 86 or newer, current Fire TV Silk browser, AirPlay or Miracast screen extension from a laptop (behaves like HDMI). | The code follows the baseline in 3.3, so these should work; bugs are fixed when reported. |
+| **Not supported** | Smart-TV browsers older than the baseline (use a laptop or Chromecast instead), casting a browser tab to a Fire TV stick (not possible), anything that needs input on the display (T-22). | The display page says so in plain English instead of showing a blank screen (B6). |
 
 The display page does not need casting software of its own: Cast tab mirrors a Chrome tab, so it inherits the 1 to 2 s lag that T-04 already allows for.
 
@@ -94,8 +96,8 @@ A full web-app install needs a secure context (HTTPS). Hosted mode has HTTPS thr
 ### 3.1 Stack
 
 - **Server:** Bun (pinned in `package.json` `engines` and in CI; currently 1.4.x) and TypeScript. Built-ins only: `Bun.serve` (HTTP and WebSocket), `bun:sqlite`, `Bun.password` (argon2id), `node:os`, `node:fs`, `node:crypto`.
-- **Runtime dependencies: none.** `package.json` has no `dependencies`. `devDependencies` are limited to `typescript` and `@types/bun`, used only for `bun run typecheck`.
-- **Browser:** vanilla JS and vanilla CSS, served as written. **No bundler or transpiler for browser code**, so what is in `public/` is what runs.
+- **Runtime dependencies: none.** `package.json` has no `dependencies`. `devDependencies` are limited to `typescript` and `@types/bun`, used only for `bun run typecheck`. The vendored Arrow files (above) are the one agreed exception in the browser; adding or updating any third-party code is a contract change that needs Cas.
+- **Browser:** [ArrowJS](https://arrow-js.com) core, `@arrow-js/core` 1.0.6 (MIT), for reactive templates on every page: host console, display and phones (agreed with Cas 2026-11-24). It is **vendored unchanged** in `public/vendor/arrow/` (version, source and checksums in its `vendor.json`), served from our own server and embedded in the binary: no CDN, no npm package, no import map. It is the only third-party browser code. Quiver and other Arrow add-ons are not used. CSS is vanilla CSS. **No bundler or transpiler for browser code**, so what is in `public/` is what runs.
 - **Tests:** `bun test`. CI runs `bun run typecheck` and `bun test` on every PR.
 
 ### 3.2 Repository layout and ownership
@@ -128,6 +130,7 @@ public/host/brand/                              B4  branding, venue and holding-
 public/host/run/, public/host/history/          B5  run the night, history list
 public/display/                                      B6
 public/phone/                                   B7  phone pages, manifest, service worker, install guide
+public/vendor/                                  contract: vendored third-party browser code (ArrowJS, 3.1); changes only with Cas's agreement
 tests/fixtures/views/                           B0  sample views per role and phase (section 13.2)
 tests/<module>/                                 owned by the module's thread
 tests/load/, tests/e2e/                         B9
@@ -139,6 +142,30 @@ Each server module exposes one `register(app: App)` function from its `index.ts`
 
 | Page | Must run on | So it may use |
 |---|---|---|
+| **Display** (`public/display/`, plus `public/shared/` and `public/vendor/`, which the display loads) | Chromium 86 and Safari 14 class engines: roughly smart TVs from 2022 onwards, Chromecast with Google TV, any current desktop browser (1.2) | **JS:** ES modules (`<script type="module">`, `import`/`export`, dynamic `import()`), `async`/`await`, `?.`, `??`, `??=`/`\|\|=`/`&&=`, object and array spread, classes without fields. **Not:** class fields or `#private`, top-level `await`, import maps, `.at()`, `structuredClone()`, `Object.hasOwn()`, `.findLast()`, `.toSorted()`/`.toReversed()`/`.toSpliced()`, `WeakRef`, regex lookbehind. **CSS:** grid (spaced with `grid-gap`), flexbox (spaced with margins), custom properties, `calc()`, `clamp()`/`min()`/`max()`, `vw`/`vh`, transforms, transitions, `@keyframes`, `conic-gradient()`, `@font-face` (WOFF2). **Not:** `gap`/`row-gap`/`column-gap` (flexbox `gap` is Safari 14.1), `aspect-ratio`, `:is()`/`:where()`/`:has()`, `:focus-visible`, `backdrop-filter`, `color-mix()`/`oklch()`/`lab()`, the `inset` shorthand, `@container`/`@layer`, `dvh`/`svh`/`lvh`. |
+| **Phone** | Current and previous major Safari on iOS and Chrome on Android (P-01) | Modern JS (ES2022, modules) and CSS. Files from `public/shared/` and `public/vendor/` must still follow the display rules. |
+| **Host console** | Current Chrome, Edge, Firefox and Safari on laptops; Safari and Chrome on tablets | Modern JS and CSS. |
+
+A test (`tests/browser-baseline.test.ts`, B0) scans `public/display/`, `public/shared/` and `public/vendor/` for the banned JS and CSS above and fails the build if it finds any. The same test checks that no page code in `public/` (outside `public/vendor/`) uses an HTML sink such as `innerHTML` (12.4). `docs/design/tools/tokens.test.ts` runs the same CSS scanner on the display wireframe CSS.
+
+Browser files may use JSDoc types with `// @ts-check` and `import('../../src/shared/protocol').DisplayView` style typedefs; they are type-checked by `bun run typecheck` but served unchanged. `tsconfig.json` maps `/vendor/*` to `public/vendor/*`, so `import { html } from "/vendor/arrow/index.mjs"` type-checks as written.
+
+### 3.4 Front-end pattern (ArrowJS)
+
+Every page follows the same pattern, so the console, display and phone code read alike. The server stays authoritative (2): Arrow only draws the view it is given and keeps the page's own short-lived UI state.
+
+- **Pages are ES modules** that import Arrow by absolute path: `import { html, reactive, watch, component } from "/vendor/arrow/index.mjs"`. Import maps are not used (the display baseline does not have them).
+- **The shared classic scripts stay as they are.** A page loads `public/shared/ws-client.js` and `clock.js` with plain `<script>` tags before its module and uses `window.LockIn` (B0). They keep `seq` ordering, reconnects and the clock; Arrow is not loaded by `public/shared/`. `view.js` helpers (`countdown`, `joinNames`, `teamColour`) are still used; its `el()`/`replace()` DOM helpers are not needed in Arrow pages.
+- **One view store per page.** `const page = reactive({ view: null, status: "connecting" })`. The client's state callback does `page.view = view` with the whole view; Arrow redraws only what changed.
+- **Live slots are functions.** Anything that comes from the view is written `${() => page.view.round.title}`. A bare `${value}` renders once and never updates, so it is only for constants.
+- **Lists are keyed by stable ids** with `.key()` (team id, question id, round id, group id), so leaderboard rows, team lists and answer groups move instead of being rebuilt, and the display's leaderboard re-order animation works on the same nodes.
+- **Local UI state lives in its own store, never inside `page.view`.** A typed answer, an open dialog, the builder's draft quiz and the branding page's unsaved colours sit in a separate `reactive()` object, so a new view from the server never clears what someone is typing or moves focus.
+- **Reusable pieces are `component()`s** (countdown, answer inputs, leaderboard row, team chip), kept in the owning page's folder. A piece that two roles need goes to its own module under that role's folder and is shared by import, never copied.
+- **Side effects use `watch()`**: playing a sound, starting a flash, scheduling the timer tick.
+- **Text is data, never markup** (12.4). Arrow puts every `${}` value into a text node or an attribute value. Templates are always tagged template literals written in the source; data is never concatenated into a template or passed to an HTML sink. URLs in `href`/`src` come from the server's own routes, never from team input.
+- **No business logic in the browser.** Pages never compute scores, marks, positions or the lock; they send commands and render views.
+
+---|---|---|
 | **Display** (`public/display/`, and `public/shared/` which the display loads) | Chromium 56 and Safari 11 class engines (Samsung Tizen 2018+, LG webOS 4+) | **JS:** ES2017 in classic `<script>` tags (no `type="module"`), `async`/`await`, arrow functions, classes without fields, `const`/`let`, template strings, array spread. **Not:** `?.`, `??`, object spread `{...x}`, class fields or `#private`, `import`/`export`, top-level `await`. **CSS:** flexbox, custom properties, `vw`/`vh`, transforms, transitions, `@keyframes`, `@font-face` (WOFF2). **Not:** grid, flexbox `gap`, `clamp()`/`min()`/`max()`, `aspect-ratio`, `:is()`/`:where()`, `backdrop-filter`, `color-mix()`. |
 | **Phone** | Current and previous major Safari on iOS and Chrome on Android (P-01) | Modern JS (ES2022, modules) and CSS. Shared files from `public/shared/` must still follow the display rules. |
 | **Host console** | Current Chrome, Edge, Firefox and Safari on laptops; Safari and Chrome on tablets | Modern JS and CSS. |
@@ -198,7 +225,7 @@ Precedence: command-line flag, then environment variable, then `config.json` in 
 ### 4.6 Packaging
 
 - `bun run build` (B8) runs `bun build --compile --target=bun-linux-x64`, producing `dist/lockin-linux-x64`.
-- Everything in `public/`, `docs/brand/copy.en.json`, `docs/design/tokens.css`, bundled fonts and the default theme assets are **embedded in the binary** through a generated `src/server/embedded.ts` (a map from URL path to a file imported `with { type: "file" }`). In development (`bun run dev`) the same paths are served from disk.
+- Everything in `public/` (including the vendored Arrow in `public/vendor/`; `.mjs` files are served as `text/javascript`, which module scripts require), `docs/brand/copy.en.json`, `docs/design/tokens.css`, bundled fonts and the default theme assets are **embedded in the binary** through a generated `src/server/embedded.ts` (a map from URL path to a file imported `with { type: "file" }`). In development (`bun run dev`) the same paths are served from disk.
 
 ### 4.7 Development
 
@@ -1027,7 +1054,7 @@ The repo is public, and Lock-In runs on the open internet. Threats that matter: 
 
 - Every response: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and a `Content-Security-Policy` of `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'` on pages. Uploaded files (including SVG logos) are served with `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox` and are only ever shown through `<img>`, so script in an SVG cannot run.
 - Mutating HTTP requests and WebSocket upgrades must have an `Origin` that matches `publicUrl`; otherwise `403`.
-- All input is validated against the formats in sections 5 and 10 (lengths, types, ranges) before use; text is always rendered with `textContent`, never `innerHTML`, in every page.
+- All input is validated against the formats in sections 5 and 10 (lengths, types, ranges) before use. Text is always rendered as text, never parsed as HTML, in every page: in Arrow templates through `${}` slots (which Arrow turns into text nodes and attribute values, see 3.4), and elsewhere through `textContent`. Page code never uses `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `createContextualFragment`; `tests/browser-baseline.test.ts` checks this. The one exception is inside the vendored Arrow, which uses `innerHTML` on a `<template>` element to parse the developer's own static template strings (with placeholders, never data). Arrow uses no `eval` or `new Function`, so the page CSP above needs no change.
 
 ### 12.5 Secrets and venue data in the repo
 
@@ -1084,7 +1111,7 @@ Every build PR, in addition to its own list:
 
 - `bun run typecheck` and `bun test` pass, with the output in the PR.
 - It changes only the paths its thread owns (3.2), or says which contract change Cas agreed.
-- No runtime dependencies added; browser code is vanilla JS and CSS and passes `tests/browser-baseline.test.ts`.
+- No runtime dependencies added and nothing added to `public/vendor/` (3.1). UI pages are ES modules built with the vendored ArrowJS following the pattern in 3.4, with vanilla CSS, and pass `tests/browser-baseline.test.ts` (display baseline and no HTML sinks).
 - No secrets or venue data committed.
 - The REQUIREMENTS IDs it covers are listed in the PR with how each "Done when" is met.
 
@@ -1138,6 +1165,7 @@ Done when:
 - Quiz store reads and writes `quizzes/<id>/quiz.json` atomically per 5.2; a quiz folder copied in by hand appears in the list; invalid files show as not ready with their problems.
 - Every `/api/quizzes*` route in 9.2 works with the status codes given, including `409` and `423`, with tests.
 - The builder page (`public/host/build/`) lets a QM create, open, duplicate, rename and delete quizzes; add, edit, reorder and delete rounds, questions and sudden-death questions; set every quiz setting with its default; pick every answer type; and attach an image that is resized in the browser before upload.
+- It is built with Arrow (3.4): the open quiz is a local `reactive()` draft, and a `watch()` drives the debounced autosave.
 - It autosaves (debounced, about 1 s) and shows "Saved" or a plain-English problem; it shows the not-ready reasons for the quiz.
 - Text fields use the browser spellcheck (`spellcheck="true"`, `lang` from the page).
 - It works at 1280×800 and 768×1024 (screenshots in the PR) and follows Design's console wireframes.
@@ -1151,7 +1179,7 @@ Done when:
 - Theme and venue stores read and write `theme/theme.json` and `venue.json` per 5.3 and 5.4, with validation and defaults.
 - `GET /theme.css` emits the resolved `--brand-*` properties and `@font-face` rules per Design's `branding.md`, and tests check derived colours for a sample theme; `themeVersion` changes when the theme changes.
 - Asset uploads (logo, display background, fonts) are checked by type and size, stored under generated names, and served per 12.4.
-- The branding page (`public/host/brand/`) sets name, logo, the four colours, fonts (bundled list or upload) and display background, shows a live display and phone preview, and warns (without blocking) on failed contrast rules.
+- The branding page (`public/host/brand/`) sets name, logo, the four colours, fonts (bundled list or upload) and display background, shows a live display and phone preview, and warns (without blocking) on failed contrast rules. It is built with Arrow (3.4): unsaved settings live in a local store, and the previews update from it as the QM types.
 - The venue page sets default prizes and the holding page minutes and panels.
 - `CopyPicker` (8.6) merges default and theme pools, fills placeholders, skips lines with missing values and `{n}` lines when `n < 2`, and never repeats the last line; tested.
 
@@ -1160,7 +1188,7 @@ Done when:
 **Covers:** H-05 to H-15 on the console, S-08 history list.
 
 Done when:
-- `public/host/run/` renders `HostView` for every phase from the fixtures and drives every host command in 7.2, enabling buttons from `view.can`.
+- `public/host/run/` renders `HostView` for every phase from the fixtures and drives every host command in 7.2, enabling buttons from `view.can`. It is built with Arrow (3.4); a new view never closes an open dialog or clears a field the host is typing in.
 - The lobby shows the room code, join QR, display address and QR, teams with phone status, planned start and prizes; the "Open display" button opens `/display` in a new window (1.1).
 - During asking it shows the question, answer, host note, timer controls and answered count; in per-round mode, the round's questions and the round timer.
 - The marking screen shows groups with nearest matches first, accepts or rejects a group in one tap, shows pending counts, and blocks reveal until done.
@@ -1176,7 +1204,8 @@ Done when:
 
 Done when:
 - `public/display/` renders `DisplayView` for every phase and fixture, at 1920×1080 and 1280×720 with no scrolling, with no interaction after opening.
-- It passes the display baseline test (3.3) and uses `/static/shared/tokens.css` and `/theme.css`.
+- It is built with Arrow (3.4), passes the display baseline test (3.3) and uses `/static/shared/tokens.css` and `/theme.css`. Leaderboard rows are keyed, so the bottom-up reveal and re-order animate on the same nodes.
+- On a browser older than the baseline, a small classic script (`public/display/check.js`, plain ES5, no `eval` so it passes the CSP) tests for `Element.prototype.replaceChildren` and module support, and if either is missing shows a plain-English page: this TV's browser is too old, use a laptop over HDMI or a Chromecast (1.2). Checked in the PR by loading the page with the check forced to fail.
 - Lobby and holding page (with countdown from server time and the chosen panels, plus join QR and room code always visible), question, answers-locked padlock moment (never before `lockedMoment`; makes sense up to 2 s late), reveal, leaderboard (bottom-up reveal, 20 teams on one screen, 21 to 30 by paging), halftime, sudden death, winner and goodbye all follow Design.
 - The `install` panel's animated guide for iPhone and Android is bundled (no internet needed).
 - "Powered by Lock-In" credit on every screen; reconnecting badge per 11.5.
@@ -1187,6 +1216,7 @@ Done when:
 **Covers:** P-01 to P-10, `/`, `/j/:roomCode`, `/m/:moveCode`, manifest and service worker.
 
 Done when:
+- `public/phone/` is built with Arrow (3.4). A new view never clears a typed answer or moves focus (the answer being typed lives in the page's local store until it is sent).
 - `public/phone/` renders `TeamView` for every phase and fixture: join (room code and name, with every join error shown plainly), lobby and pre-quiz (countdown, prizes, install guide link), joker, every answer input type, per-round navigation between open questions, "received" state, answers locked with the locked-in answer or "nothing sent", too late, score and position, sudden death (in it or watching), end of night.
 - Token storage and automatic rejoin (11.1), rejoin code in a team menu, `/m/:code` takeover, and the "moved to another phone" screen on `bye`.
 - Offline bar and "not sent" state per 11.5.
@@ -1217,6 +1247,7 @@ Done when:
 
 ## 15. Open questions
 
-1. **The pilot pub's TV.** Which TV (or Chromecast, or laptop on HDMI) the pilot pub has decides which smart-TV browser is tested before `v1.0.0` (1.2). Cas to find out.
+1. **The pilot pub's TV.** Cas reports modern smart TVs. The make and model (or the browser version shown in its settings) confirms it meets the display baseline (1.2, 3.3) and is the smart-TV browser tested before `v1.0.0`. Cas to find out.
 2. **"Hide answers" switch on the console (1.1).** A guard against a mirrored display showing the console. Small, but a scope addition, so it needs Cas's yes before Design or B5 adds it.
 3. **Round win when everyone scores 0 (8.3).** This spec says such a round has no winner. Cas to confirm.
+4. **Fallback display for older TVs (Later).** The display supports modern browsers only (1.2). If users report TVs below the baseline after launch, a vanilla, classic-script fallback display page could be added, chosen by the same check that B6 adds. Not planned for `v1.0.0`; Cas decides if it is needed.
