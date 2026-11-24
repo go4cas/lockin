@@ -234,4 +234,14 @@ describe("validateVenue", () => {
       "The holding page must start 0 to 120 minutes before the quiz.",
     ]);
   });
+
+  test("afterWinner: timer 15 s by default; host mode and 5..120 seconds", () => {
+    expect(defaultVenue().afterWinner).toEqual({ mode: "timer", seconds: 15 });
+    const ok = validateVenue({ format: "lockin.venue/1", afterWinner: { mode: "host", seconds: 30 } });
+    expect(ok.ok && ok.value.afterWinner).toEqual({ mode: "host", seconds: 30 });
+    expect(messages(validateVenue({ format: "lockin.venue/1", afterWinner: { mode: "later", seconds: 4 } }))).toEqual([
+      "After the winner, the standings show on a timer or when the host presses Next.",
+      "The winner screen must show for 5 to 120 seconds.",
+    ]);
+  });
 });

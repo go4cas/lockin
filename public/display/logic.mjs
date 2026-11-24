@@ -21,7 +21,6 @@ export const PAGE_HOLD_MS = 5000;
 /** Halftime and final standings with more than one page flip pages this often. */
 export const PAGE_FLIP_MS = 10000;
 /** The winner screen holds this long before the final standings (moments.md 12). */
-export const WINNER_MS = 15000;
 /** A lock that arrived more than this long after the server locked shows the padlock already shut. */
 export const LOCK_ANIMATE_WITHIN_MS = 5000;
 /** The last seconds of a timer are "hot" (moments.md 4). */
@@ -332,4 +331,60 @@ export function revealProgress(n, elapsedMs) {
 export function roundLabel(night) {
   if (!night || !night.round) return null;
   return { number: night.round.index + 1, of: night.roundCount, title: night.round.title };
+}
+
+/** Phases with nothing timed on screen, where a reload to pick up a new theme is not noticed. */
+const CALM_PHASES = ["idle", "lobby", "halftime", "ended"];
+
+/**
+ * Whether the display should reload itself to pick up a theme change (logo, tagline,
+ * fonts; H-16 "from the next screen they show"). `seen` is the themeVersion the page
+ * loaded with. It reloads at once in a calm phase, otherwise on the next phase change.
+ * @param {string | null} seen @param {any} view @param {any} last
+ */
+export function themeReloadDue(seen, view, last) {
+  const version = view && view.venue ? view.venue.themeVersion : null;
+  if (seen === null || version === null || version === seen) return false;
+  return CALM_PHASES.indexOf(view.phase) >= 0 || !last || last.phase !== view.phase;
+}
+
+/**
+ * The venue logo URL and tagline the server put in the page (GET /display).
+ * Only a same-site path is used as a logo.
+ * @param {{ querySelector(s: string): { getAttribute(n: string): string | null } | null }} doc
+ */
+export function pageBrand(doc) {
+  const get = function (/** @type {string} */ name) {
+    const el = doc.querySelector('meta[name="' + name + '"]');
+    return el ? (el.getAttribute("content") || "").trim() : "";
+  };
+  const logo = get("lockin-logo");
+  return {
+    logo: /^\/theme\/assets\/[A-Za-z0-9._-]+$/.test(logo) ? logo : null,
+    tagline: get("lockin-tagline") || "Lock in your answers.",
+  };
+}
+
+/**
+ * Ended: the winner screen, then the final standings once the server's
+ * `final.standingsAt` has passed (venue afterWinner: a timer, or the host's Next).
+ * @param {{ standingsAt: number | null } | null} final @param {number} now server time
+ */
+export function endStage(final, now) {
+  return final && final.standingsAt !== null && now >= final.standingsAt ? "final" : "winner";
+}
+
+/**
+ * The leaderboard movement arrow for a row: places moved since the round before.
+ * Up is a smaller position number. Null prevPosition (after the first round) shows nothing.
+ * @param {{ position: number, prevPosition?: number | null }} row
+ * @returns {{ cls: string, text: string }}
+ */
+export function movement(row) {
+  const prev = row.prevPosition;
+  if (prev === null || prev === undefined) return { cls: "mv", text: "" };
+  const by = prev - row.position;
+  if (by > 0) return { cls: "mv up", text: "▲" + by };
+  if (by < 0) return { cls: "mv down", text: "▼" + -by };
+  return { cls: "mv same", text: "–" };
 }

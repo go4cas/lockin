@@ -416,3 +416,13 @@ body.display-body { background: var(--brand-display-bg); overflow: hidden; curso
 .strip-in b { margin: 0 0.4em; }
 .dl-strip { display: flex; align-items: center; width: 100%; }
 .timer-box { display: flex; flex-direction: column; align-items: center; }
+
+/* Venue logo (from the theme, via GET /display): header and waiting screen */
+.display-logo .venue-logo { height: 80%; width: auto; max-width: 20vw; object-fit: contain; margin-right: var(--display-space-2); }
+.idle-logo { max-width: 50vw; max-height: 31vh; object-fit: contain; }
+
+/* Movement since the round before: up (green), down, same */
+.lb-row .mv { width: 2.2em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lb-row .mv.down { color: var(--color-wrong, var(--color-text-muted)); }
+.off { display: none; }  /* an optional part that is not showing (slots keep plain values, see NOTES) */
+.opt .tick-slot { margin-left: auto; flex: none; display: flex; align-items: center; color: var(--color-correct); }

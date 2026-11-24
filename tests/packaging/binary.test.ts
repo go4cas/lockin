@@ -103,7 +103,9 @@ describe.skipIf(!canRun)("the compiled binary", () => {
     // public/display/index.html exists it must be 200 from the binary.
     const [bin, src] = await Promise.all([fetch(`${base}/display`, { redirect: "manual" }), source.fetch("/display")]);
     expect(bin.status).toBe(src.status);
-    expect(await bin.text()).toBe(await src.text());
+    // The tagline is a random line from the copy pools on every load (B6), so it is left out of the comparison.
+    const noTagline = (t: string) => t.replace(/<meta name="lockin-tagline" content="[^"]*">/, "");
+    expect(noTagline(await bin.text())).toBe(noTagline(await src.text()));
     if (existsSync(join(ROOT, "public/display/index.html"))) expect(bin.status).toBe(200);
   });
 

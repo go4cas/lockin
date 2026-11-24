@@ -7,9 +7,9 @@
 
 import { html, reactive, nextTick } from "/vendor/arrow/index.mjs";
 import {
-  FLASH_MS, PAGE_FLIP_MS, PANEL_MS, WINNER_MS,
-  boardLayout, byId, choiceIndex, clockTime, countdownText, footerLine, holdingPanels, letter,
-  lockShouldSnap, ordinal, questionSize, revealProgress, screenFor, timerNow, wonTieBreak,
+  FLASH_MS, PAGE_FLIP_MS, PANEL_MS,
+  boardLayout, byId, choiceIndex, clockTime, countdownText, endStage, footerLine, movement, holdingPanels, letter,
+  lockShouldSnap, ordinal, pageBrand, questionSize, revealProgress, screenFor, themeReloadDue, timerNow, wonTieBreak,
 } from "./logic.mjs";
 
 /** @typedef {import("../../src/shared/protocol").DisplayView} DisplayView */
@@ -21,6 +21,8 @@ import {
 /** @type {any} */
 const W = window;
 const LockIn = W.LockIn;
+/** The venue logo and tagline, filled into the page by GET /display. */
+const BRAND = pageBrand(document);
 
 // check.js has already shown the "browser too old" page; draw nothing.
 if (!W.LockInDisplayUnsupported) start();
@@ -38,6 +40,7 @@ function start() {
   /** @type {DisplayView | null} */ let lastView = null;
   let status = "connecting";
   let connections = 0;
+  /** @type {string | null} */ let themeSeen = null;
   const now = function () { return client ? client.clock.now() : Date.now(); };
 
   /** @type {ReturnType<typeof createDisplay>} */
@@ -60,7 +63,13 @@ function start() {
   client = LockIn.connect({
     role: "display",
     onWelcome: function () { connections++; display.welcome(connections > 1); },
-    onState: function (/** @type {DisplayView} */ view) { lastView = view; display.receive(view, true); },
+    onState: function (/** @type {DisplayView} */ view) {
+      // A new theme: reload so the new logo, tagline and fonts show (a few seconds' blank at most).
+      if (themeSeen === null) themeSeen = view.venue ? view.venue.themeVersion : null;
+      else if (themeReloadDue(themeSeen, view, lastView)) { themeSeen = null; window.location.reload(); return; }
+      lastView = view;
+      display.receive(view, true);
+    },
     onStatus: function (/** @type {string} */ s) { status = s; display.setStatus(s); },
   });
 
@@ -85,7 +94,6 @@ function createDisplay(root, now) {
     now: now(),
     lbAt: 0,          // leaderboard reveal began
     lbDone: false,    // shown complete (seen again, or after a reconnect)
-    endAt: 0,         // ended screen began (winner, then final standings)
     snap: false,      // the padlock moment should animate
     // Derived from the clock in update(), so slots that build whole screens or
     // lists never read the fast-changing `now` themselves (Arrow: keep fast
@@ -98,7 +106,6 @@ function createDisplay(root, now) {
   });
 
   let lbKey = "";
-  let endKey = "";
   let lockKey = "";
   const LAST_ROW_MS = 1500;
   let freshConnection = false;   // true for the first state after a reconnect
@@ -128,10 +135,6 @@ function createDisplay(root, now) {
       // changes (a dispute) re-order rows without replaying it.
       if (revealProgress(view.standings.rows.length, t - page.lbAt - LAST_ROW_MS).done) page.lbDone = true;
     }
-    if (view && screen === "ended") {
-      const key = view.night ? view.night.id : "ended";
-      if (key !== endKey) { endKey = key; page.endAt = t; }
-    }
     if (view && view.lockedMoment && (screen === "locked" || screen === "dl-locked")) {
       const key = String(view.lockedMoment.at);
       if (key !== lockKey) { lockKey = key; page.snap = lockShouldSnap(view.lockedMoment, t); }
@@ -150,7 +153,7 @@ function createDisplay(root, now) {
     }
     const flip = Math.floor(t / PAGE_FLIP_MS);
     if (page.flip !== flip) page.flip = flip;
-    const stage = t - page.endAt < WINNER_MS ? "winner" : "final";
+    const stage = endStage(view && screen === "ended" ? view.final : null, t);
     if (page.endStage !== stage) page.endStage = stage;
     if (page.screen !== screen) page.screen = screen;
   }
@@ -239,30 +242,25 @@ function createDisplay(root, now) {
   /** @type {NonNullable<DisplayView["suddenDeath"]>} */
   const EMPTY_SD = { position: 1, teams: [], out: [], questionNumber: 0, maxQuestions: 0, question: null, status: "waiting", rightIds: null, outcome: null };
 
-  const tick = html`<svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  /** A fresh tick each time: one template instance must not be mounted in two places. */
+  const tick = () => html`<svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
   /** The Lock-In padlock. Inline (not <use>) so CSS can move the shackle on its own. @param {string} cls */
   function padlock(cls) {
     return html`<svg class="${cls}" viewBox="0 0 100 120" aria-hidden="true"><path class="shackle" d="M28 58 V36 A22 22 0 0 1 72 36 V58"/><rect class="body" x="10" y="54" width="80" height="62" rx="13"/><path class="qmark" d="M40 75 A10 10 0 1 1 55.5 83.3 C51.5 86 50 88 50 92"/><circle class="hole" cx="50" cy="104" r="4.6"/></svg>`;
   }
 
-  /** Logo (the Lock-In mark until the view carries a venue logo, see NOTES) and venue name. */
-  function head(/** @type {() => any} */ strip) {
+  /** The venue logo (the Lock-In mark when the venue has none) and venue name. */
+  function head() {
     return html`<div class="display-head">
-      <div class="display-logo">${padlock("mark")}<span>${() => (page.view ? v().venue.name : "")}</span></div>
-      <div class="display-strip">${strip}</div>
+      <div class="display-logo">${BRAND.logo ? html`<img class="venue-logo" src="${BRAND.logo}" alt="">` : padlock("mark")}<span>${() => (page.view ? v().venue.name : "")}</span></div>
+      <div class="display-strip"><span class="strip-in">${() => sp().a}<b>${() => sp().b}</b>${() => sp().c}<b>${() => sp().d}</b>${() => sp().e}<span class="display-pips">${() => stripPips()}</span></span></div>
     </div>`;
   }
 
   /** @param {TeamChip} c @param {boolean} [joker] */
   function chip(c, joker) {
-    return html`<div class="chip"><i style="${"background:" + LockIn.view.teamColour(c.colour)}"></i><span class="chip-name">${c.name}</span>${joker ? html`<span class="joker">JOKER</span>` : ""}</div>`.key(c.id);
-  }
-
-  function roundStrip() {
-    const n = v().night;
-    if (!n || !n.round) return "";
-    return html`Round <b>${n.round.index + 1}</b> ${n.round.title}`;
+    return html`<div class="chip"><i style="${"background:" + LockIn.view.teamColour(c.colour)}"></i><span class="chip-name">${c.name}</span><span class="${joker ? "joker" : "off"}">${joker ? "JOKER" : ""}</span></div>`.key(c.id);
   }
 
   /** Question pips in the header: done, now, to come. @param {number} current 1-based */
@@ -303,9 +301,9 @@ function createDisplay(root, now) {
 
   function idleScreen() {
     return html`<div class="display-main col center">
-      ${padlock("lock idle-mark")}
+      ${BRAND.logo ? html`<img class="idle-logo" src="${BRAND.logo}" alt="">` : padlock("lock idle-mark")}
       <div class="t-xl b mt3 venue-name">${() => (page.view ? v().venue.name : "")}</div>
-      <div class="display t-l mt2 status-colour">Lock in your answers.</div>
+      <div class="display t-l mt2 status-colour">${BRAND.tagline}</div>
     </div>`;
   }
 
@@ -403,7 +401,7 @@ function createDisplay(root, now) {
     if (name === "animation") {
       return html`<div class="grow col center fade-in">
         ${padlock("lock brand-lock")}
-        <div class="display t-l mt3 status-colour">Lock in your answers.</div>
+        <div class="display t-l mt3 status-colour">${BRAND.tagline}</div>
       </div>`;
     }
     if (name === "prizes") {
@@ -464,7 +462,7 @@ function createDisplay(root, now) {
     const opts = (q().input.type === "choice" ? /** @type {{ options: string[] }} */ (q().input).options : []);
     return opts.map(function (o, i) {
       const cls = right < 0 ? "opt" : i === right ? "opt right" : "opt faded";
-      return html`<div class="${cls}"><b>${letter(i)}</b><span class="opt-text">${o}</span>${i === right ? tick : ""}</div>`.key(i);
+      return html`<div class="${cls}"><b>${letter(i)}</b><span class="opt-text">${o}</span><span class="${i === right ? "tick-slot" : "off"}">${tick()}</span></div>`.key(i);
     });
   }
 
@@ -507,7 +505,7 @@ function createDisplay(root, now) {
       <div class="${() => "mt1 q-text t-" + (isChoice() ? "m" : "m muted")}">${() => rq().text}</div>
       ${() => (isChoice()
         ? html`<div class="opts reveal-in">${() => { const qq = rq(); const opts = qq.input.type === "choice" ? qq.input.options : []; return revealOptions(opts, choiceIndex(opts, r().answerText)); }}</div>`
-        : html`<div class="t-xl answer mt3 reveal-in">${tick}<span>${() => r().answerText}</span></div>`)}
+        : html`<div class="t-xl answer mt3 reveal-in">${tick()}<span>${() => r().answerText}</span></div>`)}
       <div class="tally reveal-in">${() => tallyDots(r().rightCount, of())}<span><b>${() => r().rightCount + " of " + of()}</b> ${() => (of() === 1 ? "team got it" : "teams got it")}</span></div>
     </div>`;
   }
@@ -516,7 +514,7 @@ function createDisplay(root, now) {
   function revealOptions(opts, right) {
     return opts.map(function (o, i) {
       const cls = i === right ? "opt right" : "opt faded";
-      return html`<div class="${cls}"><b>${letter(i)}</b><span class="opt-text">${o}</span>${i === right ? tick : ""}</div>`.key(i);
+      return html`<div class="${cls}"><b>${letter(i)}</b><span class="opt-text">${o}</span><span class="${i === right ? "tick-slot" : "off"}">${tick()}</span></div>`.key(i);
     });
   }
 
@@ -557,11 +555,15 @@ function createDisplay(root, now) {
           const id = r.teamId;
           // Bottom-up reveal: rows above the reveal point are hidden; the rest slide in once.
           const state = i < shownFrom ? " hidden" : o.mode === "leaderboard" && !page.lbDone ? " enter" : "";
+          // Plain values only, also for the optional tags (a slot that held text cannot later hold a template).
+          const joker = r.jokerThisRound && o.mode !== "final";
+          const tbTag = !!tags[id] && isFull;
           return html`<div class="${"lb-row" + (r.position === 1 ? " first" : "") + state}" data-key="${id}">
             <span class="pos">${(r.shared ? "=" : "") + r.position}</span>
             <i class="dot" style="${"background:" + LockIn.view.teamColour(r.colour)}"></i>
-            <span class="name"><span class="name-text">${r.name}</span>${r.jokerThisRound && o.mode !== "final" ? html`<span class="joker">JOKER</span>` : ""}${tags[id] && isFull ? html`<span class="badge-tb">more round wins</span>` : ""}</span>
-            ${isFull ? html`<span class="rnd">${"+" + r.roundScore}</span>` : html`<span class="rnd-none"></span>`}
+            <span class="name"><span class="name-text">${r.name}</span><span class="${joker ? "joker" : "off"}">${joker ? "JOKER" : ""}</span><span class="${tbTag ? "badge-tb" : "off"}">${tbTag ? "more round wins" : ""}</span></span>
+            <span class="${isFull ? "rnd" : "rnd-none"}">${isFull ? "+" + r.roundScore : ""}</span>
+            <span class="${o.mode === "final" ? "mv" : movement(r).cls}">${o.mode === "final" ? "" : movement(r).text}</span>
             <span class="tot">${r.total}</span>
           </div>`.key(id);
         });
@@ -584,18 +586,21 @@ function createDisplay(root, now) {
     </div>`;
   }
 
+  /** @returns {StripParts} */
   function leaderboardStrip() {
     const n = v().night;
     const count = rows().length;
     const pages = boardLayout(count).pages;
     const p = Math.min(page.lbPage, pages.length - 1);
-    const s = pages[p] || [0, count];
-    const after = n && n.round ? html`After round <b>${n.round.index + 1}</b> of ${n.roundCount}` : "";
+    const sl = pages[p] || [0, count];
+    const r = n && n.round;
+    const after = r && n ? { a: "After round ", b: String(r.index + 1), c: " of " + n.roundCount } : { a: "", b: "", c: "" };
     if (pages.length > 1) {
-      return html`${after} · places <b>${(s[0] || 0) + 1}–${s[1]}</b> of ${count}${p < pages.length - 1 ? " · top 20 next" : ""}`;
+      return parts({ ...after, c: after.c + (after.a ? " \u00b7 " : "") + "places ", d: ((sl[0] || 0) + 1) + "\u2013" + sl[1], e: " of " + count + (p < pages.length - 1 ? " \u00b7 top 20 next" : "") });
     }
-    return count > 8 ? html`${after} · <b>${count}</b> teams` : after;
+    return count > 8 ? parts({ ...after, c: after.c + (after.a ? " \u00b7 " : ""), d: String(count), e: " teams" }) : parts(after);
   }
+
 
   /** Pages that flip every PAGE_FLIP_MS (halftime and final standings with many teams). @param {number} perPage */
   function flipSlice(perPage) {
@@ -720,10 +725,10 @@ function createDisplay(root, now) {
 
   // ---------------------------------------------------------------- winner and final standings
 
-  const endStage = () => page.endStage;
+  const stageNow = () => page.endStage;
 
   function endedScreen() {
-    return html`<div class="ended-wrap">${() => (endStage() === "winner" ? winnerScreen() : finalScreen())}</div>`;
+    return html`<div class="ended-wrap">${() => (stageNow() === "winner" ? winnerScreen() : finalScreen())}</div>`;
   }
 
   function winnerScreen() {
@@ -777,40 +782,50 @@ function createDisplay(root, now) {
     ended: endedScreen,
   };
 
-  /** The header's right-hand strip for each screen. */
-  /** The strip as one wrapper element, whatever it holds (a slot swaps whole templates). */
-  function strip() {
-    const inner = stripInner();
-    return html`<span class="strip-in">${inner}</span>`;
-  }
+  /**
+   * The header strip as plain text parts: a <b>b</b> c <b>d</b> e, then question pips.
+   * Fixed shape with plain values only: a template that appears in a slot that
+   * first held text is printed as source code by Arrow 1.0.6 (NOTES).
+   * @typedef {{ a: string, b: string, c: string, d: string, e: string, pips: number[] | null }} StripParts
+   */
+  /** @param {Partial<StripParts>} p @returns {StripParts} */
+  const parts = (p) => ({ a: "", b: "", c: "", d: "", e: "", pips: null, ...p });
+  const sp = () => stripParts();
 
-  function stripInner() {
+  /** @returns {StripParts} */
+  function stripParts() {
     const s = page.screen;
-    if (!page.view) return "";
+    if (!page.view) return parts({});
     const n = v().night;
-    if (s === "lobby") return n && n.plannedStart !== null ? html`Starts at <b class="num">${clockTime(n.plannedStart)}</b>` : "Starting soon";
-    if (s === "holding") return "";
-    if (s === "round") return n && n.round ? html`Round <b>${n.round.index + 1}</b> of ${n.roundCount}` : "";
+    const r = n && n.round;
+    if (s === "lobby") return n && n.plannedStart !== null ? parts({ a: "Starts at ", b: clockTime(n.plannedStart) }) : parts({ a: "Starting soon" });
+    if (s === "round") return r && n ? parts({ a: "Round ", b: String(r.index + 1), c: " of " + n.roundCount }) : parts({});
     if (s === "question" || s === "locked") {
       const qq = v().question;
-      return html`${roundStrip()} <span class="display-pips">${qq && n && n.round ? pips(n.round.questionCount, qq.number) : ""}</span>`;
+      return r ? parts({ a: "Round ", b: String(r.index + 1), c: r.title ? " " + r.title : "", pips: qq ? [r.questionCount, qq.number] : null }) : parts({});
     }
-    if (s === "marking") return roundStrip();
+    if (s === "marking") return r ? parts({ a: "Round ", b: String(r.index + 1), c: r.title ? " " + r.title : "" }) : parts({});
     if (s === "reveal") {
-      const r = v().reveal;
-      return n && n.round ? html`Round <b>${n.round.index + 1}</b> answers <span class="display-pips">${r ? pips(n.round.questionCount, r.question.number) : ""}</span>` : "";
+      const rv = v().reveal;
+      return r ? parts({ a: "Round ", b: String(r.index + 1), c: " answers", pips: rv ? [r.questionCount, rv.question.number] : null }) : parts({});
     }
     if (s === "leaderboard") return leaderboardStrip();
-    if (s === "halftime") return n && n.round ? html`Halftime · round <b>${n.round.index + 2}</b> next` : "Halftime";
-    if (s === "ended") return endStage() === "winner" ? "Final result" : "Final standings";
-    return "";
+    if (s === "halftime") return r ? parts({ a: "Halftime \u00b7 round ", b: String(r.index + 2), c: " next" }) : parts({ a: "Halftime" });
+    if (s === "ended") return parts({ a: stageNow() === "winner" ? "Final result" : "Final standings" });
+    return parts({});
+  }
+
+  /** Question pips: done, now, to come. A keyed list from its own slot. */
+  function stripPips() {
+    const p = sp().pips;
+    return p ? pips(p[0] || 0, p[1] || 0) : [];
   }
 
   const deadlock = () => page.screen.indexOf("dl-") === 0;
 
   const app = html`<div class="${() => "display-screen" + (deadlock() ? " deadlock" : "") + (page.screen === "idle" || page.screen === "connecting" ? " bare" : "")}">
     <div class="${() => "display-safe" + (page.status === "offline" ? " stale" : "")}">
-      ${() => (deadlock() ? html`<div class="display-head">${() => html`<div class="dl-strip">${deadlockStrip()}</div>`}</div>` : head(strip))}
+      ${() => (deadlock() ? html`<div class="display-head">${() => html`<div class="dl-strip">${deadlockStrip()}</div>`}</div>` : head())}
       ${() => (SCREENS[page.screen] || idleScreen)()}
       <div class="display-foot">
         <div class="display-voice">${() => footerLine(page.view, page.screen, page.now) || ""}</div>

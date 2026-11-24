@@ -43,7 +43,7 @@ export type CommandName =
   | "round.start" | "round.finish" | "round.next" | "question.next"
   | "timer.start" | "timer.pause" | "timer.resume" | "timer.add" | "lock"
   | "mark.group" | "mark.team" | "reveal.start" | "reveal.next" | "leaderboard.show"
-  | "sd.start" | "sd.ask" | "sd.reveal"
+  | "sd.start" | "sd.ask" | "sd.reveal" | "final.show"
   | "team.rename" | "team.remove" | "team.moveCode"
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
@@ -52,7 +52,7 @@ export const COMMAND_NAMES: readonly CommandName[] = [
   "round.start", "round.finish", "round.next", "question.next",
   "timer.start", "timer.pause", "timer.resume", "timer.add", "lock",
   "mark.group", "mark.team", "reveal.start", "reveal.next", "leaderboard.show",
-  "sd.start", "sd.ask", "sd.reveal",
+  "sd.start", "sd.ask", "sd.reveal", "final.show",
   "team.rename", "team.remove", "team.moveCode",
   "team.join", "team.rejoin", "joker.play", "answer.submit",
 ];
@@ -129,7 +129,10 @@ export interface RevealItem {
 
 export interface Standings {
   round: number;                   // 0-based round these standings follow
-  rows: (StandingRow & { name: string; colour: number; roundScore: number; jokerThisRound: boolean })[];
+  rows: (StandingRow & {
+    name: string; colour: number; roundScore: number; jokerThisRound: boolean;
+    prevPosition: number | null;   // position after the round before `round` (no sudden death); null after the first round. Drives the up/down/same arrow.
+  })[];
 }
 
 export interface SuddenDeathPublic {
@@ -160,7 +163,10 @@ export interface DisplayView extends Common {
   reveal: RevealItem | null;
   standings: Standings | null;               // leaderboard, halftime, ended
   suddenDeath: SuddenDeathPublic | null;
-  final: { winners: TeamChip[]; lastPlace: TeamChip[] } | null;  // ended
+  final: {                                   // ended
+    winners: TeamChip[]; lastPlace: TeamChip[];
+    standingsAt: number | null;              // server time the final standings replace the winner screen; null: waiting for the host's final.show
+  } | null;
   lines: Lines;
 }
 
@@ -213,6 +219,7 @@ export interface HostView extends Common {
   standings: Standings | null;               // live standings, always available after Quiz Start
   suddenDeath: (SuddenDeathPublic & { questionHost: QuestionHost | null; marking: MarkingQuestion | null }) | null;
   suddenDeathNeeded: { position: number; teamIds: string[] } | null;
+  finalStandingsAt: number | null;           // ended: server time the display moves from the winner to the final standings (null: waiting for final.show, or not ended)
   can: Partial<Record<CommandName, boolean>>; // which commands are allowed now, to enable buttons
   lines: Lines;                              // what the display is showing, for the host's reference
 }

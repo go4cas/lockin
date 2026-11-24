@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { startTestServer, type TestServer } from "../helpers/server.ts";
+import { logoUrl, personalise } from "../../src/server/display/index.ts";
 
 const ROOT = join(import.meta.dir, "../..");
 const read = (f: string) => readFileSync(join(ROOT, f), "utf8");
@@ -96,10 +97,29 @@ describe("GET /display (TECH-SPEC 9.1)", () => {
     expect(await res.text()).toContain('<div id="display">');
   });
 
+  test("fills in the venue logo and a tagline from the theme; never cached", async () => {
+    const res = await s.fetch("/display", { origin: null });
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const page = await res.text();
+    expect(page).toContain('<meta name="lockin-logo" content="">');   // no logo uploaded
+    expect(page).toMatch(/<meta name="lockin-tagline" content="[^"]+">/);
+  });
+
   test("its scripts and styles are served from /static/display/", async () => {
     for (const f of ["check.js", "display.mjs", "logic.mjs", "display.css", "fonts.css"]) {
       const res = await s.fetch(`/static/display/${f}`, { origin: null });
       expect(res.status).toBe(200);
     }
+  });
+});
+
+describe("display personalise (logo and tagline)", () => {
+  test("puts the logo URL and an escaped tagline into the meta tags", () => {
+    const page = readFileSync(join(import.meta.dir, "../../public/display/index.html"), "utf8");
+    const out = personalise(page, logoUrl({ logo: "assets/logo-3f9a1c2b7d.png" } as never), 'Pints & "quizzes"');
+    expect(out).toContain('<meta name="lockin-logo" content="/theme/assets/logo-3f9a1c2b7d.png">');
+    expect(out).toContain('<meta name="lockin-tagline" content="Pints &amp; &quot;quizzes&quot;">');
+    expect(logoUrl({ logo: "../secrets.png" } as never)).toBeNull();
+    expect(logoUrl(null)).toBeNull();
   });
 });

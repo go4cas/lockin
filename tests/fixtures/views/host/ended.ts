@@ -6,6 +6,7 @@ export default {
   ...hostBase(),
   teams: hostTeams(6, { totals: true }),
   standings: standings(6, 5),
-  can: { "night.close": true, "mark.team": true, "team.rename": true },
+  finalStandingsAt: NOW + 15_000,
+  can: { "night.close": true, "mark.team": true, "team.rename": true, "final.show": true },
   lines: lines({ winner: "Quizteama Aguilera, champions of The Example Arms!", goodbye: "Drink up, get home safe." }),
 } satisfies HostView;

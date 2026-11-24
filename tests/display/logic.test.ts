@@ -5,8 +5,8 @@ import { NOW, night, standings, timer } from "../fixtures/views/_data.ts";
 import type { DisplayView } from "../../src/shared/protocol.ts";
 import {
   FLASH_MS, PAGE_HOLD_MS, ROW_GAP_MS,
-  boardLayout, choiceIndex, countdownText, footerLine, holdingPanels, isHolding, lockShouldSnap,
-  ordinal, questionSize, revealProgress, screenFor, timerNow, wonTieBreak,
+  boardLayout, choiceIndex, countdownText, endStage, footerLine, holdingPanels, isHolding, lockShouldSnap,
+  movement, ordinal, pageBrand, questionSize, revealProgress, screenFor, themeReloadDue, timerNow, wonTieBreak,
 } from "../../public/display/logic.mjs";
 
 const MIN = 60_000;
@@ -168,5 +168,51 @@ describe("footer lines and flashes (TECH-SPEC 10.4)", () => {
     expect(footerLine(f.get("display/reveal") as DisplayView, "reveal", NOW)).toBe("Drum roll, please.");
     expect(footerLine(f.get("display/sudden_death-revealed") as DisplayView, "dl-result", NOW)).toBe("Les Quizerables break the deadlock.");
     expect(footerLine(null, "idle", NOW)).toBeNull();
+  });
+});
+
+describe("after the winner (venue afterWinner)", () => {
+  test("the winner shows until final.standingsAt, then the final standings", () => {
+    expect(endStage(null, NOW)).toBe("winner");
+    expect(endStage({ standingsAt: null }, NOW + 999_999)).toBe("winner");   // waiting for the host's Next
+    expect(endStage({ standingsAt: NOW + 15_000 }, NOW + 14_999)).toBe("winner");
+    expect(endStage({ standingsAt: NOW + 15_000 }, NOW + 15_000)).toBe("final");
+  });
+});
+
+describe("leaderboard movement arrows", () => {
+  test("up, down, same, and nothing after the first round", () => {
+    expect(movement({ position: 1, prevPosition: 3 })).toEqual({ cls: "mv up", text: "\u25B22" });
+    expect(movement({ position: 4, prevPosition: 3 })).toEqual({ cls: "mv down", text: "\u25BC1" });
+    expect(movement({ position: 2, prevPosition: 2 })).toEqual({ cls: "mv same", text: "\u2013" });
+    expect(movement({ position: 2, prevPosition: null })).toEqual({ cls: "mv", text: "" });
+  });
+
+  test("the fixtures carry a mix of moves", () => {
+    const kinds = new Set(standings(10, 2).rows.map((r) => movement(r).cls));
+    expect([...kinds].sort()).toEqual(["mv down", "mv same", "mv up"]);
+    expect(standings(4, 0).rows.every((r) => r.prevPosition === null)).toBe(true);
+  });
+});
+
+describe("venue logo, tagline and theme changes", () => {
+  const doc = (logo: string, tagline: string) => ({
+    querySelector: (sel: string) => ({ getAttribute: () => (sel.includes("lockin-logo") ? logo : tagline) }),
+  });
+
+  test("pageBrand reads the server's meta tags; only a theme asset path is used as the logo", () => {
+    expect(pageBrand(doc("/theme/assets/logo-3f9a1c2b7d.png", "Think fast. Drink slow."))).toEqual({ logo: "/theme/assets/logo-3f9a1c2b7d.png", tagline: "Think fast. Drink slow." });
+    expect(pageBrand(doc("https://evil.example/x.png", "")).logo).toBeNull();
+    expect(pageBrand(doc("", "")).tagline).toBe("Lock in your answers.");
+    expect(pageBrand({ querySelector: () => null })).toEqual({ logo: null, tagline: "Lock in your answers." });
+  });
+
+  test("a new themeVersion reloads at once in a calm phase, otherwise at the next phase change", () => {
+    const v = (phase: string, themeVersion: string) => ({ phase, venue: { themeVersion } });
+    expect(themeReloadDue("a", v("lobby", "a"), v("lobby", "a"))).toBe(false);
+    expect(themeReloadDue("a", v("lobby", "b"), v("lobby", "a"))).toBe(true);
+    expect(themeReloadDue("a", v("asking", "b"), v("asking", "a"))).toBe(false);
+    expect(themeReloadDue("a", v("marking", "b"), v("asking", "b"))).toBe(true);
+    expect(themeReloadDue(null, v("lobby", "b"), null)).toBe(false);
   });
 });

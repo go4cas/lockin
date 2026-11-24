@@ -15,6 +15,9 @@ const ROOT = path.resolve(__dirname, "../..");
 const BASE = process.argv[2] || "http://localhost:8091";
 const OUT = path.resolve(process.argv[3] || path.join(ROOT, "docs/screenshots/b6"));
 
+/** A made-up venue logo, served at /theme/assets/ for the logo shots. */
+const LOGO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120"><rect x="4" y="4" width="312" height="112" rx="20" fill="none" stroke="#e2cfa6" stroke-width="8"/><text x="160" y="76" font-size="44" text-anchor="middle" font-family="Georgia" fill="#e2cfa6">Example Arms</text></svg>`;
+
 const PICTURE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><rect width="400" height="400" fill="#3a4a5c"/><circle cx="200" cy="200" r="120" fill="#e2cfa6"/><rect x="40" y="300" width="320" height="18" fill="#17191b"/><text x="200" y="215" font-size="36" text-anchor="middle" font-family="Arial" fill="#17191b">picture</text></svg>`;
 
 /** Fixture name -> how long to wait before the shot (ms), and extra shots at other times. */
@@ -40,10 +43,28 @@ const VARIANTS = {
   "deadlock-shared": ["display/sudden_death-revealed", (v) => { v.suddenDeath.questionNumber = 3; v.suddenDeath.rightIds = []; v.suddenDeath.outcome = { position: 1, teamIds: v.suddenDeath.teams.map((t) => t.id), result: "shared" }; v.lines.suddenDeath = "Still deadlocked. You'll have to share it."; }],
   "winner-shared": ["display/ended", (v) => { v.final.winners = v.teams.slice(0, 2); v.lines.winner = "Joint champions: Quizteama Aguilera and Les Quizerables!"; }],
   "idle-no-name": ["display/idle", (v) => { v.venue.name = ""; }],
+  // venue afterWinner "host": still the winner long after the timer would have moved on
+  "winner-waiting-for-host": ["display/ended", (v) => { v.final.standingsAt = null; }, { waits: [[17000, ""]] }],
+  // A venue logo and tagline filled in by GET /display (the fixture server serves the page as it is)
+  "idle-logo": ["display/idle", null, { logo: true }],
+  "leaderboard-logo": ["display/leaderboard", null, { logo: true, waits: [[8000, ""]] }],
   "lobby-30": ["display/lobby", (v) => { v.flash = null; v.teams = Array.from({ length: 30 }, (_, i) => ({ id: "t" + i, name: v.teams[i % 6].name + (i >= 6 ? " " + (Math.floor(i / 6) + 1) : ""), colour: (i % 8) + 1, jokerThisRound: false })); }],
 };
 
-async function routes(page, state, mutate) {
+async function routes(page, state, mutate, opts) {
+  if (opts && opts.logo) {
+    // Fill the meta tags as GET /display would (the fixture server serves the page as it is).
+    await page.addInitScript(() => {
+      new MutationObserver((list) => {
+        for (const m of list) for (const n of m.addedNodes) {
+          if (n.nodeName !== "META") continue;
+          if (n.getAttribute("name") === "lockin-logo") n.setAttribute("content", "/theme/assets/logo-example.svg");
+          if (n.getAttribute("name") === "lockin-tagline") n.setAttribute("content", "Think fast. Drink slow.");
+        }
+      }).observe(document, { childList: true, subtree: true });
+    });
+    await page.route(/\/theme\/assets\//, (r) => r.fulfill({ body: LOGO, contentType: "image/svg+xml" }));
+  }
   await page.route(/\/vendor\//, (r) => {
     const p = new URL(r.request().url()).pathname;
     r.fulfill({ path: path.join(ROOT, "public", p), contentType: "text/javascript" });
@@ -72,7 +93,7 @@ async function routes(page, state, mutate) {
 
 async function shoot(browser, name, w, h, waits, variant) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
-  await routes(page, null, variant && variant[1]);
+  await routes(page, null, variant && variant[1], variant && variant[3]);
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("console", (m) => { if (m.type() === "error" && !/theme\.css|favicon|404/.test(m.text())) errors.push(m.text()); });
@@ -86,6 +107,8 @@ async function shoot(browser, name, w, h, waits, variant) {
     await page.screenshot({ path: path.join(OUT, file) });
     const scroll = await page.evaluate(() => ({ x: document.documentElement.scrollWidth > innerWidth, y: document.documentElement.scrollHeight > innerHeight }));
     if (scroll.x || scroll.y) errors.push(`page scrolls: ${JSON.stringify(scroll)}`);
+    const code = await page.evaluate(() => /=>|renderTemplate/.test(document.body.innerText));
+    if (code) errors.push("source code printed on screen (an Arrow slot that held text got a template)");
   }
   await page.close();
   return errors;
@@ -102,8 +125,8 @@ async function shoot(browser, name, w, h, waits, variant) {
       const errs = await shoot(browser, name, w, h, SHOTS[name] || [[2500, ""]]);
       if (errs.length) report[`${name} ${w}x${h}`] = errs;
     }));
-    await Promise.all(Object.entries(VARIANTS).map(async ([label, [base, mutate]]) => {
-      const errs = await shoot(browser, base, w, h, [[2500, ""]], [base, mutate, label]);
+    await Promise.all(Object.entries(VARIANTS).map(async ([label, [base, mutate, opts]]) => {
+      const errs = await shoot(browser, base, w, h, (opts && opts.waits) || [[2500, ""]], [base, mutate, label, opts]);
       if (errs.length) report[`${label} ${w}x${h}`] = errs;
     }));
 

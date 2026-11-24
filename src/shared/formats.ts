@@ -90,6 +90,10 @@ export interface VenueFile {
     minutesBefore: number;                     // 0..120, default 30
     panels: HoldingPanel[];                    // shown in this order; default all six
   };
+  afterWinner: {                               // Quiz End: winner screen, then final standings (T-12)
+    mode: "timer" | "host";                    // timer: standings after `seconds`; host: on the host's Next (final.show). Default "timer"
+    seconds: number;                           // 5..120, default 15; used in timer mode
+  };
 }
 export interface Prize { place: number; text: string }   // place 1.., text 1..80 chars
 export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "animation" | "prizes";
@@ -133,7 +137,7 @@ export function defaultTheme(): ThemeFile {
 }
 
 export function defaultVenue(): VenueFile {
-  return { format: VENUE_FORMAT, prizes: [], holding: { minutesBefore: 30, panels: [...HOLDING_PANELS] } };
+  return { format: VENUE_FORMAT, prizes: [], holding: { minutesBefore: 30, panels: [...HOLDING_PANELS] }, afterWinner: { mode: "timer", seconds: 15 } };
 }
 
 // ---------------------------------------------------------------------------
@@ -582,6 +586,21 @@ export function validateVenue(json: unknown): Validated<VenueFile> {
           for (const p of h.panels) if (oneOf(p, HOLDING_PANELS) && !panels.includes(p)) panels.push(p);
           v.holding.panels = panels;
         }
+      }
+    }
+  }
+
+  if (json.afterWinner !== undefined) {
+    const w = json.afterWinner;
+    if (!isObj(w)) add("afterWinner", "The after-the-winner setting is not a JSON object.");
+    else {
+      if (w.mode !== undefined) {
+        if (w.mode === "timer" || w.mode === "host") v.afterWinner.mode = w.mode;
+        else add("afterWinner.mode", "After the winner, the standings show on a timer or when the host presses Next.");
+      }
+      if (w.seconds !== undefined) {
+        if (isInt(w.seconds) && w.seconds >= 5 && w.seconds <= 120) v.afterWinner.seconds = w.seconds;
+        else add("afterWinner.seconds", "The winner screen must show for 5 to 120 seconds.");
       }
     }
   }

@@ -30,7 +30,7 @@ async function run(views, b, s) {
  const finals=[["reveal","Aretha Franklin"],["halftime","Halftime"],["asking","Who sang"],["sudden_death-revealed","take 1st place"],["lobby","BKTW"]];
  const bad=[];
  for(const [n,want] of finals){ sock.send(JSON.stringify({t:"state",seq:seq++,serverNow:now0,view:views[n]})); await p.waitForTimeout(1500);
-   const txt=await p.evaluate(()=>document.getElementById("display").innerText.replace(/\s+/g," ")); if(!txt.includes(want)) bad.push(n+": "+txt.slice(0,100)); }
+   const txt=await p.evaluate(()=>document.getElementById("display").innerText.replace(/\s+/g," ")); if(!txt.includes(want) || /=>|renderTemplate/.test(txt)) bad.push(n+": "+txt.slice(0,100)); }
  await p.close();
  return { seed: s, errors: errs.length, kinds: [...new Set(errs)], bad };
 }
