@@ -5,12 +5,12 @@ import { html } from "/vendor/arrow/index.mjs";
 import { askingScreen, roundIntroScreen } from "./asking.js";
 import { deadlockScreen } from "./deadlock.js";
 import { displayNow, endAction, primaryAction, topTitle } from "./logic.js";
-import { idleScreen, lobbyScreen, openDisplay, prizesDialog } from "./lobby.js";
+import { idleEnter, idleScreen, lobbyEnter, lobbyScreen, openDisplay, prizesDialog } from "./lobby.js";
 import { markingScreen, pendingNote } from "./marking.js";
-import { disputeDialog, endedScreen, halftimeScreen, leaderboardScreen, revealScreen } from "./results.js";
+import { disputeDialog, endedScreen, halftimeScreen, leaderboardScreen, loadDetail, revealScreen } from "./results.js";
 import { closeDialog, enabled, openDialog, page, send, setClient, ui } from "./state.js";
 import { moveDialog, offlineCount, removeDialog, renameDialog, sideTeams, teamDialog, teamsDialog } from "./teams.js";
-import { cmdButton, dialogFrame, nextButton } from "./ui.js";
+import { cmdButton, dialogFrame, mountParts, nextButton } from "./ui.js";
 
 /** @typedef {import("../../../src/shared/protocol").HostView} HostView */
 
@@ -52,77 +52,57 @@ function topBar() {
   return html`<header class="topbar">
     <span class="${() => `title${page.view?.phase === "sudden_death" ? " deadlock-word" : ""}`}">${() => t().title}</span>
     <span class="muted s">${() => t().sub}</span>
-    ${() => (page.view?.marking && page.view.marking.pendingTotal > 0 && (page.view.phase === "marking" || page.view.phase === "asking")
-      ? html`<span class="pill warn">${() => `${page.view?.marking?.pendingTotal || 0} left to mark`}</span>` : "")}
+    <span class="pill warn" hidden="${() => !(page.view?.marking && page.view.marking.pendingTotal > 0 && (page.view.phase === "marking" || page.view.phase === "asking"))}">${() => `${page.view?.marking?.pendingTotal || 0} left to mark`}</span>
     <span class="spacer"></span>
-    ${() => (page.view?.night ? html`<span class="s muted">Room <b class="code">${() => page.view?.night?.roomCode || ""}</b></span>` : "")}
-    ${() => (offlineCount() ? html`<button type="button" class="pill warn as-btn" @click="${() => openDialog("teams")}"><i></i>${() => `${offlineCount()} team${offlineCount() === 1 ? "" : "s"} offline`}</button>` : "")}
-    ${() => (page.view?.night ? html`<button type="button" class="btn ghost" @click="${openDisplay}">Open display</button>` : "")}
+    <span class="s muted" hidden="${() => !page.view?.night}">Room <b class="code">${() => page.view?.night?.roomCode || ""}</b></span>
+    <button type="button" class="pill warn as-btn" hidden="${() => !offlineCount()}" @click="${() => openDialog("teams")}"><i></i>${() => `${offlineCount()} team${offlineCount() === 1 ? "" : "s"} offline`}</button>
+    <button type="button" class="btn ghost" hidden="${() => !page.view?.night}" @click="${openDisplay}">Open display</button>
     <button type="button" class="btn ghost menu-btn" aria-haspopup="dialog" @click="${() => openDialog("menu")}">Night menu ▾</button>
   </header>`;
 }
 
 function sidePanel() {
-  return html`<aside class="side">
+  return html`<aside class="side" hidden="${() => page.screen === "idle" || page.screen === "loading"}">
     <div class="sec">
       <h3 class="label">On the display now</h3>
       <div class="displayprev">${() => displayNow(page.view)}</div>
     </div>
-    ${() => sideExtra()}
-    ${() => (page.view?.night && page.view.phase !== "lobby" ? sideTeams(() => page.view?.phase === "asking" && !!page.view.current && page.view.current.status === "open") : "")}
+    <div class="sec muted s" hidden="${() => page.screen !== "lobby"}">Joining closes when you start. Teams that drop out can still rejoin.</div>
+    <div class="sec s" hidden="${() => page.screen !== "marking"}"><b>${pendingNote}</b><p class="muted">The reveal waits until every answer is marked.</p></div>
+    <div hidden="${() => !(page.view?.night && page.view.phase !== "lobby")}">${sideTeams(() => page.view?.phase === "asking" && !!page.view.current && page.view.current.status === "open")}</div>
     ${nextButton(() => primaryAction(page.view))}
-    ${() => sideSecondary()}
+    <div class="sec secondary" hidden="${() => page.screen !== "marking" && page.screen !== "reveal"}">${cmdButton("leaderboard.show", "Skip the reveal, go to the leaderboard", { cls: "ghost wide" })}</div>
   </aside>`;
 }
 
-/** A short explanation under the display preview, by phase. */
-function sideExtra() {
-  switch (page.screen) {
-    case "lobby": return html`<div class="sec muted s">Joining closes when you start. Teams that drop out can still rejoin.</div>`;
-    case "marking": return html`<div class="sec s"><b>${pendingNote}</b><p class="muted">The reveal waits until every answer is marked.</p></div>`;
-    default: return "";
-  }
-}
-
-/** Second actions under the big button. */
-function sideSecondary() {
-  switch (page.screen) {
-    case "marking":
-    case "reveal":
-      return html`<div class="sec secondary">${cmdButton("leaderboard.show", "Skip the reveal, go to the leaderboard", { cls: "ghost wide" })}</div>`;
-    default:
-      return "";
-  }
-}
-
 function banners() {
-  return html`
-    ${() => (page.status === "offline" ? html`<div class="lockin-offline banner" role="status">Reconnecting to Lock-In… Buttons come back when the connection does.</div>` : "")}
-    ${() => (ui.error ? html`<div class="error-bar" role="alert"><span>${() => ui.error}</span><button type="button" class="btn ghost small" @click="${() => { ui.error = ""; }}">OK</button></div>` : "")}`;
+  return html`<div class="lockin-offline banner" role="status" hidden="${() => page.status !== "offline"}">Reconnecting to Lock-In… Buttons come back when the connection does.</div>
+    <div class="error-bar" role="alert" hidden="${() => !ui.error}"><span>${() => ui.error}</span><button type="button" class="btn ghost small" @click="${() => { ui.error = ""; }}">OK</button></div>`;
 }
 
 // ---- Night menu and confirmations ---------------------------------------------
 
 function menuDialog() {
   return dialogFrame("Night menu", html`<div class="stack">
-    ${() => (page.view?.night ? html`<button type="button" class="btn" @click="${() => { closeDialog(); openDisplay(); }}">Open display in a new window</button>` : "")}
-    ${() => (page.view?.night ? html`<button type="button" class="btn" @click="${() => openDialog("teams")}">Teams: rename, move to a new phone, remove</button>` : "")}
-    ${() => (page.view?.night && enabled("night.update") ? html`<button type="button" class="btn" @click="${() => openDialog("prizes", { prizes: (page.view?.night?.prizes || []).map((p) => ({ text: p.text })) })}">Prizes tonight</button>` : "")}
-    ${() => { const a = endAction(page.view); return a ? html`<button type="button" class="${a.tone === "danger" ? "btn danger" : "btn"}" @click="${() => openDialog("confirmEnd", { action: a })}">${a.label}</button>` : ""; }}
-    ${() => (page.view?.phase === "lobby" && enabled("night.close") ? html`<button type="button" class="btn danger" @click="${() => openDialog("closeNight")}">Close the night without starting</button>` : "")}
+    <button type="button" class="btn" hidden="${() => !page.view?.night}" @click="${() => { closeDialog(); openDisplay(); }}">Open display in a new window</button>
+    <button type="button" class="btn" hidden="${() => !page.view?.night}" @click="${() => openDialog("teams")}">Teams: rename, move to a new phone, remove</button>
+    <button type="button" class="btn" hidden="${() => !(page.view?.night && enabled("night.update"))}" @click="${() => openDialog("prizes", { prizes: (page.view?.night?.prizes || []).map((p) => ({ text: p.text })) })}">Prizes tonight</button>
+    <button type="button" class="${() => (endAction(page.view)?.tone === "danger" ? "btn danger" : "btn")}" hidden="${() => !endAction(page.view)}"
+      @click="${() => { const a = endAction(page.view); if (a) openDialog("confirmEnd", { action: a }); }}">${() => endAction(page.view)?.label || ""}</button>
+    <button type="button" class="btn danger" hidden="${() => !(page.view?.phase === "lobby" && enabled("night.close"))}" @click="${() => openDialog("closeNight")}">Close the night without starting</button>
     <a class="btn ghost" href="/host">Back to the console menu</a>
   </div>`);
 }
 
 function confirmEndDialog() {
-  const a = ui.d.action;
-  const early = !!(a && a.args && a.args.early);
-  return dialogFrame(early ? "End the quiz early?" : "End the quiz?", html`<p>${early
+  const a = () => ui.d.action;
+  const early = () => !!(a() && a().args && a().args.early);
+  return dialogFrame(() => (early() ? "End the quiz early?" : "End the quiz?"), html`<p>${() => (early()
     ? "The night ends now. Scores so far become the final standings, the display shows the winner, and the night is saved in History. This cannot be undone."
-    : "The display shows the winner and the final standings, and the night is saved in History. Marks can no longer be changed after this."}</p>`,
+    : "The display shows the winner and the final standings, and the night is saved in History. Marks can no longer be changed after this.")}</p>`,
   html`<button type="button" class="btn ghost" @click="${closeDialog}">Keep going</button>
-    <button type="button" class="${early ? "btn danger-fill" : "btn primary"}" disabled="${() => !enabled("quiz.end")}"
-      @click="${async () => { if ((await send("quiz.end", a ? a.args : {})).ok) closeDialog(); }}">${early ? "End the quiz now" : "End the quiz"}</button>`);
+    <button type="button" class="${() => (early() ? "btn danger-fill" : "btn primary")}" disabled="${() => !enabled("quiz.end")}"
+      @click="${async () => { const x = a(); if ((await send("quiz.end", x ? x.args : {})).ok) closeDialog(); }}">${() => (early() ? "End the quiz now" : "End the quiz")}</button>`);
 }
 
 function closeNightDialog() {
@@ -134,13 +114,25 @@ function closeNightDialog() {
 
 // ---- Page --------------------------------------------------------------------
 
-html`${banners}
+html`${banners()}
   ${topBar()}
   <div class="${() => `runbody${page.screen === "idle" || page.screen === "loading" ? " no-side" : ""}${page.status === "offline" ? " is-offline" : ""}`}">
-    <main class="main" id="host-main">${() => [(SCREENS[page.screen] || loadingScreen)().key(page.screen)]}</main>
-    ${() => (page.screen === "idle" || page.screen === "loading" ? "" : sidePanel())}
+    <main class="main" id="host-main"></main>
+    ${sidePanel()}
   </div>
-  ${() => (ui.dialog && DIALOGS[ui.dialog] ? [/** @type {() => any} */ (DIALOGS[ui.dialog])().key(ui.dialog)] : "")}`(/** @type {HTMLElement} */ (document.getElementById("app")));
+  <div class="dialogs"></div>`(/** @type {HTMLElement} */ (document.getElementById("app")));
+
+// Screens and dialogs are built once and then shown and hidden (Arrow 1.0.6, see ui.js).
+/** @type {Record<string, () => void>} */
+const ON_SCREEN = { idle: idleEnter, lobby: lobbyEnter, reveal: loadDetail };
+mountParts(/** @type {HTMLElement} */ (document.getElementById("host-main")), SCREENS,
+  () => (SCREENS[page.screen] ? page.screen : "loading"), (name) => ON_SCREEN[name]?.());
+mountParts(/** @type {HTMLElement} */ (document.querySelector("#app .dialogs")), DIALOGS, () => ui.dialog, (name, box) => {
+  if (name === "dispute") loadDetail();
+  // Put the keyboard in the dialog: its first field, else its close button.
+  const f = /** @type {HTMLElement | null} */ (box.querySelector("input, .dialog .close"));
+  if (f) f.focus();
+});
 
 /** @type {any} */
 const LockIn = /** @type {any} */ (window).LockIn;

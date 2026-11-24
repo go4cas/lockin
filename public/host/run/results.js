@@ -6,7 +6,7 @@ import { html, reactive } from "/vendor/arrow/index.mjs";
 import { ordinal, plural } from "./logic.js";
 import { stepsLine } from "./asking.js";
 import { enabled, getJson, openDialog, page, send, ui } from "./state.js";
-import { dialogFrame, dot } from "./ui.js";
+import { dialogFrame, dot, pool } from "./ui.js";
 
 /** @typedef {import("../../../src/shared/protocol").HistoryDetail} HistoryDetail */
 
@@ -58,42 +58,40 @@ async function setMark(teamId, questionId, mark) {
 }
 
 /**
- * Right / Wrong buttons for one team on one question, showing the current mark.
- * @param {string} teamId
- * @param {string} questionId
+ * Right / Wrong buttons for one team on one question, showing the current mark. Both
+ * ids are read when needed, so one set of buttons follows the row it sits in.
+ * @param {() => string} teamId
+ * @param {() => string} questionId
  */
 function markButtons(teamId, questionId) {
   // With no marks loaded, neither button shows as pressed; with marks, no answer counts as wrong.
-  const cur = () => (hist.detail ? answerOf(teamId, questionId)?.mark || "wrong" : "");
+  const cur = () => (hist.detail ? answerOf(teamId(), questionId())?.mark || "wrong" : "");
+  const set = (/** @type {"correct" | "wrong"} */ m) => { if (teamId() && questionId()) setMark(teamId(), questionId(), m); };
   return html`<span class="mark-btns">
     <button type="button" class="${() => `btn small ${cur() === "correct" ? "ok" : "ghost"}`}" aria-pressed="${() => (cur() === "correct" ? "true" : "false")}"
-      disabled="${() => !enabled("mark.team")}" @click="${() => setMark(teamId, questionId, "correct")}">Right</button>
+      disabled="${() => !enabled("mark.team")}" @click="${() => set("correct")}">Right</button>
     <button type="button" class="${() => `btn small ${cur() === "wrong" ? "on-wrong" : "ghost"}`}" aria-pressed="${() => (cur() === "wrong" ? "true" : "false")}"
-      disabled="${() => !enabled("mark.team")}" @click="${() => setMark(teamId, questionId, "wrong")}">Wrong</button>
+      disabled="${() => !enabled("mark.team")}" @click="${() => set("wrong")}">Wrong</button>
   </span>`;
 }
 
 // ---- Reveal ----------------------------------------------------------------
 
 export function revealScreen() {
-  queueMicrotask(loadDetail);   // outside the render, so it is not tracked as a dependency
   const r = () => page.view?.reveal;
-  const rows = () => {
-    const q = r();
-    if (!q || !page.view) return [];
-    return page.view.teams.map((t) => ({ id: t.id, name: t.name, colour: t.colour, a: answerOf(t.id, q.question.id) }));
-  };
+  const qid = () => r()?.question.id || "";
+  const teams = () => (r() && page.view ? page.view.teams : []);
   return html`<div class="stage">
     ${stepsLine()}
     <p class="qbig">${() => r()?.question.text || ""}</p>
     <p class="ans"><b>${() => r()?.answerText || ""}</b> <span class="s">${() => (r() ? `· ${r()?.rightCount} of ${page.view?.teams.length || 0} right` : "")}</span></p>
-    ${() => (hist.problem ? html`<p class="muted s">${`Team answers could not be loaded: ${hist.problem}`}</p>` : "")}
+    <p class="muted s" hidden="${() => !hist.problem}">${() => `Team answers could not be loaded: ${hist.problem}`}</p>
     <table class="answers-table">
       <thead><tr><th>Team</th><th>Answer</th><th>Mark</th></tr></thead>
-      <tbody>${() => rows().map((row) => html`<tr>
-        <td><span class="tname">${dot(() => row.colour)}${row.name}</span></td>
-        <td>${() => answerOf(row.id, r()?.question.id || "")?.display || "— no answer —"}</td>
-        <td>${() => { const qid = r()?.question.id || ""; return [markButtons(row.id, qid).key(qid)]; }}</td></tr>`.key(row.id))}</tbody>
+      <tbody>${pool(teams, (t) => html`<tr hidden="${() => !t()}">
+        <td><span class="tname">${dot(() => t()?.colour || 1)}${() => t()?.name || ""}</span></td>
+        <td>${() => answerOf(t()?.id || "", qid())?.display || "— no answer —"}</td>
+        <td>${markButtons(() => t()?.id || "", qid)}</td></tr>`)}</tbody>
     </table>
     <p class="muted s">Disputes: change any mark until Quiz End. Scores update straight away; every change is kept in the night's history.</p>
   </div>`;
@@ -106,16 +104,16 @@ export function standingsTable() {
   const rows = () => (page.view && page.view.standings ? page.view.standings.rows : []);
   return html`<table class="standings">
     <thead><tr><th class="pos">#</th><th>Team</th><th class="num">This round</th><th class="num">Total</th><th></th><th class="right"><span class="visually-hidden">Marks</span></th></tr></thead>
-    <tbody>${() => rows().map((row) => html`<tr>
-      <td class="pos">${() => { const x = rows().find((y) => y.teamId === row.teamId); return x ? `${ordinal(x.position)}${x.shared ? "=" : ""}` : ""; }}</td>
-      <td><span class="tname">${dot(() => row.colour)}<b>${() => rows().find((y) => y.teamId === row.teamId)?.name || ""}</b>
-        ${() => (rows().find((y) => y.teamId === row.teamId)?.jokerThisRound ? html`<span class="pill joker">Joker</span>` : "")}</span></td>
-      <td class="num">${() => String(rows().find((y) => y.teamId === row.teamId)?.roundScore ?? "")}</td>
-      <td class="num"><b>${() => String(rows().find((y) => y.teamId === row.teamId)?.total ?? "")}</b></td>
-      <td class="muted s">${() => decided(rows().find((y) => y.teamId === row.teamId)?.decidedBy)}</td>
+    <tbody>${pool(rows, (x) => html`<tr hidden="${() => !x()}">
+      <td class="pos">${() => { const y = x(); return y ? `${ordinal(y.position)}${y.shared ? "=" : ""}` : ""; }}</td>
+      <td><span class="tname">${dot(() => x()?.colour || 1)}<b>${() => x()?.name || ""}</b>
+        <span class="pill joker" hidden="${() => !x()?.jokerThisRound}">Joker</span></span></td>
+      <td class="num">${() => String(x()?.roundScore ?? "")}</td>
+      <td class="num"><b>${() => String(x()?.total ?? "")}</b></td>
+      <td class="muted s">${() => decided(x()?.decidedBy)}</td>
       <td class="right"><button type="button" class="btn ghost small" disabled="${() => !enabled("mark.team")}"
-        @click="${() => openDialog("dispute", { teamId: row.teamId, name: row.name })}">Change a mark</button></td>
-    </tr>`.key(row.teamId))}</tbody>
+        @click="${() => { const y = x(); if (y) openDialog("dispute", { teamId: y.teamId, name: y.name }); }}">Change a mark</button></td>
+    </tr>`)}</tbody>
   </table>`;
 }
 
@@ -130,13 +128,12 @@ function decided(by) {
 /** @param {() => string} title */
 function standingsScreen(title) {
   return html`<div class="stage">
-    ${() => (page.view && page.view.round && page.view.phase !== "ended" ? stepsLine() : "")}
+    <div hidden="${() => !(page.view && page.view.round && page.view.phase !== "ended")}">${stepsLine()}</div>
     <h1>${title}</h1>
-    ${() => (page.view?.suddenDeathNeeded
-      ? html`<div class="card deadlock-note"><b>${() => `Tied for ${ordinal(page.view?.suddenDeathNeeded?.position || 1)} after the tie breaker:`}</b>
-          ${() => (page.view ? page.view.teams.filter((t) => page.view?.suddenDeathNeeded?.teamIds.includes(t.id)).map((t) => t.name).join(", ") : "")}.
-          <span class="muted">Start Deadlock to settle it, or end the quiz and they share it.</span></div>` : "")}
-    ${() => (page.view?.phase === "ended" ? finalBlock() : "")}
+    <div class="card deadlock-note" hidden="${() => !page.view?.suddenDeathNeeded}"><b>${() => `Tied for ${ordinal(page.view?.suddenDeathNeeded?.position || 1)} after the tie breaker:`}</b>
+      ${() => (page.view ? page.view.teams.filter((t) => page.view?.suddenDeathNeeded?.teamIds.includes(t.id)).map((t) => t.name).join(", ") : "")}.
+      <span class="muted">Start Deadlock to settle it, or end the quiz and they share it.</span></div>
+    <div hidden="${() => page.view?.phase !== "ended"}">${finalBlock()}</div>
     ${standingsTable()}
     <p class="muted s">A mark changed here updates scores, positions and jokers straight away; the display shows the corrected leaderboard the next time it is shown.</p>
   </div>`;
@@ -169,8 +166,7 @@ export function endedScreen() {
 // ---- Change a mark (dispute) dialog ------------------------------------------
 
 export function disputeDialog() {
-  const teamId = ui.d.teamId;
-  queueMicrotask(loadDetail);
+  const teamId = () => ui.d.teamId || "";
   /** Rounds that have questions to change: from the history API, else the round on the console. */
   const rounds = () => {
     if (hist.detail) return hist.detail.rounds.filter((r) => r.index >= 0 && r.questions.length > 0);   // -1 is Deadlock
@@ -186,17 +182,17 @@ export function disputeDialog() {
     const found = list.find((r) => r.index === want);
     return found || list[list.length - 1];
   };
-  return dialogFrame(`Change a mark: ${ui.d.name}`, html`
-    ${() => (hist.loading && !hist.detail ? html`<p class="muted">Loading the team's answers…</p>` : "")}
-    ${() => (hist.problem ? html`<p class="form-error">${`The team's answers could not be loaded: ${hist.problem}`}</p>` : "")}
-    <div class="q-tabs" role="tablist" aria-label="Rounds">${() => rounds().map((r) => html`<button type="button" role="tab"
-      class="${() => `q-tab${pickRound()?.index === r.index ? " on" : ""}`}" @click="${() => { ui.d.round = r.index; }}">${`Round ${r.index + 1}`}</button>`.key(r.index))}</div>
+  return dialogFrame(() => `Change a mark: ${ui.d.name || ""}`, html`
+    <p class="muted" hidden="${() => !(hist.loading && !hist.detail)}">Loading the team's answers…</p>
+    <p class="form-error" hidden="${() => !hist.problem}">${() => `The team's answers could not be loaded: ${hist.problem}`}</p>
+    <div class="q-tabs" role="tablist" aria-label="Rounds">${pool(rounds, (r) => html`<button type="button" role="tab" hidden="${() => !r()}"
+      class="${() => `q-tab${r() && pickRound()?.index === r()?.index ? " on" : ""}`}" @click="${() => { const x = r(); if (x) ui.d.round = x.index; }}">${() => `Round ${(r()?.index ?? 0) + 1}`}</button>`)}</div>
     <table class="answers-table">
       <thead><tr><th>Question</th><th>Their answer</th><th>Mark</th></tr></thead>
-      <tbody>${() => (pickRound()?.questions || []).map((q) => html`<tr>
-        <td><span class="muted s">${`Q${q.number} · ${q.answerText}`}</span><br>${q.text}</td>
-        <td>${() => answerOf(teamId, q.id)?.display || (hist.detail ? "— no answer —" : "")}</td>
-        <td>${markButtons(teamId, q.id)}</td></tr>`.key(q.id))}</tbody>
+      <tbody>${pool(() => pickRound()?.questions || [], (q) => html`<tr hidden="${() => !q()}">
+        <td><span class="muted s">${() => `Q${q()?.number ?? ""} · ${q()?.answerText || ""}`}</span><br>${() => q()?.text || ""}</td>
+        <td>${() => answerOf(teamId(), q()?.id || "")?.display || (hist.detail ? "— no answer —" : "")}</td>
+        <td>${markButtons(teamId, () => q()?.id || "")}</td></tr>`)}</tbody>
     </table>
     <p class="muted s">${() => `Changes are allowed until Quiz End and are kept in the night's history. ${page.view?.standings ? plural(page.view.standings.rows.length, "team") + " in the standings." : ""}`}</p>`);
 }

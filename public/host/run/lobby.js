@@ -4,7 +4,7 @@ import { html, reactive } from "/vendor/arrow/index.mjs";
 import { cleanPrizes, hhmm, ordinal, plannedFromInput } from "./logic.js";
 import { closeDialog, enabled, getJson, openDialog, page, send, serverNow, ui } from "./state.js";
 import { lobbyTeams } from "./teams.js";
-import { dialogFrame } from "./ui.js";
+import { dialogFrame, pool } from "./ui.js";
 
 /** @typedef {{ id: string, title: string, rounds: number, questions: number, updatedAt: number, ready: boolean, problems: string[] }} QuizRow */
 
@@ -46,8 +46,12 @@ async function loadLibrary() {
   }
 }
 
+/** Each time the console comes to the Open a night screen. */
+export function idleEnter() {
+  loadLibrary();
+}
+
 export function idleScreen() {
-  queueMicrotask(loadLibrary);   // outside the render, so it is not tracked as a dependency
   const submit = async (/** @type {Event} */ e) => {
     e.preventDefault();
     if (!open.quizId) { ui.error = "Pick a ready quiz first."; return; }
@@ -61,19 +65,18 @@ export function idleScreen() {
     <form class="stack open-form" @submit="${submit}">
       <section class="card">
         <div class="row between"><h3 class="label">Quiz</h3><a class="link" href="/host/build">Library</a></div>
-        ${() => (open.loading ? html`<p class="muted">Loading the quiz library…</p>` : "")}
-        ${() => (open.problem ? html`<p class="form-error">${open.problem} <button type="button" class="link" @click="${loadLibrary}">Try again</button></p>` : "")}
-        ${() => (!open.loading && !open.problem && open.quizzes.length === 0
-          ? html`<p class="muted">No quizzes yet. Make one in the <a href="/host/build">Library</a> first.</p>` : "")}
-        <ul class="quiz-pick">${() => open.quizzes.map((q) => html`<li>
-          <label class="${() => `quiz-opt${q.ready ? "" : " not-ready"}${open.quizId === q.id ? " on" : ""}`}">
-            <input type="radio" name="quiz" value="${q.id}" checked="${() => open.quizId === q.id}" disabled="${!q.ready}"
-              @change="${() => { open.quizId = q.id; }}">
-            <span class="q-title">${q.title}</span>
-            <span class="muted s">${`${q.rounds} rounds · ${q.questions} questions`}</span>
-            ${() => (q.ready ? html`<span class="pill ok"><i></i>Ready</span>` : html`<span class="pill warn"><i></i>Not ready</span>`)}
-            ${() => (q.ready ? "" : html`<span class="problems s">${q.problems.slice(0, 2).join(" ")}</span>`)}
-          </label></li>`.key(q.id))}</ul>
+        <p class="muted" hidden="${() => !open.loading}">Loading the quiz library…</p>
+        <p class="form-error" hidden="${() => !open.problem}">${() => open.problem} <button type="button" class="link" @click="${loadLibrary}">Try again</button></p>
+        <p class="muted" hidden="${() => !(!open.loading && !open.problem && open.quizzes.length === 0)}">No quizzes yet. Make one in the <a href="/host/build">Library</a> first.</p>
+        <ul class="quiz-pick">${pool(() => open.quizzes, (q) => html`<li hidden="${() => !q()}">
+          <label class="${() => `quiz-opt${q()?.ready ? "" : " not-ready"}${q() && open.quizId === q()?.id ? " on" : ""}`}">
+            <input type="radio" name="quiz" value="${() => q()?.id || ""}" checked="${() => !!q() && open.quizId === q()?.id}" disabled="${() => !q()?.ready}"
+              @change="${() => { const x = q(); if (x) open.quizId = x.id; }}">
+            <span class="q-title">${() => q()?.title || ""}</span>
+            <span class="muted s">${() => `${q()?.rounds ?? 0} rounds · ${q()?.questions ?? 0} questions`}</span>
+            <span class="pill ok" hidden="${() => !q()?.ready}"><i></i>Ready</span><span class="pill warn" hidden="${() => !!q()?.ready}"><i></i>Not ready</span>
+            <span class="problems s" hidden="${() => !!q()?.ready}">${() => (q()?.problems || []).slice(0, 2).join(" ")}</span>
+          </label></li>`)}</ul>
       </section>
       <div class="two">
         <section class="card">
@@ -97,12 +100,12 @@ export function idleScreen() {
  * @param {{ prizes: { text: string }[] }} store
  */
 function prizeRows(store) {
-  return html`<ol class="prize-rows">${() => store.prizes.map((p, i) => html`<li>
+  return html`<ol class="prize-rows">${pool(() => store.prizes, (p, i) => html`<li hidden="${() => !p()}">
       <span class="place">${ordinal(i + 1)}</span>
-      <input class="input" maxlength="80" aria-label="${`Prize for ${ordinal(i + 1)} place`}" value="${() => store.prizes[i]?.text ?? ""}"
+      <input class="input" maxlength="80" aria-label="${`Prize for ${ordinal(i + 1)} place`}" value="${() => p()?.text ?? ""}"
         @input="${(/** @type {Event} */ e) => { const row = store.prizes[i]; if (row) row.text = /** @type {HTMLInputElement} */ (e.target).value; }}">
       <button type="button" class="btn ghost" aria-label="${`Remove the ${ordinal(i + 1)} place prize`}" @click="${() => { store.prizes.splice(i, 1); }}">×</button>
-    </li>`.key(i))}</ol>
+    </li>`)}</ol>
     <button type="button" class="btn ghost" @click="${() => { store.prizes.push({ text: "" }); }}">+ Add a prize</button>`;
 }
 
@@ -129,10 +132,14 @@ export function openDisplay() {
   window.open("/display", "lockin-display", "noopener");
 }
 
-export function lobbyScreen() {
-  queueMicrotask(loadServer);
+/** Each time the console comes to the lobby. */
+export function lobbyEnter() {
+  loadServer();
   ui.planned = "";
   ui.plannedDirty = false;
+}
+
+export function lobbyScreen() {
   const savePlanned = async () => {
     const v = ui.planned.trim();
     const plannedStart = v ? plannedFromInput(v, serverNow()) : null;
@@ -165,7 +172,7 @@ export function lobbyScreen() {
           <input id="lobby-planned" class="input time" type="time"
             value="${() => (ui.plannedDirty ? ui.planned : hhmm(page.view?.night?.plannedStart))}"
             @input="${(/** @type {Event} */ e) => { ui.planned = /** @type {HTMLInputElement} */ (e.target).value; ui.plannedDirty = true; }}">
-          ${() => (ui.plannedDirty ? html`<button type="button" class="btn primary" disabled="${() => !enabled("night.update")}" @click="${savePlanned}">Save</button>` : "")}
+          <button type="button" class="btn primary" hidden="${() => !ui.plannedDirty}" disabled="${() => !enabled("night.update")}" @click="${savePlanned}">Save</button>
           <span class="muted s">${() => holdingNote()}</span>
         </div>
       </section>
@@ -198,7 +205,7 @@ function openPrizes() {
 }
 
 export function prizesDialog() {
-  const store = /** @type {{ prizes: { text: string }[] }} */ (ui.d);
+  const store = { get prizes() { return /** @type {{ text: string }[]} */ (ui.d.prizes || []); } };
   const save = async () => {
     if ((await send("night.update", { prizes: cleanPrizes(store.prizes) })).ok) closeDialog();
   };
