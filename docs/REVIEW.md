@@ -162,7 +162,7 @@ Checked against Cas's production deployments map (updated 2026-11-24): Market Ju
 Checked every row of "Code review and security audit: where every item stands" against the merge history, the tests and `docs/SECURITY-AUDIT.md`.
 
 - **Accurate.** PR numbers match the merges (#21 pre-pilot bugs, #22 Batch 1, #23 robustness, #24 Batch 2, #25 Batch 3). Every test file named in a status line exists and passes. All 21 SA items have a "fixed" status line in SECURITY-AUDIT.md, and the code they name is there (for example `MIN_BUN = "1.4.5"`, `src/server/seclog.ts`, `bun-release-check.yml`, `dependabot.yml`, `SECURITY.md`, `LICENSE`).
-- **Wording to update:** the rows for LI-009, 016, 017, 019, 020 and 021 say "This PR"; that PR is now merged as **#31**.
+- **Fixed in this PR:** the rows for LI-009, 016, 017, 019, 020 and 021 said "This PR"; they now say **#31**, the refactors PR.
 - **Earlier findings 13 to 17** (nits and doc drift) are still open as listed. None blocks the pilot.
 
 ### Not covered
@@ -267,7 +267,7 @@ This PR adds `docs/RELEASE.md`, the host run sheet `docs/RUN-SHEET.md` and the s
 
 ## Code review and security audit: where every item stands (2026-11-24)
 
-The external code review (LI-001 to LI-023) and security audit (SA-01 to SA-21, `docs/SECURITY-AUDIT.md`) of `8060221`, item by item. "This PR" is the code review refactors PR.
+The external code review (LI-001 to LI-023) and security audit (SA-01 to SA-21, `docs/SECURITY-AUDIT.md`) of `8060221`, item by item. The code review refactors PR is #31.
 
 ### Code review
 
@@ -281,19 +281,19 @@ The external code review (LI-001 to LI-023) and security audit (SA-01 to SA-21, 
 | LI-006 | P2 | Manual marks for teams that sent no answer | Fixed, #21 |
 | LI-007 | P2 | Keep branding edits made while a save is in progress | Fixed, #21 |
 | LI-008 | P2 | Scope phone drafts and local choices to the night and team | Fixed, #21 |
-| LI-009 | P2 | Separate editable drafts from playable quizzes, shared limits | Limits fixed in #23; the separate `QuizDraft` type in this PR |
+| LI-009 | P2 | Separate editable drafts from playable quizzes, shared limits | Limits fixed in #23; the separate `QuizDraft` type in #31 |
 | LI-010 | P2 | Parse template expressions in the browser safety checks | Fixed, #23 |
 | LI-011 | P2 | Limit public socket work before cloning the night | Fixed, #22 (with SA-04) |
 | LI-012 | P2 | Explicit forwarded client IP trust | Fixed, #24 (same as SA-06) |
 | LI-013 | P2 | Bounded expiry for login rate-limit state | Fixed, #24 (same as SA-08) |
 | LI-014 | P2 | Commit display pairing only after its file write succeeds | Fixed, #22 |
 | LI-015 | P2 | Enforce real request byte limits while reading bodies | Fixed, #22 (with SA-02) |
-| LI-016 | P2 | Smaller night engine, one commit boundary | This PR: handlers in command modules, a typed command table and exhaustive guard, a command matrix test made from the engine before the split |
-| LI-017 | P2 | Arrow workarounds behind shared rendering primitives | This PR: `public/shared/parts.mjs` (row pools, slot keys, retained screens) used by console, phone and display; display recovery limited to rendering errors, 3 a minute, old tree disposed. Not done: splitting the large display, phone, builder and branding modules (the review puts this after the adapter is stable), and an Arrow upgrade (its own dependency change) |
+| LI-016 | P2 | Smaller night engine, one commit boundary | #31: handlers in command modules, a typed command table and exhaustive guard, a command matrix test made from the engine before the split |
+| LI-017 | P2 | Arrow workarounds behind shared rendering primitives | #31: `public/shared/parts.mjs` (row pools, slot keys, retained screens) used by console, phone and display; display recovery limited to rendering errors, 3 a minute, old tree disposed. Not done: splitting the large display, phone, builder and branding modules (the review puts this after the adapter is stable), and an Arrow upgrade (its own dependency change) |
 | LI-018 | P2 | Reproducible browser checks in CI | Fixed, #23 |
-| LI-019 | P3 | Type command arguments and results across the socket | This PR: `COMMANDS` registry, `CommandArgs`/`CommandResults`, typed `LockInClient` |
-| LI-020 | P3 | Compose services explicitly, no global store selection | This PR: `createServices` once per app, required hub plug-ins checked at start |
-| LI-021 | P3 | Runtime assets apart from design archives | This PR: `assets/` holds copy, tokens, fonts and logo; the binary embeds only `public/` and `assets/`. Not done: generating the three derived-token copies from one source (the parity tests already stop drift, and generation needs a new build step) and stamping the service worker's cache name per release (it fetches network-first, and its shell list is tested against the files and the Arrow chunk) |
+| LI-019 | P3 | Type command arguments and results across the socket | #31: `COMMANDS` registry, `CommandArgs`/`CommandResults`, typed `LockInClient` |
+| LI-020 | P3 | Compose services explicitly, no global store selection | #31: `createServices` once per app, required hub plug-ins checked at start |
+| LI-021 | P3 | Runtime assets apart from design archives | #31: `assets/` holds copy, tokens, fonts and logo; the binary embeds only `public/` and `assets/`. Not done: generating the three derived-token copies from one source (the parity tests already stop drift, and generation needs a new build step) and stamping the service worker's cache name per release (it fetches network-first, and its shell list is tested against the files and the Arrow chunk) |
 | LI-022 | P3 | Executable design renderer | Fixed, #23 |
 | LI-023 | P2 | Keep the default venue name in production views | Fixed, #21 |
 
