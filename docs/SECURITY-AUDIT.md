@@ -238,7 +238,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-13 · Low · Response header gaps
 
-- **Status:** open
+- **Status:** fixed in Batch 3 (all six items; old cookie name read for one release). Tests: `tests/server/audit-batch3.test.ts`.
 - **Verified:** yes (headers read from a running server)
 - **Where:** `src/server/http.ts` (`PAGE_CSP` line 25, `withSecurityHeaders` lines 56-70); `src/server/app.ts` `Bun.serve` options; `src/server/auth.ts` cookie (lines 204-210).
 - **Gaps and fixes:**
@@ -252,7 +252,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-14 · Low · The per-IP rejoin limit can lock a whole pub out of rejoining
 
-- **Status:** open (side effect of the fix for REVIEW finding 5)
+- **Status:** fixed in Batch 3. Past 10 wrong codes a minute an IP's wrong codes are refused but a right one works; move codes skip the IP limit; at 60 wrong a minute from one IP everything is refused for the minute, so guessing stays bounded.
 - **Verified:** by reading; the limit itself was confirmed (10 wrong codes, then `too_many_tries`)
 - **Where:** `src/server/night/engine.ts` `teamRejoin` (lines 1105-1133), `REJOIN_TRIES_PER_IP = 10`.
 - **What happens:** phones on the venue Wi-Fi share one address. One phone sending 10 wrong codes a minute keeps every other phone on that address from rejoining, including a team whose phone has just died. The host's move link uses the same command and the same limit.
@@ -261,14 +261,14 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-15 · Low · Team names: look-alike and invisible characters
 
-- **Status:** open (REVIEW finding 9)
+- **Status:** fixed in Batch 3 (`cleanTeamName` / `teamNameKey` in `src/server/night/engine.ts`; ZWJ inside emoji kept).
 - **Where:** `src/server/night/engine.ts` `cleanName` (lines 1069-1073) and `nameKey = name.toLowerCase()` (line 1086).
 - **Fix:** normalise names with NFKC; strip control characters, zero-width characters and bidirectional controls (`\p{Cc}`, `\p{Cf}`); build `nameKey` from the NFKC, case-folded name with spaces collapsed. Count length after cleaning. The same for `team.rename`.
 - **Done when:** "Quizzy Rascals" plus a zero-width space, and the same name with a full-width letter, are both refused as the name of a second team; a name made only of invisible characters is refused.
 
 ### SA-16 · Low · CI and release
 
-- **Status:** open
+- **Status:** fixed in Batch 3 for items 1 to 5 (SHA pins, `permissions`, Dependabot, `release.yml` with checksums, attestation and the baseline build, `SECURITY.md` and `LICENSE`). Item 6 (secret scanning and push protection) and private vulnerability reporting are repository settings for Cas to switch on.
 - **Where:** `.github/workflows/ci.yml`; repo root.
 - **Gaps and fixes:**
   1. Pin `actions/checkout` and `oven-sh/setup-bun` to commit SHAs, with the tag in a comment.
@@ -281,7 +281,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-17 · Low · Nothing is logged when someone is attacking
 
-- **Status:** open
+- **Status:** fixed in Batch 3 (`src/server/seclog.ts`; event list in TECH-SPEC 12.4). Log retention is for the run sheet.
 - **Where:** `src/server/auth-routes.ts`, `src/server/night/engine.ts`, `src/server/display/index.ts`, `src/server/ws.ts`.
 - **What happens:** the log has start-up lines, errors and "Host password set". A wrong password, a tripped limiter, a pairing, a refused upgrade or a burst of wrong room codes leaves no trace, so after a spoiled night there is nothing to look at.
 - **Fix:** one line each, with the client IP and never the secret: failed sign-in, sign-in, sign-out, limiter tripped (which one), display paired and unpaired, team joined, removed or moved, connection refused by a cap. Rate-limit the log itself (at most one line per event type per IP per 10 s, with a count).
@@ -289,7 +289,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-18 · Nit · Venue name and tagline go through `String.replace` replacement patterns
 
-- **Status:** open
+- **Status:** fixed in Batch 3 (function replacements in both `personalise`).
 - **Verified:** yes
 - **Where:** `src/server/phone/index.ts` `personalise` (lines 73-85); `src/server/display/index.ts` `personalise` (lines 33-38).
 - **What happens:** The call `page.replace("<title>Lock-In</title>", "<title>" + name + "</title>")` (written as a template string in the code) treats `$&`, `` $` `` and `$'` in the venue name as patterns. `escapeHtml` turns `'` into `&#39;`, which creates `$&` out of `$'`. A venue called ``The $` Arms`` gets the page's own head pasted into its title and into an attribute, which breaks the markup. Only the page's own fixed text can be inserted, and only the host can set the name, so this is not script injection.
@@ -298,7 +298,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-19 · Nit · `preview.css` error comment can be closed early
 
-- **Status:** open
+- **Status:** fixed in Batch 3 (fixed comment, no echo).
 - **Verified:** yes
 - **Where:** `src/server/branding/index.ts` line 152: `.replace(/\*\//g, "")` runs once, so `**//` becomes `*/`.
 - **Evidence:** `GET /api/theme/preview.css?theme={"format":"x**//\n body{background:red} /*"}` answered `400` with a body where the comment ends early and `body{background:red}` stands as CSS. Browsers do not apply a stylesheet from a `400`, the route needs a host session, and the cookie is `SameSite=Strict`, so nothing can use this today.
@@ -307,13 +307,15 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-20 · Nit · Question image names and upload clean-up
 
-- **Status:** open
+- **Status:** fixed earlier with code review LI-004 (16 hex characters, byte check, unreferenced pictures swept on a draft save); confirmed in Batch 3.
 - **Where:** `src/server/quizzes/store.ts` `saveMedia` (lines 222-236): the file is `<questionId>-<first 4 hex of SHA-256>.<ext>` and is not written if that name exists.
 - **What happens:** two different pictures for one question collide once in 65,536 uploads, and then the old picture is silently kept. Replaced and orphaned pictures are never deleted, and there is no limit on how many a quiz folder holds.
 - **Fix:** use 16 hex characters; when a draft is saved, delete media files in the folder that no question refers to (not while the quiz is in use by a night).
 - **Done when:** a store test uploads two pictures crafted to share a 4-hex prefix and gets two files; saving a draft removes an unreferenced file.
 
 ### SA-21 · Nit · Small items
+
+- **Status:** fixed in Batch 3 (all four: `Object.hasOwn`, `isFixtureHost`, `jpeg`, one query with a 500-night limit).
 
 - `src/server/branding/copy.ts` `fillLine` (lines 44-55): `values[name]` finds inherited properties, so a theme line containing `{constructor}` prints "function Object() { [native code] }". Use `Object.hasOwn(values, name)`.
 - `public/shared/ws-client.js` `defaultUrl` (lines 47-53) passes `?fixture=` through to `/ws`, and `public/phone/app.mjs` skips the service worker when it is present. Harmless (the real server ignores it), but it is test plumbing in the shipped client; gate it on `location.hostname` being `localhost` or `127.0.0.1`.

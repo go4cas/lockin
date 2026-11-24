@@ -2,6 +2,7 @@
   "name": "lockin",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Lock-In: a pub quiz app. Teams answer on their phones, the quiz plays on the TV, the host runs the night from a laptop or tablet.",
   "engines": {

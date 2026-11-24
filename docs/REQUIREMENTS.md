@@ -700,7 +700,7 @@ These apply to all MVP features and are checked by Review on any PR that touches
 
 ## Open questions
 
-- **Licence (S-20).** Still "decide later". It must be settled before `v1.0.0` (NOTES.md open questions), even though the licence file itself is ranked Launch.
+- **Licence (S-20).** Settled: AGPL-3.0 (Cas, 2026-11-24), added in the audit Batch 3 PR with `SECURITY.md`.
 - **Private pilot repo.** Recommendation stands: drop it, or keep it for venue data only, never a code fork. Cas to confirm.
 - **Host on the TV laptop or a separate device.** Settled by Architecture: both work, laptop on HDMI is the pilot default (TECH-SPEC 1.1).
 - **Server restart mid-night.** S-05 reads "teams rejoin without losing their score" as also covering a server restart, so accepted answers, marks and scores are saved as they happen. Architecture to confirm the cost.
