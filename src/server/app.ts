@@ -15,6 +15,7 @@ import { Router, errorResponse, json, originAllowed, withSecurityHeaders, type H
 import { diskSource, registerStatic, type FileSource } from "./static.ts";
 import { Hub, type BunServer, type SocketData } from "./ws.ts";
 import { register as registerBranding } from "./branding/index.ts";
+import { register as registerDisplay } from "./display/index.ts";
 import { register as registerNight } from "./night/index.ts";
 import { register as registerQr } from "./qr/index.ts";
 import { register as registerQuizzes } from "./quizzes/index.ts";
@@ -112,6 +113,7 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
   registerBranding(app);
   registerNight(app);
   registerQr(app);
+  registerDisplay(app);
 
   return app;
 }

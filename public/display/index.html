@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lock-In display</title>
+<link rel="icon" href="/static/logo/lockin-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/shared/tokens.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/static/shared/base.css">
+<link rel="stylesheet" href="/static/display/fonts.css">
+<link rel="stylesheet" href="/static/display/display.css">
+</head>
+<body class="display-body">
+<div id="display"></div>
+<!-- check.js runs first: on a browser older than the display baseline it shows a plain message (T-01). -->
+<script src="/static/display/check.js"></script>
+<script src="/static/shared/clock.js"></script>
+<script src="/static/shared/ws-client.js"></script>
+<script src="/static/shared/view.js"></script>
+<script type="module" src="/static/display/display.mjs"></script>
+</body>
+</html>

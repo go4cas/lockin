@@ -167,6 +167,23 @@ Built against TECH-SPEC as changed by PR 5 (hosted only). None of these change a
 - **Risks accepted:** Arrow spent about five years in alpha before 1.0 (2026-03-20), has one main author, and had no release after 1.0.6 (2026-04-01). Being vendored, it keeps working if upstream stops; updating it is a contract change.
 - **B0 code:** `public/shared/` behaviour is unchanged. Its classic scripts are loaded before each page's Arrow module and only their header comments changed. Two small B0 edits were needed: `src/server/static.ts` serves `.mjs` as `text/javascript` (module scripts require it), and `tsconfig.json` maps `/vendor/*` so Arrow imports type-check.
 
+## B6 display: findings (2026-11-24)
+
+Built against the B0 fixtures (`public/display/`, `src/server/display/`, `tests/display/`). Choices made where the contract or design left a gap, so a later thread knows they were deliberate:
+
+- **`GET /display` lives in a small B6 module**, `src/server/display/index.ts`, plus one `register` line in `src/server/app.ts` (a B0 file). Cas approved the same pattern for B7's phone routes on 2026-11-24, and the coordinator confirmed it covers `/display`. The page is read through `app.files`, so the B8 binary serves it too.
+- **Winner, then final standings, on a timer.** Design has three screens at Quiz End "each held until the host moves on", but `ended` has no host command between winner and standings (the next is `night.close`). The display holds the winner for 15 s, then shows the final standings until the night closes.
+- **Reveal: question first, answer after 1.2 s.** `RevealItem` carries both, and `reveal.next` moves to the next question, so the answer fades in on its own shortly after each question appears.
+- **No movement arrows (▲2) on the leaderboard.** `Standings` has no previous position, and working one out in the browser would be ranking logic (TECH-SPEC 3.4). Adding a `moved` field to standings rows is a small contract change if Cas wants the arrows.
+- **Sudden-death question shows "2 of 3 answered", not each team's "Answered / Thinking".** `SuddenDeathPublic` has only the count. The result shows each tied team as right or wrong, but not what they answered (the view does not carry their answers).
+- **No venue logo or tagline in the view.** The header and waiting screen use the Lock-In mark until B4 says how the display gets the venue logo (for example a fixed `/theme/logo` route or a logo URL in the view). The waiting screen's tagline is fixed ("Lock in your answers."), because `Lines` has no tagline slot.
+- **Bottom-up reveal and holding-page rotation are timed on the display.** Rows arrive every 0.9 s; with 21 to 30 teams, places 21 to 30 show first, hold 5 s, then the top 20. A display that reconnects mid-leaderboard shows the full table without replaying it. Holding-page panels change every 12 s from server time, so two displays show the same panel.
+- **The padlock moment** plays when `lockedMoment` is under 5 s old by server time (so a display up to 2 s late still plays it); a display that connects later shows it already shut.
+- **Leaderboard re-order animates on the same nodes.** Rows are one keyed list (a grid fills two columns), and a changed score slides rows to their new places (checked by sending a re-ordered view to a running page: same DOM nodes, rows moved).
+- **Browser check:** `check.js` (ES5) tests for ES modules and `Element.prototype.replaceChildren`; if either is missing it shows "This TV's browser is too old for Lock-In" with the fix and the address, and the Arrow module does not start.
+- **Not yet on main, worked around for checks only:** `/vendor/*` (being added elsewhere), `/qr/join.svg` (B8) and `/media/q/*` (B1). `tests/display/screenshots.cjs` answers them from disk or with a placeholder for the screenshots.
+- **Spec tidy-up for later:** TECH-SPEC 3.3 still has the old Chromium 56 / Safari 11 table rows after section 3.4 (a leftover of PR #8).
+
 ## Open questions
 
 - **Licence.** Cas chose to decide later. Recommendation is AGPL-3.0 (see topic 9). Until a licence is added, the public repo is "all rights reserved" by default, so outsiders cannot legally reuse or contribute; settle it before inviting contributors and before `v1.0.0`.
