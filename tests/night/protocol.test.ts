@@ -257,3 +257,30 @@ describe("connections", () => {
     expect(view<HostView>(host2).standings!.rows[0]!.total).toBe(1);
   });
 });
+
+describe("history detail with sudden death", () => {
+  test("asked sudden-death questions come last as round -1, with their answers (Cas, 2026-11-24)", async () => {
+    const { s } = await server();
+    const q1 = q(number(1));
+    const sd1 = q(choice(2));
+    const sdUnused = q(choice(1));
+    writeQuiz(s.dataDir, makeQuiz("sdh", [[q1]], {}, [sd1, sdUnused]));
+    const cookie = await s.signIn();
+    const hostC = await client(s, "host", cookie);
+    const { roomCode } = await ok(hostC, "night.open", { quizId: "sdh" });
+    const a = await client(s, "team");
+    const { teamId } = await ok(a, "team.join", { roomCode, name: "Alpha" });
+    const b = await client(s, "team");
+    await ok(b, "team.join", { roomCode, name: "Bravo" });
+    for (const cmd of ["quiz.start", "round.start", "question.next", "lock", "round.finish", "leaderboard.show", "sd.start", "sd.ask"]) await ok(hostC, cmd);
+    await ok(a, "answer.submit", { questionId: sd1.id, value: { type: "choice", index: 2 } });
+    for (const cmd of ["lock", "sd.reveal", "quiz.end"]) await ok(hostC, cmd);
+    const list = await (await s.fetch("/api/history", { cookie })).json() as { nights: { id: string; winners: string[] }[] };
+    expect(list.nights[0]!.winners).toEqual(["Alpha"]);
+    const detail = await (await s.fetch(`/api/history/${list.nights[0]!.id}`, { cookie })).json() as Record<string, any>;
+    expect(detail.rounds.map((r: { index: number; title: string }) => [r.index, r.title])).toEqual([[0, "Round 1"], [-1, "Deadlock"]]);
+    expect(detail.rounds[1].questions).toEqual([{ id: sd1.id, number: 1, text: sd1.text, answerText: "C. Oslo" }]);
+    expect(detail.answers).toContainEqual({ teamId, questionId: sd1.id, display: "C. Oslo", mark: "correct" });
+    expect(detail.standings.map((r: { name: string; position: number }) => [r.name, r.position])).toEqual([["Alpha", 1], ["Bravo", 2]]);
+  });
+});

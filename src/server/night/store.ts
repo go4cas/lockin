@@ -223,5 +223,8 @@ export function historyNight(db: Database, nightId: string) {
   const markChanges = db.query<{ team_id: string; question_id: string; from_mark: Mark; to_mark: Mark; at: number }, [string]>(
     "SELECT team_id, question_id, from_mark, to_mark, at FROM mark_changes WHERE night_id = ? ORDER BY id",
   ).all(nightId).map((c) => ({ teamId: c.team_id, questionId: c.question_id, from: c.from_mark, to: c.to_mark, at: c.at }));
-  return { night, teams, standings, answers: loadAnswers(db, nightId), markChanges };
+  const sdQuestionIds = db.query<{ question_id: string }, [string]>(
+    "SELECT question_id FROM sudden_deaths WHERE night_id = ? ORDER BY seq",
+  ).all(nightId).map((r) => r.question_id);
+  return { night, teams, standings, answers: loadAnswers(db, nightId), markChanges, sdQuestionIds };
 }

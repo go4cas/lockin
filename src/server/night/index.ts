@@ -40,7 +40,8 @@ export const engines = new WeakMap<App, { engine: Engine; scheduler: ClockSchedu
 /**
  * GET /api/history/:nightId (agreed with B5 and Cas, 2026-11-24): answers for
  * the open night as well as saved ones. One answer row per team per question
- * it answered; no row means no answer.
+ * it answered; no row means no answer. Asked sudden-death questions come
+ * last, as a round with index -1 titled "Deadlock".
  */
 export interface HistoryDetail {
   night: { id: string; quizTitle: string; openedAt: number; endedAt: number | null; status: "open" | "ended" };
@@ -191,13 +192,19 @@ export function register(app: App): void {
       standings = rows.map((r) => ({ ...r, name: open.m!.teams.get(r.teamId)?.name ?? "" }));
     }
     const specs = new Map(quiz.rounds.flatMap((r) => r.questions.map((q) => [q.id, q.answer] as const)));
+    // Sudden-death questions that were asked, in the order asked, as a last "round" with index -1 (Cas, 2026-11-24; shape agreed with B5).
+    const sdQuestions = h.sdQuestionIds.map((id) => quiz.suddenDeath.find((q) => q.id === id)).filter((q) => q !== undefined);
+    for (const q of sdQuestions) specs.set(q.id, q.answer);
     const detail: HistoryDetail = {
       night: { id: h.night.id, quizTitle: h.night.quizTitle, openedAt: h.night.openedAt, endedAt: h.night.endedAt, status: h.night.status },
       standings,
       rounds: quiz.rounds.map((r, index) => ({
         index, title: r.title,
         questions: r.questions.map((q, i) => ({ id: q.id, number: i + 1, text: q.text, answerText: answerTextOf(q.answer) })),
-      })),
+      })).concat(sdQuestions.length === 0 ? [] : [{
+        index: -1, title: "Deadlock",
+        questions: sdQuestions.map((q, i) => ({ id: q.id, number: i + 1, text: q.text, answerText: answerTextOf(q.answer) })),
+      }]),
       answers: h.answers.filter((a) => a.value !== null && specs.has(a.questionId))
         .map((a) => ({ teamId: a.teamId, questionId: a.questionId, display: valueText(a.value!, specs.get(a.questionId)!), mark: a.mark })),
     };
