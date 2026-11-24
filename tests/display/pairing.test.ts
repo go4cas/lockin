@@ -50,16 +50,16 @@ const errCode = async (c: TestClient, name: string, args: object = {}) => {
   const ack = await c.cmd(name, args);
   return ack.ok ? "ok" : ack.error.code;
 };
-const settle = () => Bun.sleep(100);
+const settle = () => Bun.sleep(300);   // host-only updates are sent at most every 250 ms (SA-04)
 /** Everything a client has received, as one string, to search for leaks. */
 const everything = (c: TestClient) => JSON.stringify(c.received);
 
 describe("display pairing (REVIEW finding 4)", () => {
-  test("an unpaired display sees only a 4-digit code: no room code, no teams, no night", async () => {
+  test("an unpaired display sees only a 6-digit code: no room code, no teams, no night", async () => {
     const { s, roomCode } = await setup();
     const tv = await client(s, "display");
     const v = view<DisplayView>(tv);
-    expect(v.pairing!.code).toMatch(/^[0-9]{4}$/);
+    expect(v.pairing!.code).toMatch(/^[0-9]{6}$/);
     expect(v.phase).toBe("idle");
     expect(v.night).toBeNull();
     expect(everything(tv)).not.toContain(roomCode);
@@ -74,9 +74,11 @@ describe("display pairing (REVIEW finding 4)", () => {
     await settle();
     expect(view<HostView>(host).displays).toEqual({ paired: 0, connected: 0, waiting: 1 });
 
-    const wrong = code === "0000" ? "0001" : "0000";
+    const wrong = code === "000000" ? "000001" : "000000";
     expect(await errCode(host, "display.pair", { code: wrong })).toBe("bad_code");
-    expect(await ok(host, "display.pair", { code })).toEqual({ paired: 1 });
+    const result = await ok(host, "display.pair", { code });
+    // SA-03: the host is told where the paired screen is and how long it has been waiting
+    expect(result).toEqual({ paired: 1, ip: "127.0.0.1", connectedFor: expect.any(Number) });
     await settle();
     const paired = tv.received.find((m): m is Extract<ServerMsg, { t: "paired" }> => m.t === "paired");
     expect(paired!.token.length).toBeGreaterThan(20);
@@ -112,7 +114,7 @@ describe("display pairing (REVIEW finding 4)", () => {
     const token = tv.received.find((m): m is Extract<ServerMsg, { t: "paired" }> => m.t === "paired")!.token;
     expect(await ok(host, "display.unpairAll")).toEqual({ unpaired: 1 });
     await settle();
-    expect(view<DisplayView>(tv).pairing!.code).toMatch(/^[0-9]{4}$/);
+    expect(view<DisplayView>(tv).pairing!.code).toMatch(/^[0-9]{6}$/);
     expect(view<DisplayView>(tv).night).toBeNull();
     const old = await client(s, "display", undefined, token);
     expect(view<DisplayView>(old).pairing).toBeTruthy();
@@ -124,7 +126,7 @@ describe("display pairing (REVIEW finding 4)", () => {
     const { s, host, clock } = await setup();
     const tv = await client(s, "display");
     const code = view<DisplayView>(tv).pairing!.code;
-    const wrong = code === "0000" ? "0001" : "0000";
+    const wrong = code === "000000" ? "000001" : "000000";
     for (let i = 0; i < 10; i++) expect(await errCode(host, "display.pair", { code: wrong })).toBe("bad_code");
     expect(await errCode(host, "display.pair", { code })).toBe("too_many_tries");
     clock.advance(60_001);

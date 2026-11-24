@@ -15,13 +15,16 @@ export const ROOM_ALPHABET = "BCDFGHJKMNPQRSTVWXZ";
 /** Rejoin and move codes (TECH-SPEC 11.2, 11.3). */
 export const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 export const NAME_MAX = 30;
+/** Join key in the QR code (D1): 10 characters of CODE_ALPHABET. */
+export const JOIN_KEY_LENGTH = 10;
 export const TEXT_MAX = 100;
 
 /**
- * Reads the phone's URL: /j/<room code> fills in the room code (QR target),
- * /m/<move code> takes over a team moved by the host (11.3).
+ * Reads the phone's URL: /j/<room code>-<join key> fills in the room code and keeps the
+ * join key (QR target, D1; plain /j/<room code> still works), /m/<move code> takes over a
+ * team moved by the host (11.3).
  * @param {string} pathname
- * @returns {{ roomCode: string; moveCode: string }}
+ * @returns {{ roomCode: string; joinKey: string; moveCode: string }}
  */
 export function parsePath(pathname) {
   const j = /^\/j\/([^/]+)\/?$/.exec(pathname);
@@ -32,8 +35,11 @@ export function parsePath(pathname) {
     v = v.toUpperCase();
     return v.length <= max && [...v].every((c) => alphabet.includes(c)) ? v : "";
   };
+  const [room = "", key = ""] = j ? (j[1] ?? "").split("-") : [];
+  const roomCode = j ? clean(room, ROOM_ALPHABET, 4) : "";
   return {
-    roomCode: j ? clean(j[1] ?? "", ROOM_ALPHABET, 4) : "",
+    roomCode,
+    joinKey: roomCode && key.length === JOIN_KEY_LENGTH ? clean(key, CODE_ALPHABET, JOIN_KEY_LENGTH) : "",
     moveCode: m ? clean(m[1] ?? "", CODE_ALPHABET, 8) : "",
   };
 }

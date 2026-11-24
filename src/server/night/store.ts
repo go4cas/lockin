@@ -93,9 +93,9 @@ export function flush(db: Database, m: Model, d: Dirty): void {
              n.startedAt, n.endedAt, n.endReason, j(n.prizes), j(m.state));
     } else {
       if (d.night) {
-        db.query(`UPDATE nights SET quiz_snapshot = ?, status = ?, planned_start = ?, started_at = ?, ended_at = ?,
+        db.query(`UPDATE nights SET quiz_snapshot = ?, room_code = ?, status = ?, planned_start = ?, started_at = ?, ended_at = ?,
                     end_reason = ?, prizes = ? WHERE id = ?`)
-          .run(j(n.quiz), n.status, n.plannedStart, n.startedAt, n.endedAt, n.endReason, j(n.prizes), n.id);
+          .run(j(n.quiz), n.roomCode, n.status, n.plannedStart, n.startedAt, n.endedAt, n.endReason, j(n.prizes), n.id);
       }
       db.query("UPDATE nights SET state = ? WHERE id = ?").run(j(m.state), n.id);
     }

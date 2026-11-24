@@ -3,7 +3,7 @@
 
 import { join } from "node:path";
 import type { App } from "../app.ts";
-import { UPLOAD_CSP, errorResponse, json, readJsonBody } from "../http.ts";
+import { UPLOAD_CSP, errorResponse, json, BodyTooLarge, readFormBody, readJsonBody } from "../http.ts";
 import { contentType, serveFile, type FileSource } from "../static.ts";
 import { MAX_IMAGE_BYTES, QuizError, QuizStore } from "./store.ts";
 
@@ -93,12 +93,15 @@ export function register(app: App): void {
   app.route("POST", "/api/quizzes/:id/media", async (req, ctx) => {
     const length = Number(req.headers.get("content-length") ?? "0");
     if (length > MAX_IMAGE_BYTES + 64 * 1024) return errorResponse(413, "too_large", "That picture is over 5 MB. Try a smaller one.");
-    let form: FormData;
+    // Counted while it is read, so a chunked body is stopped at the limit too (SA-02).
+    let form: FormData | null;
     try {
-      form = await req.formData();
-    } catch {
-      return errorResponse(400, "bad_request", "The upload was not understood.");
+      form = await readFormBody(req, MAX_IMAGE_BYTES + 64 * 1024);
+    } catch (e) {
+      if (!(e instanceof BodyTooLarge)) throw e;
+      return errorResponse(413, "too_large", "That picture is over 5 MB. Try a smaller one.");
     }
+    if (!form) return errorResponse(400, "bad_request", "The upload was not understood.");
     const file = form.get("file");
     if (!(file instanceof Blob)) return errorResponse(400, "no_file", "Pick a picture to upload.");
     if (file.size > MAX_IMAGE_BYTES) return errorResponse(413, "too_large", "That picture is over 5 MB. Try a smaller one.");

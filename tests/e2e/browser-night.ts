@@ -86,7 +86,7 @@ async function main() {
     await display.goto(`${PUBLIC}/display`);
     // REVIEW finding 4: the TV shows a pairing code until the host types it on the console
     await display.waitForSelector(".pair-code", { timeout: 5000 });
-    await display.waitForFunction(() => /^[0-9]{4}$/.test(document.querySelector(".pair-code")?.textContent?.trim() ?? ""), null, { timeout: 5000 });
+    await display.waitForFunction(() => /^[0-9]{6}$/.test(document.querySelector(".pair-code")?.textContent?.trim() ?? ""), null, { timeout: 5000 });
 
     const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const [cname, cvalue] = night.cookie.split("=");
@@ -99,7 +99,7 @@ async function main() {
     await consolePage.fill(".pair-input", pairCode);
     await snap("pairing");
     await consolePage.click(".pair-card button[type=submit]");
-    await consolePage.waitForFunction(() => document.body.innerText.includes("Paired. The display shows the quiz now."), null, { timeout: 5000 });
+    await consolePage.waitForFunction(() => /Paired a display at .+, connected/.test(document.body.innerText), null, { timeout: 5000 });
     await display.waitForFunction(() => !document.querySelector(".pair-code"), null, { timeout: 5000 });
 
     const { roomCode } = await night.cmd("night.open", { quizId: quiz.id }) as { roomCode: string };
@@ -111,7 +111,8 @@ async function main() {
       const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
       const page = await ctx.newPage();
       watch(name, page);
-      await page.goto(`${PUBLIC}/j/${roomCode}`);
+      // the QR link carries the room code and the join key (D1)
+      await page.goto(`${PUBLIC}${new URL(night.hostView().night!.joinUrl).pathname}`);
       await page.fill("#team-name", name);
       await page.click(".ph-foot .btn.primary");
       await page.waitForFunction((n) => document.querySelector(".ph-top .team")?.textContent === n, name, { timeout: 5000 });

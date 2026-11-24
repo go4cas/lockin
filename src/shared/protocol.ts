@@ -45,7 +45,7 @@ export type CommandName =
   | "timer.start" | "timer.pause" | "timer.resume" | "timer.add" | "lock"
   | "mark.group" | "mark.team" | "reveal.start" | "reveal.next" | "leaderboard.show"
   | "sd.start" | "sd.ask" | "sd.reveal" | "final.show"
-  | "team.rename" | "team.remove" | "team.moveCode"
+  | "team.rename" | "team.remove" | "team.moveCode" | "night.newRoomCode"
   | "display.pair" | "display.unpairAll"
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
@@ -55,7 +55,7 @@ export const COMMAND_NAMES: readonly CommandName[] = [
   "timer.start", "timer.pause", "timer.resume", "timer.add", "lock",
   "mark.group", "mark.team", "reveal.start", "reveal.next", "leaderboard.show",
   "sd.start", "sd.ask", "sd.reveal", "final.show",
-  "team.rename", "team.remove", "team.moveCode",
+  "team.rename", "team.remove", "team.moveCode", "night.newRoomCode",
   "display.pair", "display.unpairAll",
   "team.join", "team.rejoin", "joker.play", "answer.submit",
 ];
@@ -84,7 +84,7 @@ export interface Common {
 export interface NightInfo {
   id: string;
   roomCode: string;
-  joinUrl: string;                 // publicUrl + "/j/" + roomCode
+  joinUrl: string;                 // publicUrl + "/j/" + roomCode + "-" + joinKey (D1: the key lets QR joins past the room code limits)
   quizTitle: string;
   plannedStart: number | null;
   holdingFrom: number | null;      // 7.4
@@ -229,6 +229,8 @@ export interface HostView extends Common {
   lines: Lines;                              // what the display is showing, for the host's reference
   /** Display pairing: paired displays (stored), how many are connected now, and unpaired ones showing a code. */
   displays?: { paired: number; connected: number; waiting: number };
+  /** SA-01: server time until which joins by typed room code are paused because someone is guessing the code; absent or past when not paused. */
+  joinPausedUntil?: number;
 }
 
 export type View = HostView | DisplayView | TeamView;

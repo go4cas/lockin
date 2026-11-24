@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Lock-In: a pub quiz app. Teams answer on their phones, the quiz plays on the TV, the host runs the night from a laptop or tablet.",
   "engines": {
-    "bun": ">=1.4.0 <1.5.0"
+    "bun": ">=1.4.5 <1.5.0"
   },
   "scripts": {
     "dev": "bun scripts/build.ts dev",

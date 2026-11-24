@@ -9,6 +9,7 @@ import { startServer, VERSION, type AppOptions } from "./app.ts";
 import { Auth } from "./auth.ts";
 import { ConfigError, ensureDataDir, parseArgs, resolveConfig, resolveDataDir } from "./config.ts";
 import { openDb } from "./db.ts";
+import { runtimeProblem } from "./runtime.ts";
 
 const HELP = `Lock-In ${VERSION}: a pub quiz app.
 
@@ -62,6 +63,8 @@ export async function main(argv: string[], env: Record<string, string | undefine
         }
       }
       case "serve": {
+        const tooOld = runtimeProblem();
+        if (tooOld) throw new ConfigError(tooOld);
         const config = resolveConfig(args, env, cwd);
         const running = await startServer(config, appOptions);
         const stop = async () => {

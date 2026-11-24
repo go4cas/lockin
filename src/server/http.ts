@@ -38,18 +38,72 @@ export function redirect(location: string): Response {
   return new Response(null, { status: 302, headers: { Location: location } });
 }
 
-/** Reads a JSON object body; returns null if the body is not a JSON object or is over `maxBytes`. */
-export async function readJsonBody(req: Request, maxBytes = 1_000_000): Promise<Record<string, unknown> | null> {
-  const length = Number(req.headers.get("content-length") ?? "0");
-  if (length > maxBytes) return null;
+/** Thrown by the body readers when a body is over its limit; the router answers 413 (SA-02). */
+export class BodyTooLarge extends Error {
+  constructor(readonly maxBytes: number) { super(`Request body is over ${maxBytes} bytes.`); }
+}
+
+/** Bun's server-wide body ceiling: the largest upload (a 6 MB theme asset) plus multipart overhead (SA-02). */
+export const MAX_REQUEST_BODY = 6 * 1024 * 1024 + 64 * 1024;
+/** Body limits by route (SA-02): sign-in and setup are tiny; settings and titles small; a whole quiz up to 2 MB. */
+export const AUTH_BODY_MAX = 4 * 1024;
+export const SMALL_BODY_MAX = 64 * 1024;
+
+/**
+ * Reads the body as bytes, counting them as they arrive, and stops (cancelling the
+ * stream) as soon as there are more than `maxBytes`. Content-Length is only used to
+ * refuse early; a chunked body has none, and a lying one is caught by the count.
+ */
+export async function readBodyBytes(req: Request, maxBytes: number): Promise<Uint8Array<ArrayBuffer>> {
+  const declared = Number(req.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declared) && declared > maxBytes) throw new BodyTooLarge(maxBytes);
+  if (!req.body) return new Uint8Array(new ArrayBuffer(0));
+  const reader = req.body.getReader();
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      reader.cancel().catch(() => undefined);
+      throw new BodyTooLarge(maxBytes);
+    }
+    parts.push(value);
+  }
+  const out = new Uint8Array(new ArrayBuffer(total));
+  let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.byteLength; }
+  return out;
+}
+
+/**
+ * Reads a JSON object body of at most `maxBytes` bytes. Returns null if it is not a JSON
+ * object; throws BodyTooLarge (answered 413 by the router) if it is too big.
+ */
+export async function readJsonBody(req: Request, maxBytes = SMALL_BODY_MAX): Promise<Record<string, unknown> | null> {
+  const bytes = await readBodyBytes(req, maxBytes);
   try {
-    const text = await req.text();
-    if (text.length > maxBytes) return null;
-    const v = JSON.parse(text);
+    const v = JSON.parse(new TextDecoder().decode(bytes));
     return typeof v === "object" && v !== null && !Array.isArray(v) ? v : null;
   } catch {
     return null;
   }
+}
+
+/** Reads a multipart form body of at most `maxBytes` bytes (throws BodyTooLarge), or null if it is not a form. */
+export async function readFormBody(req: Request, maxBytes: number): Promise<FormData | null> {
+  const bytes = await readBodyBytes(req, maxBytes);
+  try {
+    return await new Response(bytes, { headers: { "Content-Type": req.headers.get("content-type") ?? "" } }).formData();
+  } catch {
+    return null;
+  }
+}
+
+/** The 413 answer for a body over its limit. */
+export function tooLarge(): Response {
+  return errorResponse(413, "too_large", "That request is too big.");
 }
 
 /** Adds the headers every response carries (12.4). Pages get the page CSP unless a handler set its own. */
@@ -122,7 +176,12 @@ export class Router {
     if (m.route.opts.host && !ctx.hostSession) {
       return errorResponse(401, "signed_out", "Please sign in to the host console.");
     }
-    return m.route.handler(req, ctx);
+    try {
+      return await m.route.handler(req, ctx);
+    } catch (e) {
+      if (e instanceof BodyTooLarge) return tooLarge();
+      throw e;
+    }
   }
 }
 

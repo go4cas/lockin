@@ -33,9 +33,16 @@ describe("screenOf: every team fixture has a screen", () => {
 
 describe("parsePath", () => {
   test("room code from /j/, move code from /m/", () => {
-    expect(L.parsePath("/j/bktw")).toEqual({ roomCode: "BKTW", moveCode: "" });
-    expect(L.parsePath("/m/k7px3m2a")).toEqual({ roomCode: "", moveCode: "K7PX3M2A" });
-    expect(L.parsePath("/")).toEqual({ roomCode: "", moveCode: "" });
+    expect(L.parsePath("/j/bktw")).toEqual({ roomCode: "BKTW", joinKey: "", moveCode: "" });
+    expect(L.parsePath("/m/k7px3m2a")).toEqual({ roomCode: "", joinKey: "", moveCode: "K7PX3M2A" });
+    expect(L.parsePath("/")).toEqual({ roomCode: "", joinKey: "", moveCode: "" });
+  });
+  test("the QR link /j/<code>-<join key> gives both (D1)", () => {
+    expect(L.parsePath("/j/BKTW-23456789AB")).toEqual({ roomCode: "BKTW", joinKey: "23456789AB", moveCode: "" });
+    expect(L.parsePath("/j/bktw-23456789ab/")).toEqual({ roomCode: "BKTW", joinKey: "23456789AB", moveCode: "" });
+    expect(L.parsePath("/j/BKTW-SHORT").joinKey).toBe("");          // wrong length
+    expect(L.parsePath("/j/BKTW-0000000000").joinKey).toBe("");     // 0 is not in the alphabet
+    expect(L.parsePath("/j/AEIO-23456789AB")).toEqual({ roomCode: "", joinKey: "", moveCode: "" });
   });
   test("ignores anything that is not a code", () => {
     expect(L.parsePath("/j/AEIO").roomCode).toBe("");

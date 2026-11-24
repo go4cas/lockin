@@ -11,7 +11,7 @@ import { Auth, RateLimiter, SESSION_COOKIE, readCookie, type Clock } from "./aut
 import { registerAuthRoutes } from "./auth-routes.ts";
 import { ensureDataDir, isLocalDevUrl, type Config } from "./config.ts";
 import { openDb } from "./db.ts";
-import { Router, errorResponse, json, originAllowed, withSecurityHeaders, type Handler, type Method, type RequestContext, type RouteOptions } from "./http.ts";
+import { MAX_REQUEST_BODY, Router, errorResponse, json, originAllowed, withSecurityHeaders, type Handler, type Method, type RequestContext, type RouteOptions } from "./http.ts";
 import { diskSource, registerStatic, type FileSource } from "./static.ts";
 import { Hub, type BunServer, type SocketData } from "./ws.ts";
 import { register as registerBranding } from "./branding/index.ts";
@@ -139,7 +139,11 @@ export async function handleRequest(app: InternalApp, req: Request, server: BunS
 
   if (url.pathname === "/ws") {
     if (!originAllowed(req, app.publicUrl)) return withSecurityHeaders(errorResponse(403, "forbidden_origin", "This page is not allowed to connect."));
-    const ok = server.upgrade(req, { data: app.ws.upgradeData(ip, session?.hash ?? null) });
+    // SA-04: caps on open sockets, in total and per client IP, checked before any socket is made.
+    const data = app.ws.admit(ip, session?.hash ?? null);
+    if (!data) return withSecurityHeaders(errorResponse(429, "too_many_connections", "Too many screens are connected from here. Try again in a minute."));
+    const ok = server.upgrade(req, { data });
+    if (!ok) app.ws.release(data);
     return ok ? undefined : withSecurityHeaders(errorResponse(400, "bad_upgrade", "This address only takes WebSocket connections."));
   }
 
@@ -177,6 +181,8 @@ export async function startServer(config: Config, opts: AppOptions = {}): Promis
   const server: BunServer = Bun.serve<SocketData>({
     hostname: config.bind,
     port: config.port,
+    // SA-02: Bun's default is 128 MB; nothing Lock-In takes is bigger than a 6 MB upload.
+    maxRequestBodySize: MAX_REQUEST_BODY,
     fetch: (req, srv) => handleRequest(app, req, srv),
     websocket: app.ws.websocket,
     error: (e) => {
@@ -188,7 +194,7 @@ export async function startServer(config: Config, opts: AppOptions = {}): Promis
   for (const fn of app.startHooks) await fn();
 
   const port = server.port!;
-  app.log(`Lock-In ${VERSION}`);
+  app.log(`Lock-In ${VERSION} on Bun ${Bun.version}`);
   app.log(`Public address: ${config.publicUrl}  (host console: ${config.publicUrl}/host)`);
   app.log(`Data folder: ${config.dataDir}`);
   if (setupCode) app.log(`No host password is set yet. Setup code: ${setupCode}`);

@@ -27,6 +27,14 @@ const REJOIN_TRIES = 5;
 /** Wrong rejoin tries a minute from one client IP, across all its connections. Higher than REJOIN_TRIES because a pub's phones often share one address. */
 const REJOIN_TRIES_PER_IP = 10;
 const MINUTE = 60_000;
+/** Wrong room codes a minute (SA-01): per connection, per client IP, and from everyone together. */
+export const JOIN_TRIES = 3;
+export const JOIN_TRIES_PER_IP = 10;
+export const JOIN_TRIES_TOTAL = 30;
+/** How long joins by typed room code stay paused once JOIN_TRIES_TOTAL is reached (SA-01). */
+export const JOIN_PAUSE_MS = 60_000;
+/** Join key length (D1): 10 characters of the rejoin alphabet, about 50 bits. */
+export const JOIN_KEY_LENGTH = 10;
 
 export const MESSAGES: Partial<Record<ErrorCode, string>> = {
   not_allowed: "This screen cannot do that.",
@@ -56,6 +64,8 @@ export function fail(code: ErrorCode, message?: string): CommandResult {
   return { ok: false, error: { code, message: message ?? MESSAGES[code] ?? "That can't be done right now." } };
 }
 const OK: CommandResult = { ok: true };
+type Refusal = { ok: false; error: { code: ErrorCode; message: string } };
+const refuse = (code: ErrorCode, message?: string) => fail(code, message) as Refusal;
 
 /** `ip` is the client address (CF-Connecting-IP behind the tunnel); rejoin tries are limited per IP as well as per connection. */
 export type Actor = { role: "host" } | { role: "team"; teamId: string | null; connId: number; ip?: string };
@@ -92,7 +102,7 @@ export const HOST_COMMANDS: readonly CommandName[] = [
   "round.start", "round.finish", "round.next", "question.next",
   "timer.start", "timer.pause", "timer.resume", "timer.add", "lock",
   "mark.group", "mark.team", "reveal.start", "reveal.next", "leaderboard.show",
-  "sd.start", "sd.ask", "sd.reveal", "final.show", "team.rename", "team.remove", "team.moveCode",
+  "sd.start", "sd.ask", "sd.reveal", "final.show", "team.rename", "team.remove", "team.moveCode", "night.newRoomCode",
 ];
 
 const MARK_PHASES = new Set(["asking", "marking", "reveal", "leaderboard", "halftime", "round_intro", "sudden_death"]);
@@ -124,6 +134,10 @@ export class Engine {
   private moveCodes = new Map<string, { teamId: string; expires: number }>();
   /** Wrong rejoin tries in the last minute, keyed `c:<connId>` and `ip:<address>`. */
   private rejoinTries = new Map<string, number[]>();
+  /** Wrong room codes in the last minute (SA-01), keyed `c:<connId>`, `ip:<address>` and `all`. */
+  private joinTries = new Map<string, number[]>();
+  /** Joins by typed room code are paused until this server time (SA-01); 0 when not paused. */
+  joinPausedUntil = 0;
   private jobs = new Map<string, { key: string; handle: number }>();
   private lastSecondsFired: string | null = null;
   private lobbyLineAt = 0;
@@ -476,6 +490,7 @@ export class Engine {
     switch (name) {
       case "night.update": case "team.rename": case "team.moveCode": case "team.rejoin":
         return null;
+      case "night.newRoomCode": return p === "ended" ? "wrong_phase" : null;
       case "night.close": return p === "ended" || p === "lobby" ? null : "wrong_phase";
       case "quiz.start": return p !== "lobby" ? "wrong_phase" : this.teams().length === 0 ? "no_teams" : null;
       case "round.start": return p === "round_intro" ? null : "wrong_phase";
@@ -555,6 +570,9 @@ export class Engine {
     this.ensureRecovered();
     const b = this.blocked(name);
     if (b) return fail(b);
+    // SA-04 / LI-011: refusals and no-ops from phones are found here, before run() copies the night.
+    const early = actor.role === "team" ? this.precheck(actor, name, args) : null;
+    if (early) return early;
     const coalesce = name === "answer.submit";
     return this.run(() => this.exec(actor, name, args), coalesce);
   }
@@ -587,6 +605,7 @@ export class Engine {
       case "team.rename": return this.teamRename(a);
       case "team.remove": return this.teamRemove(a);
       case "team.moveCode": return this.teamMoveCode(a);
+      case "night.newRoomCode": return this.newRoomCode();
       case "team.join": return actor.role === "team" ? this.teamJoin(actor, a) : fail("not_allowed");
       case "team.rejoin": return actor.role === "team" ? this.teamRejoin(actor, a) : fail("not_allowed");
       case "joker.play": return actor.role === "team" ? this.jokerPlay(actor, a) : fail("not_allowed");
@@ -643,6 +662,8 @@ export class Engine {
     for (let i = 0; i < 4; i++) roomCode += ROOM_ALPHABET[randomInt(ROOM_ALPHABET.length)];
     const state = initialState();
     state.seq = this.idleSeq + 1;
+    state.joinKey = randomCode(JOIN_KEY_LENGTH);
+    this.resetJoinLimits();
     this.m = {
       night: {
         id, quizId: load.quiz.id, quizTitle: load.quiz.title, quiz: load.quiz, roomCode, status: "open", openedAt: now,
@@ -1089,13 +1110,11 @@ export class Engine {
 
   private teamJoin(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
     const n = this.m!.night;
-    if (typeof a.roomCode !== "string" || a.roomCode.trim().toUpperCase() !== n.roomCode) return fail("room_code");
-    const name = this.cleanName(a.name);
-    if (!name) return fail("bad_args", "Team names are 1 to 30 characters.");
-    if (actor.teamId && this.m!.teams.get(actor.teamId)?.removedAt === null) return fail("bad_args", "This phone is already in a team.");
+    if (!this.hasJoinKey(a) && !this.rightRoomCode(a)) return fail("room_code");
+    const check = this.joinCheck(actor, a);
+    if (!check.ok) return check;
+    const name = check.name;
     const nameKey = name.toLowerCase();
-    if (this.teams().some((t) => t.nameKey === nameKey)) return fail("team_has_phone");
-    if (this.teams().length >= this.quiz.settings.maxTeams) return fail("night_full");
     const used = new Map<number, number>();
     for (const t of this.teams()) used.set(t.colour, (used.get(t.colour) ?? 0) + 1);
     let colour = 1;
@@ -1112,28 +1131,43 @@ export class Engine {
     return { ok: true, result: { teamId: team.id, token, nightId: n.id } };
   }
 
-  private teamRejoin(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
-    const now = this.now();
-    const recent = (key: string) => {
-      const list = (this.rejoinTries.get(key) ?? []).filter((t) => t > now - MINUTE);
-      if (list.length) this.rejoinTries.set(key, list); else this.rejoinTries.delete(key);
-      return list;
-    };
-    const connKey = `c:${actor.connId}`;
-    const ipKey = actor.ip ? `ip:${actor.ip}` : null;
-    if (recent(connKey).length >= REJOIN_TRIES) return fail("too_many_tries");
-    if (ipKey && recent(ipKey).length >= REJOIN_TRIES_PER_IP) return fail("too_many_tries");
+  /** The team a rejoin or move code names, or null (no side effects). */
+  private rejoinTarget(a: Record<string, unknown>): { team: TeamRec; code: string; viaMove: boolean } | null {
     const code = typeof a.code === "string" ? a.code.trim().toUpperCase() : "";
+    if (!/^[A-Z0-9]+$/.test(code) || [...code].some((c) => !CODE_ALPHABET.includes(c))) return null;
     let team: TeamRec | undefined;
     const move = this.moveCodes.get(code);
-    if (move && move.expires > now) team = this.m!.teams.get(move.teamId);
+    if (move && move.expires > this.now()) team = this.m!.teams.get(move.teamId);
+    const viaMove = !!team;
     if (!team && code.length === 6) team = this.teams().find((t) => t.rejoinCode === code);
-    if (!team || team.removedAt !== null || !/^[A-Z0-9]+$/.test(code) || [...code].some((c) => !CODE_ALPHABET.includes(c))) {
-      this.pruneRejoinTries(now);
-      for (const key of ipKey ? [connKey, ipKey] : [connKey]) this.rejoinTries.set(key, [...recent(key), now]);
-      return fail("bad_code");
-    }
-    if (move && move.teamId === team.id) this.moveCodes.delete(code);
+    return team && team.removedAt === null ? { team, code, viaMove } : null;
+  }
+
+  /** Recent tries in a limiter map, dropping ones older than a minute. */
+  private recentTries(map: Map<string, number[]>, key: string, now: number): number[] {
+    const list = (map.get(key) ?? []).filter((t) => t > now - MINUTE);
+    if (list.length) map.set(key, list); else map.delete(key);
+    return list;
+  }
+
+  /** Rejoin limits and code lookup, before run() (SA-04): a refusal here never copies the night. */
+  private rejoinPrecheck(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult | null {
+    const now = this.now();
+    const connKey = `c:${actor.connId}`;
+    const ipKey = actor.ip ? `ip:${actor.ip}` : null;
+    if (this.recentTries(this.rejoinTries, connKey, now).length >= REJOIN_TRIES) return fail("too_many_tries");
+    if (ipKey && this.recentTries(this.rejoinTries, ipKey, now).length >= REJOIN_TRIES_PER_IP) return fail("too_many_tries");
+    if (this.rejoinTarget(a)) return null;
+    this.pruneRejoinTries(now);
+    for (const key of ipKey ? [connKey, ipKey] : [connKey]) this.rejoinTries.set(key, [...this.recentTries(this.rejoinTries, key, now), now]);
+    return fail("bad_code");
+  }
+
+  private teamRejoin(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
+    const target = this.rejoinTarget(a);
+    if (!target) return fail("bad_code");   // the pre-check found it; kept for direct callers
+    const { team, code } = target;
+    if (target.viaMove) this.moveCodes.delete(code);
     const token = randomToken();
     team.tokenHash = sha256(token);
     team.rejoinCode = this.newRejoinCode();
@@ -1144,8 +1178,101 @@ export class Engine {
 
   /** Drops keys with no try in the last minute once the map grows, so it cannot only grow (REVIEW finding 8). */
   private pruneRejoinTries(now: number): void {
-    if (this.rejoinTries.size < 1_000) return;
-    for (const [key, list] of this.rejoinTries) if (!list.some((t) => t > now - MINUTE)) this.rejoinTries.delete(key);
+    for (const map of [this.rejoinTries, this.joinTries]) {
+      if (map.size < 1_000) continue;
+      for (const [key, list] of map) if (!list.some((t) => t > now - MINUTE)) map.delete(key);
+    }
+  }
+
+  // --- joining: room code limits and the join key (SA-01, D1) -------------------------------
+
+  private rightRoomCode(a: Record<string, unknown>): boolean {
+    return typeof a.roomCode === "string" && a.roomCode.trim().toUpperCase() === this.m!.night.roomCode;
+  }
+
+  /** True if the join carries this night's join key (from the QR code or join link). */
+  private hasJoinKey(a: Record<string, unknown>): boolean {
+    const key = this.state.joinKey;
+    return !!key && typeof a.joinKey === "string" && a.joinKey.trim().toUpperCase() === key;
+  }
+
+  /** Checks on a join that need no change: a clean name, not already in a team, name free, room left. */
+  private joinCheck(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): { ok: true; name: string } | Refusal {
+    const name = this.cleanName(a.name);
+    if (!name) return fail("bad_args", "Team names are 1 to 30 characters.") as Refusal;
+    if (actor.teamId && this.m!.teams.get(actor.teamId)?.removedAt === null) return fail("bad_args", "This phone is already in a team.") as Refusal;
+    const nameKey = name.toLowerCase();
+    if (this.teams().some((t) => t.nameKey === nameKey)) return fail("team_has_phone") as Refusal;
+    if (this.teams().length >= this.quiz.settings.maxTeams) return fail("night_full") as Refusal;
+    return { ok: true, name };
+  }
+
+  /**
+   * Room code limits (SA-01), before run(). A join with the night's join key skips them all:
+   * that is how phones that scanned the QR code get in while someone is guessing. A typed
+   * code is limited per connection, per IP and in total; while any limit applies, every
+   * typed join answers too_many_tries, right code or not, so the answer says nothing about
+   * the code.
+   */
+  private joinPrecheck(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult | null {
+    if (!this.hasJoinKey(a)) {
+      const now = this.now();
+      const connKey = `c:${actor.connId}`;
+      const ipKey = actor.ip ? `ip:${actor.ip}` : null;
+      if (now < this.joinPausedUntil) return fail("too_many_tries");
+      if (this.recentTries(this.joinTries, connKey, now).length >= JOIN_TRIES) return fail("too_many_tries");
+      if (ipKey && this.recentTries(this.joinTries, ipKey, now).length >= JOIN_TRIES_PER_IP) return fail("too_many_tries");
+      if (!this.rightRoomCode(a)) {
+        this.pruneRejoinTries(now);
+        for (const key of ipKey ? [connKey, ipKey, "all"] : [connKey, "all"]) this.joinTries.set(key, [...this.recentTries(this.joinTries, key, now), now]);
+        if ((this.joinTries.get("all")?.length ?? 0) >= JOIN_TRIES_TOTAL) {
+          this.joinPausedUntil = now + JOIN_PAUSE_MS;
+          this.joinTries.delete("all");
+          this.d.log?.(`Someone is guessing the room code: ${JOIN_TRIES_TOTAL} wrong codes in a minute. Joins by typed code are paused for a minute; the QR code still works.`);
+          this.touch();   // the host sees the warning
+        }
+        return fail("room_code");
+      }
+    }
+    const check = this.joinCheck(actor, a);
+    return check.ok ? null : check;
+  }
+
+  private resetJoinLimits(): void {
+    this.joinTries.clear();
+    this.joinPausedUntil = 0;
+  }
+
+  /** New room code and join key for the open night, keeping the teams (D1): for a code that has leaked. */
+  private newRoomCode(): CommandResult {
+    const n = this.m!.night;
+    let code = n.roomCode;
+    while (code === n.roomCode) {
+      code = "";
+      for (let i = 0; i < 4; i++) code += ROOM_ALPHABET[randomInt(ROOM_ALPHABET.length)];
+    }
+    n.roomCode = code;
+    this.state.joinKey = randomCode(JOIN_KEY_LENGTH);
+    this.dirty.night = true;
+    this.post.push(() => this.resetJoinLimits());
+    return { ok: true, result: { roomCode: code } };
+  }
+
+  /** Team command checks that change nothing, run before run() so a refusal never copies the night (SA-04). */
+  private precheck(actor: Extract<Actor, { role: "team" }>, name: CommandName, a: Record<string, unknown>): CommandResult | null {
+    switch (name) {
+      case "team.join": return this.joinPrecheck(actor, a);
+      case "team.rejoin": return this.rejoinPrecheck(actor, a);
+      case "joker.play": { const c = this.jokerCheck(actor, a); return c.ok ? null : c; }
+      case "answer.submit": {
+        const c = this.answerCheck(actor, a);
+        if (!c.ok) return c;
+        // The same answer again changes nothing: answer it without a write or a broadcast.
+        if (c.prev?.value && JSON.stringify(c.prev.value) === JSON.stringify(c.value)) return { ok: true, result: { receivedAt: c.prev.receivedAt } };
+        return null;
+      }
+    }
+    return null;
   }
 
   private activeTeam(id: unknown): TeamRec | null {
@@ -1201,14 +1328,21 @@ export class Engine {
     return null;
   }
 
-  private jokerPlay(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
+  private jokerCheck(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): Refusal | { ok: true; team: TeamRec; up: number } {
     const team = this.activeTeam(actor.teamId);
-    if (!team) return fail("not_allowed", "Join a team first.");
-    if (!this.quiz.settings.joker) return fail("joker_off");
-    if (team.jokerRound !== null) return fail("joker_used");
-    if (!isInt(a.round)) return fail("bad_args");
+    if (!team) return refuse("not_allowed", "Join a team first.");
+    if (!this.quiz.settings.joker) return refuse("joker_off");
+    if (team.jokerRound !== null) return refuse("joker_used");
+    if (!isInt(a.round)) return refuse("bad_args");
     const up = this.upcomingRound();
-    if (up === null || a.round !== up) return fail("joker_wrong_round");
+    if (up === null || a.round !== up) return refuse("joker_wrong_round");
+    return { ok: true, team, up };
+  }
+
+  private jokerPlay(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
+    const c = this.jokerCheck(actor, a);
+    if (!c.ok) return c;
+    const { team, up } = c;
     team.jokerRound = up;
     this.dirty.teams.add(team.id);
     this.state.flash = this.flash("joker_played", team.id, { team: team.name, round: up + 1 });
@@ -1235,25 +1369,32 @@ export class Engine {
     }
   }
 
-  private answerSubmit(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
+  private answerCheck(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>):
+    Refusal | { ok: true; team: TeamRec; ref: QuestionRef; value: AnswerValue; prev: ReturnType<Engine["answer"]>; now: number } {
     const team = this.activeTeam(actor.teamId);
-    if (!team) return fail("not_allowed", "Join a team first.");
-    if (typeof a.questionId !== "string") return fail("bad_args");
+    if (!team) return refuse("not_allowed", "Join a team first.");
+    if (typeof a.questionId !== "string") return refuse("bad_args");
     const ref = this.qIndex.get(a.questionId);
     const s = this.state;
     const qs = ref ? s.questions[ref.q.id] : undefined;
-    if (!ref || !qs || qs.status === "hidden") return fail("question_closed");
-    if (s.phase === "asking" && ref.round !== s.round) return fail("question_closed");
-    if (s.phase === "sudden_death" && (ref.round !== -1 || s.sd?.current?.questionId !== ref.q.id)) return fail("question_closed");
-    if (!this.participants(ref.q.id).includes(team.id)) return fail("not_allowed", "Only the tied teams answer this one.");
-    if (qs.status === "locked") return fail("too_late");
+    if (!ref || !qs || qs.status === "hidden") return refuse("question_closed");
+    if (s.phase === "asking" && ref.round !== s.round) return refuse("question_closed");
+    if (s.phase === "sudden_death" && (ref.round !== -1 || s.sd?.current?.questionId !== ref.q.id)) return refuse("question_closed");
+    if (!this.participants(ref.q.id).includes(team.id)) return refuse("not_allowed", "Only the tied teams answer this one.");
+    if (qs.status === "locked") return refuse("too_late");
     // The strict lock: accepted only if now < locksAt. Nothing the client sends affects this.
     const now = this.now();
-    if (s.timer.state === "running" && s.timer.locksAt !== null && now >= s.timer.locksAt) return fail("too_late");
-    if (s.timer.state === "done") return fail("too_late");
+    if (s.timer.state === "running" && s.timer.locksAt !== null && now >= s.timer.locksAt) return refuse("too_late");
+    if (s.timer.state === "done") return refuse("too_late");
     const value = this.validValue(a.value, ref);
-    if (!value) return fail("bad_args", "That answer doesn't fit this question.");
-    const prev = this.answer(team.id, ref.q.id);
+    if (!value) return refuse("bad_args", "That answer doesn't fit this question.");
+    return { ok: true, team, ref, value, prev: this.answer(team.id, ref.q.id), now };
+  }
+
+  private answerSubmit(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
+    const c = this.answerCheck(actor, a);
+    if (!c.ok) return c;
+    const { team, ref, value, prev, now } = c;
     if (prev?.value && JSON.stringify(prev.value) === JSON.stringify(value)) return { ok: true, result: { receivedAt: prev.receivedAt } };
     this.putAnswer({
       teamId: team.id, questionId: ref.q.id, value, receivedAt: now, changes: prev?.value ? prev.changes + 1 : 0,

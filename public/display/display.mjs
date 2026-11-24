@@ -320,13 +320,16 @@ function createDisplay(root, now) {
     </div>`;
   }
 
+  /** The pairing code, or "" when the server has none to give (SA-03: too many displays waiting). */
+  const pairCode = () => (page.view && v().pairing ? (v().pairing || { code: "" }).code : "");
+
   /** Not paired yet (REVIEW finding 4): only the pairing code, which the host types on the console. */
   function pairingScreen() {
     return html`<div class="display-main col center">
       ${BRAND.logo ? html`<img class="idle-logo" src="${BRAND.logo}" alt="">` : padlock("lock idle-mark")}
       <div class="t-l b mt3 venue-name">${() => (page.view ? v().venue.name : "")}</div>
-      <div class="t-s muted mt3">Quizmaster: to show the quiz here, type this code on the console under "Pair a display".</div>
-      <div class="pair-code mt2">${() => (page.view && v().pairing ? (v().pairing || { code: "" }).code : "")}</div>
+      <div class="t-s muted mt3">${() => (pairCode() ? 'Quizmaster: to show the quiz here, type this code on the console under "Pair a display".' : "Too many screens are waiting to be paired. Reload this page in a minute.")}</div>
+      <div class="pair-code mt2">${() => pairCode()}</div>
     </div>`;
   }
 

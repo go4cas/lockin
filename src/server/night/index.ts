@@ -66,7 +66,7 @@ export function register(app: App): void {
     engine.ensureRecovered();
     if (conn.role === "display" && !conn.paired) {
       // REVIEW finding 4: an unpaired display sees only its pairing code.
-      return { seq: engine.seq, view: unpairedDisplayView(engine, app.services.displayPairing?.codeFor(conn.id) ?? "") };
+      return { seq: engine.seq, view: unpairedDisplayView(engine, app.services.displayPairing?.codeFor(conn.id, conn.ip) ?? "") };
     }
     if (conn.role === "display" || conn.role === null) {
       const now = app.clock.now();
@@ -76,7 +76,10 @@ export function register(app: App): void {
       return { seq: engine.seq, view: displayCache.view };
     }
     const view = viewFor(engine, conn.role, conn.teamId);
-    if (view.role === "host") view.displays = displaysSummary(app);
+    if (view.role === "host") {
+      view.displays = displaysSummary(app);
+      if (engine.joinPausedUntil > app.clock.now()) view.joinPausedUntil = engine.joinPausedUntil;
+    }
     return { seq: engine.seq, view };
   });
   hub.setTeamTokenResolver((token) => engine.teamForToken(token));
@@ -96,7 +99,7 @@ export function register(app: App): void {
       }
     }
     if (e.hostOnly) {
-      hub.broadcastState((c) => c.role === "host");
+      hub.broadcastHosts();   // presence: at most one every HOST_UPDATE_MS (SA-04)
     } else if (e.coalesce) {
       // The submitting team sees its answer at once; everyone else within COALESCE_MS.
       if (submitter) hub.sendState(submitter);

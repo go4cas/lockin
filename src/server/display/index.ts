@@ -44,7 +44,8 @@ export function displaysSummary(app: App): { paired: number; connected: number; 
   return { paired: p?.pairedCount ?? 0, connected: conns.filter((c) => c.paired).length, waiting: conns.filter((c) => !c.paired).length };
 }
 
-const hostsOnly = (app: App) => app.ws.broadcastState((c) => c.role === "host");
+/** Host-only updates for display counts, at most one every HOST_UPDATE_MS (SA-03, SA-04). */
+const hostsOnly = (app: App) => app.ws.broadcastHosts();
 
 /** `display.pair { code }` and `display.unpairAll` (host only; the hub has checked the role). */
 export function displayCommand(app: App, name: "display.pair" | "display.unpairAll", args: Record<string, unknown>): CommandResult {
@@ -64,11 +65,40 @@ export function displayCommand(app: App, name: "display.pair" | "display.unpairA
     return fail(claim.error, claim.error === "too_many_tries" ? "Too many wrong codes. Wait a minute and try again." : "No display is showing that code. Check the number on the TV.");
   }
   const conn = app.ws.connection(claim.connId);
-  if (!conn || conn.role !== "display") return fail("bad_code", "That display is no longer connected. Reload it and try its new code.");
-  conn.setPaired(true, pairing.issue());
+  if (!conn || conn.role !== "display") {
+    pairing.forget(claim.connId);
+    return fail("bad_code", "That display is no longer connected. Reload it and try its new code.");
+  }
+  // SA-03: tell the host which screen this was, so a stolen pairing is noticed.
+  const connectedFor = Math.max(0, app.clock.now() - conn.connectedAt);
+  const token = pairing.issue();   // throws on a failed write; the code then stays valid (LI-014)
+  pairing.forget(conn.id);
+  conn.setPaired(true, token);
   app.ws.sendState(conn);
   hostsOnly(app);
-  return { ok: true, result: { paired: pairing.pairedCount } };
+  return { ok: true, result: { paired: pairing.pairedCount, ip: conn.ip, connectedFor } };
+}
+
+/** Sends each unpaired display whose code expired its new code (D2, SA-03 step 3). */
+export function sweepPairing(app: App): void {
+  const pairing = app.services.displayPairing;
+  if (!pairing) return;
+  for (const id of pairing.expired()) {
+    const conn = app.ws.connection(id);
+    if (conn && !conn.paired) app.ws.sendState(conn);   // the view provider makes the new code
+    else pairing.forget(id);
+  }
+}
+
+/** A waiting place came free: an unpaired display that was turned away (no code) may now get one. */
+function offerFreedCodes(app: App): void {
+  const pairing = app.services.displayPairing;
+  if (!pairing) return;
+  for (const c of app.ws.connections("display")) {
+    if (c.paired || pairing.holds(c.id)) continue;
+    app.ws.sendState(c);
+    if (pairing.holds(c.id)) return;   // one place, one display
+  }
 }
 
 export function register(app: App): void {
@@ -82,9 +112,16 @@ export function register(app: App): void {
   app.ws.onConnect((conn) => { if (conn.role === "display") hostsOnly(app); });
   app.ws.onDisconnect((conn) => {
     if (conn.role !== "display") return;
+    const held = pairing.holds(conn.id);
     pairing.forget(conn.id);
     hostsOnly(app);
+    if (held) offerFreedCodes(app);
   });
+
+  // D2: codes expire after PAIR_CODE_TTL_MS; the display is sent its new code at once.
+  let sweep: ReturnType<typeof setInterval> | null = null;
+  app.onStart(() => { sweep = setInterval(() => sweepPairing(app), 15_000); });
+  app.onStop(() => { if (sweep) clearInterval(sweep); });
 
   app.route("GET", "/display", async (req) => {
     const bytes = await app.files.read(DISPLAY_PAGE);

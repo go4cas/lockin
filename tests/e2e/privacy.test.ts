@@ -47,6 +47,10 @@ describe("PrivacyWatch", () => {
     const mine = team.answers[0];
     const wrongTeam = { ...team, answers: mine ? [{ ...mine, value: { type: "text", text: "someone else's guess" } }] : [] };
     if (mine) expect(w.check([{ role: "team", received: [state(wrongTeam)] }]).problems.length).toBeGreaterThan(0);
+    // SA-07: an unbound phone sees no teams, standings, flashes, night details or lines but lobby
+    const unbound = { ...team, self: null, answers: [], questions: [] };
+    expect(w.check([{ role: "team", received: [state({ ...unbound, teams: [{ id: "t-x", name: "X", colour: 1, jokerThisRound: false }] })] }]).problems.length).toBeGreaterThan(0);
+    expect(w.check([{ role: "team", received: [state({ ...unbound, teams: [], night: { ...team.night!, quizTitle: "Friday" } })] }]).problems.length).toBeGreaterThan(0);
     const otherCode = { ...team, teams: [{ id: "t-x", name: "X", colour: 1, jokerThisRound: false, rejoinCode: "ABCDEF" }] };
     expect(w.check([{ role: "team", received: [state(otherCode)] }]).problems.length).toBeGreaterThan(0);
   });
