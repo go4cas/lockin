@@ -11,7 +11,7 @@ import { Auth, RateLimiter, SESSION_COOKIE, readCookie, type Clock } from "./aut
 import { registerAuthRoutes } from "./auth-routes.ts";
 import { ensureDataDir, isLocalDevUrl, type Config } from "./config.ts";
 import { openDb } from "./db.ts";
-import { Router, errorResponse, json, originAllowed, withSecurityHeaders, type Handler, type Method, type RequestContext, type RouteOptions } from "./http.ts";
+import { MAX_REQUEST_BODY, Router, errorResponse, json, originAllowed, withSecurityHeaders, type Handler, type Method, type RequestContext, type RouteOptions } from "./http.ts";
 import { diskSource, registerStatic, type FileSource } from "./static.ts";
 import { Hub, type BunServer, type SocketData } from "./ws.ts";
 import { register as registerBranding } from "./branding/index.ts";
@@ -177,6 +177,8 @@ export async function startServer(config: Config, opts: AppOptions = {}): Promis
   const server: BunServer = Bun.serve<SocketData>({
     hostname: config.bind,
     port: config.port,
+    // SA-02: Bun's default is 128 MB; nothing Lock-In takes is bigger than a 6 MB upload.
+    maxRequestBodySize: MAX_REQUEST_BODY,
     fetch: (req, srv) => handleRequest(app, req, srv),
     websocket: app.ws.websocket,
     error: (e) => {

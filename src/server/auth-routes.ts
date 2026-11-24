@@ -2,7 +2,7 @@
 
 import type { App } from "./app.ts";
 import { MIN_PASSWORD, SESSION_COOKIE, readCookie, type RateLimiter } from "./auth.ts";
-import { errorResponse, json, readJsonBody } from "./http.ts";
+import { AUTH_BODY_MAX, errorResponse, json, readJsonBody } from "./http.ts";
 
 const TOO_MANY = "Too many wrong tries. Wait a minute and try again.";
 
@@ -16,7 +16,7 @@ export function registerAuthRoutes(app: App, limiter: RateLimiter): void {
   app.route("POST", "/api/auth/setup", async (req, ctx) => {
     if (!app.auth.setupNeeded()) return errorResponse(409, "already_set", "A host password is already set. Sign in instead.");
     if (limiter.blocked(ctx.ip)) return errorResponse(429, "too_many_tries", TOO_MANY);
-    const body = await readJsonBody(req);
+    const body = await readJsonBody(req, AUTH_BODY_MAX);
     if (!body) return errorResponse(400, "bad_request", "That request was not understood.");
     if (!app.auth.checkSetupCode(body.setupCode)) {
       limiter.fail(ctx.ip);
@@ -37,7 +37,7 @@ export function registerAuthRoutes(app: App, limiter: RateLimiter): void {
   app.route("POST", "/api/auth/login", async (req, ctx) => {
     if (app.auth.setupNeeded()) return errorResponse(409, "setup_needed", "No host password is set yet. Set one up first.");
     if (limiter.blocked(ctx.ip)) return errorResponse(429, "too_many_tries", TOO_MANY);
-    const body = await readJsonBody(req);
+    const body = await readJsonBody(req, AUTH_BODY_MAX);
     if (!body || typeof body.password !== "string" || body.password.length > 200) {
       return errorResponse(400, "bad_request", "That request was not understood.");
     }

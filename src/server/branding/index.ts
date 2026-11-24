@@ -7,7 +7,7 @@
 
 import type { App } from "../app.ts";
 import { BUNDLED_FONTS, validateTheme } from "../../shared/formats.ts";
-import { UPLOAD_CSP, errorResponse, json, readJsonBody } from "../http.ts";
+import { UPLOAD_CSP, errorResponse, json, BodyTooLarge, readFormBody, readJsonBody } from "../http.ts";
 import { BUNDLED_FONT_INFO } from "./derive.ts";
 import { ASSET_KINDS, ASSET_RULES, type AssetKind } from "./assets.ts";
 import { createCopyPicker, mergePools, poolsFromCopyFile, type Pools } from "./copy.ts";
@@ -107,12 +107,15 @@ export function register(app: App): void {
   app.route("POST", "/api/theme/assets", async (req) => {
     const length = Number(req.headers.get("content-length") ?? "0");
     if (length > 6 * 1024 * 1024) return errorResponse(413, "too_big", "That file is too big. Logos and fonts can be up to 2 MB, pictures up to 5 MB.");
-    let form: FormData;
+    // Counted while it is read, so a chunked body is stopped at the limit too (SA-02).
+    let form: FormData | null;
     try {
-      form = await req.formData();
-    } catch {
-      return errorResponse(400, "bad_request", "Send the file as a form upload.");
+      form = await readFormBody(req, 6 * 1024 * 1024);
+    } catch (e) {
+      if (!(e instanceof BodyTooLarge)) throw e;
+      return errorResponse(413, "too_big", "That file is too big. Logos and fonts can be up to 2 MB, pictures up to 5 MB.");
     }
+    if (!form) return errorResponse(400, "bad_request", "Send the file as a form upload.");
     const kind = form.get("kind");
     if (typeof kind !== "string" || !(ASSET_KINDS as readonly string[]).includes(kind)) {
       return errorResponse(400, "bad_request", "Say whether the file is the logo, the display background or a font.");
