@@ -69,7 +69,16 @@ async function main() {
   const watch = (name: string, page: Page) => {
     page.on("pageerror", (e) => problems.push(`${name}: page error: ${e.message}`));
     page.on("console", (m) => { if (m.type() === "error" && !(restarting && /WebSocket/i.test(m.text()))) problems.push(`${name}: console error: ${m.text()}`); });
-    page.on("requestfailed", (r) => { if (!r.url().includes("/ws")) problems.push(`${name}: request failed: ${r.url()} ${r.failure()?.errorText}`); });
+    page.on("requestfailed", async (r) => {
+      if (r.url().includes("/ws")) return;
+      // Playwright 1.65+ reports a request as aborted when the page navigates away after the
+      // server answered (sign in and sign out read the status, then change page). An answer
+      // that arrived and was not an error is not a failure.
+      const error = r.failure()?.errorText;
+      const res = error === "net::ERR_ABORTED" ? await r.response().catch(() => null) : null;
+      if (res && res.status() < 400) return;
+      problems.push(`${name}: request failed: ${r.url()} ${error}`);
+    });
     page.on("response", (r) => { if (r.status() >= 400) problems.push(`${name}: ${r.status()} ${r.url()}`); });
     pages.push({ name, page });
   };
