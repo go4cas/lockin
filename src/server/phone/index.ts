@@ -11,7 +11,7 @@ import { serveFile } from "../static.ts";
 export const PHONE_PAGE = "public/phone/index.html";
 export const SERVICE_WORKER = "public/phone/sw.js";
 const DEFAULT_NAME = "Lock-In";
-const DEFAULT_BG = "#17191b";   // --brand-bg in docs/design/tokens.css
+const DEFAULT_BG = "#17191b";   // --brand-bg in assets/tokens.css
 
 /** Escapes text for an HTML attribute or text node. */
 export function escapeHtml(s: string): string {

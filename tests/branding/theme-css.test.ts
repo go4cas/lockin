@@ -19,8 +19,8 @@ function theme(patch: Partial<ThemeFile>): ThemeFile {
 }
 
 describe("themeCss", () => {
-  test("the default theme gives exactly the --brand-* values in docs/design/tokens.css", () => {
-    const tokens = vars(readFileSync(join(ROOT, "docs/design/tokens.css"), "utf8"));
+  test("the default theme gives exactly the --brand-* values in assets/tokens.css", () => {
+    const tokens = vars(readFileSync(join(ROOT, "assets/tokens.css"), "utf8"));
     const css = vars(themeCss(defaultTheme()));
     const brandKeys = Object.keys(tokens).filter((k) => k.startsWith("brand-"));
     expect(Object.keys(css).sort()).toEqual(brandKeys.sort());

@@ -195,6 +195,6 @@ export const BUNDLED_FONT_INFO = [
   },
 ];
 
-/** The fallbacks after the chosen family, as in docs/design/tokens.css. */
+/** The fallbacks after the chosen family, as in assets/tokens.css. */
 export const DISPLAY_FALLBACK = '"Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 export const BODY_FALLBACK = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif';

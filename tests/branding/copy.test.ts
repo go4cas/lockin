@@ -1,6 +1,6 @@
 // CopyPicker (TECH-SPEC 5.5, 8.6, S-10).
 import { describe, expect, test } from "bun:test";
-import copyFile from "../../docs/brand/copy.en.json" with { type: "json" };
+import copyFile from "../../assets/copy.en.json" with { type: "json" };
 import { createCopyPicker, fillLine, mergePools, poolsFromCopyFile, type Pools } from "../../src/server/branding/copy.ts";
 import { startTestServer } from "../helpers/server.ts";
 

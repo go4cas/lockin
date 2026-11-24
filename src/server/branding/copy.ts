@@ -7,7 +7,7 @@ export type Pools = Record<string, string[]>;
 export type CopyVars = Parameters<CopyPicker["pick"]>[1];
 
 /**
- * Flattens docs/brand/copy.en.json into pools by key: every array is a pool,
+ * Flattens assets/copy.en.json into pools by key: every array is a pool,
  * named by its own key (so "voice.lobby" is pool "lobby", and "taglines" is "taglines").
  * Keys starting with "$" are comments.
  */

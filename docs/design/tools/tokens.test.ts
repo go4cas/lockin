@@ -7,7 +7,7 @@ import { contrast, deriveBrandTokens, checkReadability, DEFAULT_INPUTS } from ".
 import { scanCss } from "../../../tests/helpers/baseline.ts";
 
 const dir = join(import.meta.dir, "..");
-const tokensCss = readFileSync(join(dir, "tokens.css"), "utf8");
+const tokensCss = readFileSync(join(dir, "..", "..", "assets", "tokens.css"), "utf8");
 const displayCss = readFileSync(join(dir, "wireframes", "display.css"), "utf8");
 
 function rootVars(css: string): Record<string, string> {

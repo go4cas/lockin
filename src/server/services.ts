@@ -16,7 +16,7 @@ import { rules as defaultRules } from "./rules/index.ts";
 import type { FileSource } from "./static.ts";
 
 /** The default copy pools, a shipped file (embedded in the binary, TECH-SPEC 4.6). */
-export const COPY_PATH = "docs/brand/copy.en.json";
+export const COPY_PATH = "assets/copy.en.json";
 
 /** What a module may use of the quiz library: B1 appends answers accepted while marking (TECH-SPEC 5.2). */
 export interface AcceptedAnswers {

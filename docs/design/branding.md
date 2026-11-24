@@ -11,7 +11,7 @@ Branding screen (host console)  ->  data/theme/theme.json  ->  GET /theme.css  -
 
 1. **The branding screen** collects a few plain inputs and shows a live preview of the display and a phone ([img/host-branding.png](img/host-branding.png)).
 2. **theme.json** stores only those inputs. Its format is owned by TECH-SPEC (`lockin.theme/1`); every field is optional and `null` means "use Lock-In's default".
-3. **/theme.css** is written by the server: it re-declares the `--brand-*` tokens on `:root`, after [tokens.css](tokens.css), using the inputs plus the derived values below, and adds `@font-face` rules for the chosen fonts.
+3. **/theme.css** is written by the server: it re-declares the `--brand-*` tokens on `:root`, after [tokens.css](../../assets/tokens.css), using the inputs plus the derived values below, and adds `@font-face` rules for the chosen fonts.
 4. **Screens** never read `--brand-*` directly. They use the `--color-*` roles in tokens.css, which point at the brand tokens.
 
 Only `--brand-*` tokens change per venue. Team colours, the joker mark, sudden-death colours, sizes, spacing and motion are Lock-In's own and stay fixed in `v1.0.0`.
@@ -29,7 +29,7 @@ Only `--brand-*` tokens change per venue. Team colours, the joker mark, sudden-d
 | Headline font | `fonts.display` | `--brand-font-display` | `caveat-brush` | Bundled id or uploaded file. Moment titles and voice lines only. |
 | Body font | `fonts.body` | `--brand-font-body` | `atkinson-hyperlegible` | Bundled id or uploaded file. Everything else. |
 | Display background | `displayBackground` | `--brand-display-bg` or `--brand-display-bg-image` + `--brand-display-scrim` | the background colour | A colour, or a picture under a scrim. |
-| (Launch, H-23) | `copy` | copy pools | `docs/brand/copy.en.json` | Pool overrides can sit in the file in `v1.0.0`; the editing screen is Launch. |
+| (Launch, H-23) | `copy` | copy pools | `assets/copy.en.json` | Pool overrides can sit in the file in `v1.0.0`; the editing screen is Launch. |
 
 ## Derived tokens
 
@@ -74,7 +74,7 @@ Team colours are fixed and tested only against Lock-In's default background. On 
 
 ## Fonts
 
-Bundled in `v1.0.0`, so screens never depend on an outside font service (and local mode, now Later, will need no internet). All are SIL Open Font Licence 1.1; the licences sit next to the files in [fonts/](fonts/).
+Bundled in `v1.0.0`, so screens never depend on an outside font service (and local mode, now Later, will need no internet). All are SIL Open Font Licence 1.1; the licences sit next to the files in [assets/fonts/](../../assets/fonts/).
 
 | Font id | Family | Use | Look |
 |---|---|---|---|

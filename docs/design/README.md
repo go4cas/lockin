@@ -4,15 +4,15 @@ The design for the three Lock-In screens: the host console, the display and the 
 
 | File | What it is |
 |---|---|
-| [tokens.css](tokens.css) | The design tokens as plain CSS custom properties. The default theme, and the only token names a venue theme can set. |
+| [assets/tokens.css](../../assets/tokens.css) | The design tokens as plain CSS custom properties. The default theme, and the only token names a venue theme can set. |
 | [branding.md](branding.md) | Venue branding: the settings screen, how its inputs become tokens, the readability warnings, bundled fonts. |
 | [moments.md](moments.md) | The key moments across all three screens at once: join, holding page, round start, question, answers locked, marking, reveal, leaderboard, halftime, tie breaker, sudden death, winner, prizes, reconnecting. |
 | [screens.md](screens.md) | Every wireframe, per screen, with the requirement it covers. |
-| [copy-review.md](copy-review.md) | The copy pools checked against the screens, and the changes made to `docs/brand/copy.en.json`. |
+| [copy-review.md](copy-review.md) | The copy pools checked against the screens, and the changes made to `assets/copy.en.json`. |
 | [wireframes/](wireframes/) | Mid-fidelity HTML wireframes (`display.html`, `phone.html`, `host.html`) that use `tokens.css` and the bundled fonts. Open one with `?s=<screen id>`, and add `&theme=brass-and-oak` or `&theme=neon-taproom` to see a venue theme. |
 | [img/](img/) | Renders of every wireframe and the test images below. |
-| [logo/](logo/) | The Lock-In mark as SVG, for dark and light backgrounds. |
-| [fonts/](fonts/) | The bundled fonts (WOFF2, Latin) and their SIL Open Font Licences. |
+| [assets/logo/](../../assets/logo/) | The Lock-In mark as SVG, for dark and light backgrounds. |
+| [assets/fonts/](../../assets/fonts/) | The bundled fonts (WOFF2, Latin) and their SIL Open Font Licences. |
 | [tools/](tools/) | `derive.ts` (derived brand tokens and readability checks, the reference for the server and the branding screen), `tokens.test.ts`, the render script and the viewing-distance simulation. |
 
 Wireframes are mid-fidelity on purpose: real tokens, real fonts and real sizes, so they double as a test of the theme. Pictures, the QR code and animations are placeholders. Layout and component CSS in `wireframes/*.css` is a reference for the build threads, not production code; `tokens.css` is meant to ship as it is. The wireframe scripts build their markup with `innerHTML` to keep them short; production pages never do that and use Arrow templates instead (TECH-SPEC 3.4 and 12.4).
@@ -30,7 +30,7 @@ The brief's Chalkboard concept was tested on four things: contrast, display legi
 | Team colours: teal, coral, amber, sky, lilac, lime | Up to 30 teams, so colours repeat. A colour-blindness simulation of 8 colours shows some pairs merge (sky and lilac for deuteranopia, amber and lime for protanopia). | **8 team colours** (`--team-1`..`--team-8`: the six plus pink and sand), cycled by join order. Each is at least 6.9:1 on the background. **Colour is never a team's only marker**: the team name is always next to its dot. |
 | Teal for status | Teal is also a team colour, so "teal = correct" could be read as "the teal team". | Right answers always carry a tick and a word; wrong answers **fade** (muted text), they never turn red, which also fits "never mean". |
 | A chalkboard texture | Images behind text reduce contrast and cost memory on smart TVs. | **Flat colour by default.** A venue can set a TV background picture; Lock-In always lays a 78% scrim of the background colour over it. |
-| Logo: a padlock whose shackle is a question mark, the keyhole as its dot | Cas found it could read as a bent padlock to new users. Three directions were drawn and shown at display-header, phone-icon and browser-tab size ([img/test-logo-options.png](img/test-logo-options.png)). | **Option A, chosen by Cas:** a normal closed padlock with a question mark cut into the body; the dot of the "?" is the keyhole. Reads as a padlock first and a question second at every size. Files in [logo/](logo/). The "answers locked" moment still snaps the shackle shut. |
+| Logo: a padlock whose shackle is a question mark, the keyhole as its dot | Cas found it could read as a bent padlock to new users. Three directions were drawn and shown at display-header, phone-icon and browser-tab size ([img/test-logo-options.png](img/test-logo-options.png)). | **Option A, chosen by Cas:** a normal closed padlock with a question mark cut into the body; the dot of the "?" is the keyhole. Reads as a padlock first and a question second at every size. Files in [assets/logo/](../../assets/logo/). The "answers locked" moment still snaps the shackle shut. |
 | Brass & Oak, Neon Taproom theme ideas | Built as sample venue themes through the same token pipeline ([img/display-lobby--brass-and-oak.png](img/display-lobby--brass-and-oak.png), [img/display-locked--neon-taproom.png](img/display-locked--neon-taproom.png)). Both pass every readability check. | The token system works for very different looks with four colours and one font choice. The samples live in `wireframes/themes/` as fixtures, not as shipped themes. |
 
 ## Display rules
