@@ -19,6 +19,8 @@ WorkingDirectory=/var/lib/lockin
 Restart=always
 RestartSec=1
 TimeoutStopSec=15
+# Its own journal, with its own 30-day retention (journald@lockin.conf), apart from other apps.
+LogNamespace=lockin
 
 # The data folder: made by systemd for the lockin user only (SA-10).
 StateDirectory=lockin
@@ -53,6 +55,8 @@ CapabilityBoundingSet=
 AmbientCapabilities=
 SystemCallArchitectures=native
 MemoryMax=1G
+# A fair share on a server shared with other apps.
+CPUQuota=150%
 
 [Install]
 WantedBy=multi-user.target

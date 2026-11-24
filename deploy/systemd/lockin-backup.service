@@ -3,6 +3,8 @@
 [Unit]
 Description=Lock-In backup of the data folder
 Documentation=https://github.com/go4cas/lockin/blob/main/docs/RELEASE.md
+# Then copy it off the server (skipped until /etc/lockin/r2.env exists).
+OnSuccess=lockin-offsite.service
 
 [Service]
 Type=oneshot
