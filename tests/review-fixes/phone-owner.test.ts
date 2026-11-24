@@ -20,6 +20,7 @@ const pending: Pending[] = [];
 
 beforeAll(async () => {
   const g = globalThis as any;
+  const saved = { location: g.location, LockIn: g.LockIn };   // other test files share this process
   g.location = { pathname: "/" };
   g.LockIn = {
     connect(o: unknown) {
@@ -32,6 +33,8 @@ beforeAll(async () => {
   };
   S = await import("../../public/phone/state.mjs");
   S.start();
+  g.location = saved.location;
+  g.LockIn = saved.LockIn;
 });
 
 /** A team view for a night and team, asking one choice question with nothing sent yet. */
