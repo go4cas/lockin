@@ -361,6 +361,10 @@ export interface VenueFile {
     minutesBefore: number;                     // 0..120, default 30
     panels: HoldingPanel[];                    // shown in this order; default all six
   };
+  afterWinner: {                               // Quiz End: winner screen, then final standings (T-12; added by B6, Cas 2026-11-24)
+    mode: "timer" | "host";                    // timer: standings after `seconds`; host: on the host's Next (final.show). Default "timer"
+    seconds: number;                           // 5..120, default 15; used in timer mode
+  };
 }
 export interface Prize { place: number; text: string }   // place 1.., text 1..80 chars
 export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "animation" | "prizes";
@@ -539,6 +543,7 @@ All commands go over the WebSocket as `{ t: "cmd", id, name, args }` (section 10
 | `sd.ask` | `{}` | sudden_death, between questions | Shows the next sudden-death question to the teams still in it. |
 | `sd.reveal` | `{}` | sudden_death, question locked and marked | Shows who was right and applies 8.5. |
 | `quiz.end` | `{ early?: boolean }` | leaderboard of last round, sudden_death between questions; any phase from round_intro on with `early: true` | Computes final results, writes `results`, status `ended`, goes to ended. |
+| `final.show` | `{}` | ended, before the final standings show | The display moves from the winner to the final standings now (`final.standingsAt` = now). In timer mode it skips the rest of the wait. Added by B6 (Cas, 2026-11-24). |
 | `night.close` | `{}` | ended; lobby (discards a night with no Quiz Start, after confirming on the console) | Goes to idle and hands the display back. A lobby night that is closed is kept with `end_reason = 'early'` and no results. |
 | `team.rename` | `{ teamId, name }` | lobby to ended | H-06 |
 | `team.remove` | `{ teamId }` | lobby | H-06 |
@@ -785,7 +790,7 @@ export type CommandName =
   | "round.start" | "round.finish" | "round.next" | "question.next"
   | "timer.start" | "timer.pause" | "timer.resume" | "timer.add" | "lock"
   | "mark.group" | "mark.team" | "reveal.start" | "reveal.next" | "leaderboard.show"
-  | "sd.start" | "sd.ask" | "sd.reveal"
+  | "sd.start" | "sd.ask" | "sd.reveal" | "final.show"
   | "team.rename" | "team.remove" | "team.moveCode"
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
@@ -873,7 +878,10 @@ export interface RevealItem {
 
 export interface Standings {
   round: number;                   // 0-based round these standings follow
-  rows: (StandingRow & { name: string; colour: number; roundScore: number; jokerThisRound: boolean })[];
+  rows: (StandingRow & {
+    name: string; colour: number; roundScore: number; jokerThisRound: boolean;
+    prevPosition: number | null;   // position after the round before `round` (no sudden death); null after the first round. Drives the up/down/same arrow (B6, Cas 2026-11-24).
+  })[];
 }
 
 export interface SuddenDeathPublic {
@@ -904,7 +912,10 @@ export interface DisplayView extends Common {
   reveal: RevealItem | null;
   standings: Standings | null;               // leaderboard, halftime, ended
   suddenDeath: SuddenDeathPublic | null;
-  final: { winners: TeamChip[]; lastPlace: TeamChip[] } | null;  // ended
+  final: {                                   // ended
+    winners: TeamChip[]; lastPlace: TeamChip[];
+    standingsAt: number | null;              // server time the final standings replace the winner screen; null: waiting for the host's final.show
+  } | null;
   lines: Lines;
 }
 
@@ -957,6 +968,7 @@ export interface HostView extends Common {
   standings: Standings | null;               // live standings, always available after Quiz Start
   suddenDeath: (SuddenDeathPublic & { questionHost: QuestionHost | null; marking: MarkingQuestion | null }) | null;
   suddenDeathNeeded: { position: number; teamIds: string[] } | null;
+  finalStandingsAt: number | null;           // ended: server time the display moves from the winner to the final standings (null: waiting for final.show, or not ended)
   can: Partial<Record<CommandName, boolean>>; // which commands are allowed now, to enable buttons
   lines: Lines;                              // what the display is showing, for the host's reference
 }

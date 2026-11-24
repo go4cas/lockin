@@ -218,7 +218,7 @@ describe("venue settings (5.4)", () => {
     try {
       const c = await t.signIn();
       expect(await (await t.fetch("/api/venue", { cookie: c })).json()).toEqual({
-        format: "lockin.venue/1", prizes: [], holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "animation", "prizes"] },
+        format: "lockin.venue/1", prizes: [], holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "animation", "prizes"] }, afterWinner: { mode: "timer", seconds: 15 },
       });
     } finally { await t.stop(); }
   });
@@ -229,7 +229,7 @@ describe("venue settings (5.4)", () => {
       body: JSON.stringify({ format: "lockin.venue/1", prizes: [{ place: 2, text: "A round of shots" }, { place: 1, text: "R300 bar tab" }], holding: { minutesBefore: 45, panels: ["join", "prizes", "fireworks"] } }),
     });
     expect(res.status).toBe(200);
-    const saved = { format: "lockin.venue/1", prizes: [{ place: 1, text: "R300 bar tab" }, { place: 2, text: "A round of shots" }], holding: { minutesBefore: 45, panels: ["join", "prizes"] } };
+    const saved = { format: "lockin.venue/1", prizes: [{ place: 1, text: "R300 bar tab" }, { place: 2, text: "A round of shots" }], holding: { minutesBefore: 45, panels: ["join", "prizes"] }, afterWinner: { mode: "timer", seconds: 15 } };
     expect(await res.json()).toEqual(saved);
     expect(JSON.parse(readFileSync(join(s.dataDir, "venue.json"), "utf8"))).toEqual(saved);
     expect(await (await s.fetch("/api/venue", { cookie })).json()).toEqual(saved);

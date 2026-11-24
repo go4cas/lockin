@@ -352,6 +352,7 @@ describe("a whole night: reveal, leaderboard, halftime, joker, sudden death, Qui
     ]);
     expect(st.rows.find((x) => x.name === "Alpha")!.jokerThisRound).toBe(true);
     expect(st.rows.find((x) => x.name === "Alpha")!.roundScore).toBe(2);
+    expect(st.rows.map((x) => x.prevPosition)).toEqual([null, null, null]);   // no round before the first
 
     // halftime after round 1 of 2 ("auto" = ceil(2/2))
     host(r, "round.next");
@@ -370,6 +371,7 @@ describe("a whole night: reveal, leaderboard, halftime, joker, sudden death, Qui
     host(r, "leaderboard.show");
     const rows = hostView(r.engine).standings!.rows;
     expect(rows.filter((x) => x.position === 1).map((x) => x.name)).toEqual(["Alpha", "Bravo"]);
+    expect(rows.map((x) => x.prevPosition)).toEqual([1, 1, 3]);   // nobody moved since round 1
     expect(hostView(r.engine).suddenDeathNeeded).toEqual({ position: 1, teamIds: [a.teamId, b.teamId] });
     expect(code(r.engine.command(r.host, "round.next", {}))).toBe("wrong_phase");
     expect(hostView(r.engine).can["sd.start"]).toBe(true);
@@ -407,7 +409,16 @@ describe("a whole night: reveal, leaderboard, halftime, joker, sudden death, Qui
     expect(fin.final).toEqual({
       winners: [{ id: b.teamId, name: "Bravo", colour: expect.any(Number), jokerThisRound: true }],
       lastPlace: [{ id: c.teamId, name: "Charlie", colour: expect.any(Number), jokerThisRound: false }],
+      standingsAt: r.clock.now() + 15_000,   // venue default: afterWinner timer, 15 s
     });
+    // afterWinner timer: the host may skip ahead until the time comes; then the final standings show by themselves
+    expect(hostView(r.engine).finalStandingsAt).toBe(r.clock.now() + 15_000);
+    expect(hostView(r.engine).can["final.show"]).toBe(true);
+    const seq = r.engine.state.seq;
+    r.advance(15_000);
+    expect(r.engine.state.seq).toBeGreaterThan(seq);   // fresh views sent at the switch
+    expect(hostView(r.engine).can["final.show"]).toBe(false);
+    expect(code(r.engine.command(r.host, "final.show", {}))).toBe("wrong_phase");
     expect(fin.lines).toMatchObject({ winner: "winner#0 Bravo", lastPlace: "last_place#0 Charlie", goodbye: "goodbye#0" });
     const results = r.engine["d"].db.query("SELECT team_id, position, decided_by, total FROM results ORDER BY position").all();
     expect(results).toEqual([
@@ -437,6 +448,62 @@ describe("a whole night: reveal, leaderboard, halftime, joker, sudden death, Qui
     host(r, "night.close");
     const rows = r.engine["d"].db.query("SELECT status, end_reason FROM nights ORDER BY opened_at").all();
     expect(rows).toEqual([{ status: "ended", end_reason: "early" }, { status: "ended", end_reason: "early" }]);
+  });
+});
+
+describe("after the winner (venue afterWinner) and leaderboard movement", () => {
+  test("host mode: the winner stays until final.show; the command is refused before Quiz End", () => {
+    const { r } = setup();
+    writeFileSync(join(r.dataDir, "venue.json"), JSON.stringify({ format: "lockin.venue/1", afterWinner: { mode: "host", seconds: 15 } }));
+    r.engine.venueChanged();
+    start(r, ["A", "B"]);
+    expect(code(r.engine.command(r.host, "final.show", {}))).toBe("wrong_phase");
+    expect(hostView(r.engine).finalStandingsAt).toBeNull();
+    host(r, "quiz.end", { early: true });
+    expect(displayView(r.engine).final!.standingsAt).toBeNull();
+    expect(hostView(r.engine).can["final.show"]).toBe(true);
+    r.advance(600_000);
+    expect(displayView(r.engine).final!.standingsAt).toBeNull();   // no timer in host mode
+    host(r, "final.show");
+    expect(displayView(r.engine).final!.standingsAt).toBe(r.clock.now());
+    expect(hostView(r.engine).finalStandingsAt).toBe(r.clock.now());
+    expect(code(r.engine.command(r.host, "final.show", {}))).toBe("wrong_phase");
+  });
+
+  test("timer mode uses the venue's seconds", () => {
+    const { r } = setup();
+    writeFileSync(join(r.dataDir, "venue.json"), JSON.stringify({ format: "lockin.venue/1", afterWinner: { mode: "timer", seconds: 40 } }));
+    r.engine.venueChanged();
+    start(r, ["A"]);
+    host(r, "quiz.end", { early: true });
+    expect(displayView(r.engine).final!.standingsAt).toBe(r.clock.now() + 40_000);
+  });
+
+  test("prevPosition: places after the round before, so a team that overtakes moves up", () => {
+    const { r, rounds } = setup({}, { rounds: 2 });
+    const [a, b] = start(r, ["Alpha", "Bravo"]);
+    // round 1: only Alpha scores
+    for (const qq of rounds[0]!) {
+      host(r, "question.next");
+      if (qq === rounds[0]![0]) submit(r, a!, qq.id, { type: "text", text: "Fleetwood Mac" });
+      host(r, "lock");
+    }
+    host(r, "round.finish");
+    host(r, "leaderboard.show");
+    expect(displayView(r.engine).standings!.rows.map((x) => [x.name, x.position, x.prevPosition])).toEqual([["Alpha", 1, null], ["Bravo", 2, null]]);
+    host(r, "round.next");
+    if (r.engine.state.phase === "halftime") host(r, "round.next");
+    host(r, "round.start");
+    // round 2: Bravo gets two right and overtakes
+    for (const qq of rounds[1]!) {
+      host(r, "question.next");
+      if (qq === rounds[1]![1]) submit(r, b!, qq.id, { type: "choice", index: 0 });
+      if (qq === rounds[1]![2]) submit(r, b!, qq.id, { type: "number", value: 4 });
+      host(r, "lock");
+    }
+    host(r, "round.finish");
+    host(r, "leaderboard.show");
+    expect(displayView(r.engine).standings!.rows.map((x) => [x.name, x.position, x.prevPosition])).toEqual([["Bravo", 1, 2], ["Alpha", 2, 1]]);
   });
 });
 

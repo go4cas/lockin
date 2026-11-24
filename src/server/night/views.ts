@@ -150,11 +150,14 @@ function revealItem(e: Engine): RevealItem | null {
 function standingsFor(e: Engine, upTo: number): Standings | null {
   if (!e.rules()) return null;
   const rows: StandingRow[] = e.standingsRows(upTo);
+  // Movement (T-09 arrows): positions after the round before, without sudden death.
+  const prev = new Map<string, number>();
+  if (upTo > 0) for (const r of e.standingsRows(upTo - 1, false)) prev.set(r.teamId, r.position);
   return {
     round: upTo,
     rows: rows.map((r) => {
       const t = e.m!.teams.get(r.teamId)!;
-      return { ...r, name: t.name, colour: t.colour, roundScore: r.roundScores[upTo] ?? 0, jokerThisRound: t.jokerRound === upTo };
+      return { ...r, name: t.name, colour: t.colour, roundScore: r.roundScores[upTo] ?? 0, jokerThisRound: t.jokerRound === upTo, prevPosition: prev.get(r.teamId) ?? null };
     }),
   };
 }
@@ -236,7 +239,7 @@ function finalOf(e: Engine): DisplayView["final"] {
   const winners = st.rows.filter((r) => r.position === 1).map((r) => chip(e, r.teamId));
   const lastPos = Math.max(0, ...st.rows.map((r) => r.position));
   const lastPlace = lastPos > 1 ? st.rows.filter((r) => r.position === lastPos).map((r) => chip(e, r.teamId)) : [];
-  return { winners, lastPlace };
+  return { winners, lastPlace, standingsAt: e.state.finalStandingsAt ?? null };
 }
 
 export function teamView(e: Engine, teamId: string | null): TeamView {
@@ -287,7 +290,7 @@ export function hostView(e: Engine): HostView {
   if (!e.m) {
     return {
       ...base, flash: null, teams: [], round: null, current: null, marking: null, reveal: null, standings: null,
-      suddenDeath: null, suddenDeathNeeded: null, can: e.can(), lines: lines(e),
+      suddenDeath: null, suddenDeathNeeded: null, finalStandingsAt: null, can: e.can(), lines: lines(e),
     };
   }
   const s = e.state;
@@ -330,6 +333,7 @@ export function hostView(e: Engine): HostView {
       marking: sdCur && s.questions[sdCur.questionId]?.status === "locked" && hasRules ? markingQuestion(e, sdCur.questionId) : null,
     } : null,
     suddenDeathNeeded: needed,
+    finalStandingsAt: s.phase === "ended" ? s.finalStandingsAt ?? null : null,
     can: e.can(),
     lines: lines(e),
   };

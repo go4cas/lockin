@@ -42,6 +42,8 @@ export interface EngineState {
   lines: Record<string, Line | null>; // current line per screen slot (10.4), keyed like `Lines`
   flash: Flash | null;
   seq: number;                      // increases on every change
+  /** Ended: server time the final standings replace the winner screen; null while waiting for the host's final.show. Absent before Quiz End. */
+  finalStandingsAt?: number | null;
 }
 
 export const LINE_SLOTS: readonly (keyof Lines)[] = [

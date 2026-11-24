@@ -89,7 +89,7 @@ export const HOST_COMMANDS: readonly CommandName[] = [
   "round.start", "round.finish", "round.next", "question.next",
   "timer.start", "timer.pause", "timer.resume", "timer.add", "lock",
   "mark.group", "mark.team", "reveal.start", "reveal.next", "leaderboard.show",
-  "sd.start", "sd.ask", "sd.reveal", "team.rename", "team.remove", "team.moveCode",
+  "sd.start", "sd.ask", "sd.reveal", "final.show", "team.rename", "team.remove", "team.moveCode",
 ];
 
 const MARK_PHASES = new Set(["asking", "marking", "reveal", "leaderboard", "halftime", "round_intro", "sudden_death"]);
@@ -409,6 +409,15 @@ export class Engine {
       () => this.fireLastSeconds(lastKey!));
     const lobby = s?.phase === "lobby";
     this.ensureJob("lobby", lobby ? `lobby:${this.lobbyLineAt}` : null, this.lobbyLineAt, () => this.fireLobbyLine());
+    // Ended on a timer: send fresh views when the final standings show, so the host's `can` stays true.
+    const fin = s?.phase === "ended" ? s.finalStandingsAt ?? null : null;
+    this.ensureJob("final", fin !== null && fin > this.now() ? `final:${fin}` : null, fin ?? 0, () => this.fireFinal());
+  }
+
+  private fireFinal(): void {
+    this.jobs.delete("final");
+    if (this.m?.state.phase !== "ended") return;
+    this.run(() => OK);
   }
 
   private fireLock(locksAt: number): void {
@@ -508,6 +517,11 @@ export class Engine {
         if (p === "idle" || p === "lobby" || p === "ended") return "wrong_phase";
         return null;   // a natural end or `early: true`; checked with the args
       }
+      case "final.show": {
+        // Quiz End: the host moves the display from the winner to the final standings (venue afterWinner).
+        const at = s.finalStandingsAt ?? null;
+        return p === "ended" && (at === null || at > this.now()) ? null : "wrong_phase";
+      }
       case "team.remove": return p === "lobby" ? null : "wrong_phase";
       case "team.join": return p === "lobby" ? null : p === "ended" ? "wrong_phase" : "joining_closed";
       case "joker.play": return JOKER_PHASES.has(p) ? null : "wrong_phase";
@@ -565,6 +579,7 @@ export class Engine {
       case "sd.start": return this.sdStart();
       case "sd.ask": return this.sdAsk();
       case "sd.reveal": return this.sdReveal();
+      case "final.show": this.state.finalStandingsAt = this.now(); return OK;
       case "team.rename": return this.teamRename(a);
       case "team.remove": return this.teamRemove(a);
       case "team.moveCode": return this.teamMoveCode(a);
@@ -1030,6 +1045,8 @@ export class Engine {
     this.dirty.night = true;
     this.dirty.results = rows;
     this.setPhase("ended");
+    const after = this.venue().venue.afterWinner;
+    s.finalStandingsAt = after.mode === "host" ? null : n.endedAt + after.seconds * 1000;
     const name = (id: string) => this.m!.teams.get(id)?.name ?? "";
     const winners = rows.filter((r) => r.position === 1).map((r) => name(r.teamId));
     if (winners.length > 1) this.setLine("winner", "winner_shared", { team: joinNames(winners), n: winners.length });
