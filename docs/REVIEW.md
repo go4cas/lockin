@@ -4,23 +4,25 @@ Independent review of `main` at `bed9010` (B0 to B9 merged, PRs 6 to 17), 2026-1
 
 ## v1.0.0 final review (2026-11-24)
 
-A fresh, independent check of `main` at `de564bb` (everything through PR #31 merged), before tagging `v1.0.0`. The reviewer did not write the code. **No code, docs or deploy files were changed**; this section is the only edit. The older sections below are the earlier pilot review and the fix history, kept as they were.
+A fresh, independent check of `main` before tagging `v1.0.0`. The reviewer did not write the code. The main check ran on `de564bb` (everything through PR #31). After PR #32 (deploy changes for a shared server) merged, it was re-checked on `502a61d`. This review changed no code, docs or deploy files; the only edits are this section and the PR numbers in the status table below. The older sections below are the earlier pilot review and the fix history, kept as they were.
 
 ### Verdict
 
 **Code: go.** Every MVP "Done when" that can be checked from the repository passes, every test passes, and the release binary passed the load test, both full nights, the kill and restart checks, the privacy checks and all browser checks.
 
-**Tagging `v1.0.0`: not yet.** Do these first, in this order:
+**Tagging `v1.0.0`: after B4 and B5.** The three deploy blockers this review found were fixed in PR #32, and the fixes were checked on `main`:
 
-| # | Blocker | Why it blocks the tag | Who |
-|---|---|---|---|
-| B1 | **Port 8080 is taken on the shared VPS** (openGym's web container listens on `127.0.0.1:8080`). `deploy/setup.sh` defaults to 8080 **and its health check would wrongly report success**: Lock-In refuses to start ("the port is already in use", exit 3) and systemd restarts it every second for ever, while `curl -f http://127.0.0.1:8080/api/ping` gets openGym's page with a 200, so setup prints "Lock-In is running". Reproduced locally (see "How this was checked"). Fix: a free default port (8092 sits next to Audition's 8091), and make the check require `"app":"lockin"` in the ping reply. | `deploy/` is fetched from the tag (`git clone --branch v1.0.0`), so the fix must be in the tag. Workaround: `--port 8092`, which still leaves the false-success check. | Release walkthrough thread |
-| B2 | **The log setting changes the whole server's journal.** `setup.sh` installs `/etc/systemd/journald.conf.d/lockin.conf` by default (`Storage=persistent`, `MaxRetentionSec=30day`, `SystemMaxUse=500M`), which applies to Market Jury, openGym, Audition and cloudflared too, and restarts `systemd-journald`. On the shared VPS this should be off by default, with Lock-In's 30-day limit for the IP addresses in `Security:` lines kept another way, for example a journal namespace (`LogNamespace=lockin` in the unit, with its own `journald@lockin.conf`). | Same as B1: the default ships in the tag. Workaround: `--no-journald`, but then the 30-day limit (SA-17) is not set. | Release walkthrough thread |
-| B3 | **RELEASE.md section 3 says to create a new tunnel and install `cloudflared`.** The standard is the one `hostinger-vps` tunnel shared by every VPS app: add a public hostname route only, no new install. Also: point it at `http://127.0.0.1:<port>`, not `localhost` (Lock-In binds IPv4 only and its unit allows only loopback; `localhost` can resolve to `::1`); scope the rate-limiting rule to Lock-In's hostname (`http.host eq "<quiz host>" and (...)`), because a rule without a host applies to `/ws` and `/api/auth/*` on every go4cas.com app, and the Free plan's one rate-limiting rule is the zone's only one; and section 7 ("move to a new server") must not suggest uninstalling `cloudflared` from a box other apps use. | Following the doc as written on the shared box would add a second tunnel or touch the other apps' traffic. | Release walkthrough thread |
-| B4 | **Real-hardware checks** (RELEASE.md section 10, earlier finding 2): the pilot pub's TV or casting device on `/display`, current and previous iOS Safari and Android Chrome, add to home screen on one iPhone and one Android. | T-01, P-01 and P-10 each name a real-device check before `v1.0.0`. | Cas, tomorrow |
-| B5 | **Version bump** to `1.0.0` in `package.json` in its own PR (RELEASE.md section 1). `release.yml` refuses a tag that does not match. | Mechanical. | After B1 to B4 |
+| # | Blocker | Status |
+|---|---|---|
+| B1 | **Port clash on a shared server, with a false "running".** `setup.sh` defaulted to 8080 with no check. On a server where another app already listens on that port, Lock-In refuses to start ("the port is already in use", exit 3) and systemd restarts it every second. But `curl -f …/api/ping` got the other app's 200, so setup printed "Lock-In is running". Reproduced locally (see "How this was checked"). | **Fixed in #32.** `setup.sh` refuses a port another program listens on (`ss -Hltnp`), and the health check now requires `"app":"lockin"`. RELEASE.md says to pick a free port with `--port`. The default is still 8080, so on a shared server pass `--port` on the first run (it is saved). |
+| B2 | **The log setting changed the whole server's journal** (a `journald.conf.d` drop-in plus a restart of `systemd-journald`). | **Fixed in #32.** `LogNamespace=lockin` and `/etc/systemd/journald@lockin.conf`, so the 30-day limit applies to Lock-In's logs only. |
+| B3 | **RELEASE.md's Cloudflare steps assumed a server of its own:** a new tunnel, a rate-limiting rule with no hostname (so it would cover every app on the domain), and a server move that uninstalls `cloudflared`. | **Fixed in #32.** Reuse the existing tunnel and add a hostname. Route to `127.0.0.1:<port>`. Both rate-rule expressions include `http.host`. On a move, a shared `cloudflared` is left alone. |
+| B4 | **Real-hardware checks** (RELEASE.md section 10, earlier finding 2): the pilot pub's TV or casting device on `/display`, current and previous iOS Safari and Android Chrome, add to home screen on one iPhone and one Android. | **Open.** T-01, P-01 and P-10 each require a real-device check before `v1.0.0`. Cas, tomorrow. |
+| B5 | **Version bump** to `1.0.0` in `package.json` in its own PR (RELEASE.md section 1). `release.yml` refuses a tag that does not match. | **Open.** After B4. |
 
-Not blockers, but worth doing with B1 to B3 (details under "Production standards" below): no off-server backup copy (Market Jury and Audition both copy to R2), no CPU cap (Audition has one), and a few stale lines in RELEASE.md and this file.
+These were not blockers, and #32 fixed them too: an off-server backup copy (`deploy/offsite.sh`, idle until set up), a CPU cap (`CPUQuota=150%`), and RELEASE.md section 12, which no longer lists the merged refactors.
+
+**Still to note:** the hardened units, the journal namespace and the off-server copy have not yet run under a real systemd or against a real bucket. The first VPS install is that test.
 
 ### How this was checked
 
@@ -31,6 +33,7 @@ Everything ran in a fresh clone of `main` at `de564bb`, on Bun **1.4.5** (the pi
 | CI on `de564bb` | success (CI run 61) |
 | `bun run typecheck` | clean |
 | `bun test`, whole suite | **895 pass, 4 skip, 0 fail**, 40,710 `expect()` calls, 60 files, 89 s. The 4 skips are the `shellcheck` and `sqlite3` backup tests; with both installed, `tests/release` gives **13 pass, 0 skip** |
+| Re-run on `502a61d` after #32 | `bun run typecheck` clean; `bun test` **905 pass, 0 skip, 0 fail** (60 files, 91 s); `tests/release` 19 pass |
 | `bun run build` and `bun run build -- --baseline` | `dist/lockin-linux-x64` and `dist/lockin-linux-x64-baseline`, 110 MB each, 74 embedded files. `--version` prints `0.1.0` (B5) |
 | Load test on the binary (`LOCKIN_BIN=dist/lockin-linux-x64 bun test tests/load`) | 30 teams, 6×5 quiz, 34.3 s. 990 answers acked (90 changes), 900 stored, **0 dropped**. Send to host sees it: p50 63 ms, p95 103 ms, p99 108 ms, **max 145 ms** (target under 1 s). Ack p95 3 ms. Server memory at the end 67 MB. Privacy problems 0 |
 | Same on the baseline binary | max 111 ms, 0 dropped |
@@ -123,39 +126,33 @@ Quality bar: Bun and TypeScript; vendored Arrow with no runtime dependencies (`t
 |---|---|---|---|
 | Commands | `serve`, `setup-code`, `reset-password`, `--version`, `--data` | Same (`lockin --help`) | match |
 | Settings | `LOCKIN_PUBLIC_URL`, `LOCKIN_PORT`, `LOCKIN_BIND=127.0.0.1` in `/etc/lockin/lockin.env` | Same names; defaults port 8080, bind `127.0.0.1` (`src/server/config.ts:23`) | match |
-| Health check | `/api/ping` gives `{"app":"lockin","version":…}` | Same | match, but `setup.sh` only checks the status code (B1) |
+| Health check | `/api/ping` gives `{"app":"lockin","version":…}` | Same | match; `setup.sh` checks the `app` field since #32 |
 | Paths | `/usr/local/bin/lockin`, `/usr/local/lib/lockin/`, `/etc/lockin/`, `/var/lib/lockin` | Unit, timer and scripts use the same | match |
 | Data modes | folder `0700`, files `0600` | Seen on a fresh start | match |
 | Minimum Bun | 1.4.5 | `MIN_BUN = "1.4.5"`, `engines`, CI | match |
 | Release files | four assets with `.sha256` | `release.yml` builds both, checksums, attests | match |
 | Run sheet | 4-letter room code, 6-digit pairing code, move code once for 10 minutes, pairing kept 90 days unused | `ROOM_ALPHABET`, `PAIR_CODE_TTL_MS`, `MOVE_CODE_TTL_MS = 10 min`, `PAIRING_UNUSED_MS = 90 days` | match |
-| RELEASE.md section 12 | Lists LI-016, 017, 019, 020 and 021 as "after v1.0.0" | Done in PR #31 | **stale** |
-| RELEASE.md section 2 | "checks it answers on `http://127.0.0.1:8080/api/ping`" | True, but see B1 | port changes with B1 |
+| RELEASE.md section 12 | Lists LI-016, 017, 019, 020 and 021 as "after v1.0.0" | Done in PR #31 | **fixed in #32** |
+| RELEASE.md section 2 | "checks it answers on `http://127.0.0.1:8080/api/ping`" | Section now says to pass a free `--port` on a shared server | match (#32) |
 
-### Production standards (shared VPS and Cloudflare)
+### Shared server and Cloudflare
 
-Checked against Cas's production deployments map (updated 2026-11-24): Market Jury on `:3000`, openGym on `127.0.0.1:8080`, Audition on `127.0.0.1:8091`, one `hostinger-vps` tunnel for all three, UFW SSH only, Audition's pattern of its own user, folders, loopback port and resource caps.
+Checked against Cas's standards for the shared VPS and Cloudflare account. The details stay out of this public repository. In short: every app has its own user, folders and loopback port, with resource caps. One `cloudflared` tunnel serves every app, and each app adds a hostname to it. The firewall allows SSH only. The journal is shared. Backups are copied off the server. Zone settings are shared by every app on the domain. Status on `main` after #32:
 
-| Area | Standard | Lock-In today | |
-|---|---|---|---|
-| Port | Own loopback port | Default 8080, **same as openGym** | **B1** |
-| Tunnel | One shared tunnel; add a route | RELEASE.md creates a new tunnel and installs `cloudflared` | **B3** |
-| Route target | `127.0.0.1:<port>` (Audition) | Doc says `127.0.0.1:8080` | fine once the port changes; never `localhost` |
-| Logs | Shared journal | `setup.sh` changes retention for the whole journal by default | **B2** |
-| Rate limiting | Zone-wide Free plan | Rule has no hostname, so it would cover every go4cas.com app | **B3** |
-| User | Own system user | `lockin`, no shell, no home | ok |
-| Folders | Own folders (Audition: `/opt`, `/var/lib`, `/etc`) | `/usr/local/bin`, `/usr/local/lib/lockin`, `/var/lib/lockin`, `/etc/lockin` | ok: no clash. Uses `/usr/local` where Audition uses `/opt`; worth aligning only if Cas wants one layout |
-| Runtime | Leave Market Jury's global Bun alone | Compiled binary carries its own Bun; nothing installed globally except `sqlite3` and `curl` if missing | ok |
-| Firewall | UFW SSH only | Nothing opened; the unit also drops non-loopback traffic (`IPAddressDeny=any`) | ok. RELEASE.md section 2's `ufw` steps are already done on this box: skip them |
-| Resource caps | Audition: 1 GB memory, 150% CPU | `MemoryMax=1G`, no `CPUQuota` | gap (small): add a CPU cap so a runaway can't starve the other apps |
-| Backups | Market Jury and Audition copy off the box to R2; openGym's local-only copy is called a gap | Local only, 14 kept in `/var/lib/lockin/backups`; RELEASE.md asks for a weekly manual copy | gap: same as openGym's. An R2 copy like Market Jury's would close it |
-| Backup time | Jury 02:00 UTC, openGym and Audition 03:00 | 05:00 server time, random 10 min delay | ok, no overlap |
-| Rollback | Keep at least one release | `lockin.previous` plus a backup before each update | ok |
-| Deploy path | Audition: public GitHub release plus a script over SSH | Same shape: release assets plus `setup.sh` | ok |
-| Zone cache settings | "Respect existing headers" zone-wide | Lock-In sends its own cache headers | ok (works well with it) |
-| Web Analytics | Off for Audition because its CSP blocks the script | Lock-In's CSP (`script-src 'self'`) blocks it too | turn automatic setup off for this host, as for Audition |
-| Framing headers | Audition needs a CF header rule | Lock-In sends `frame-ancestors 'none'` itself | ok, no rule needed |
-| Moving servers | Shared box | Section 7 says to uninstall `cloudflared` on the old server | **B3**: never on the shared box |
+| Area | Lock-In on `main` | |
+|---|---|---|
+| Port | Own port on `127.0.0.1`. `setup.sh` refuses one in use and checks the answer is Lock-In's | ok (#32). Pass `--port` on the first run |
+| Tunnel | Add a hostname to the existing tunnel; route to `127.0.0.1:<port>` | ok (#32) |
+| Logs | Own journal namespace with 30-day retention | ok (#32) |
+| Rate limiting | Rule scoped by `http.host`; Free plan allows one per domain | ok (#32) |
+| User and folders | `lockin`, `/usr/local/bin`, `/usr/local/lib/lockin`, `/etc/lockin`, `/var/lib/lockin` | ok, no clash |
+| Runtime | Compiled binary carries its own Bun; nothing global except `sqlite3`/`curl` if missing | ok |
+| Firewall | Nothing opened; the unit drops non-loopback traffic (`IPAddressDeny=any`) | ok |
+| Resource caps | `MemoryMax=1G`, `CPUQuota=150%` | ok (#32) |
+| Backups | Daily at 05:00 server time, 14 kept, plus an off-server copy once set up | ok (#32); set up the bucket before the pilot |
+| Rollback | `lockin.previous` plus a backup before each update | ok |
+| Zone settings | Lock-In sends its own cache headers, `frame-ancestors 'none'` and a strict CSP | ok. Its CSP blocks Cloudflare's automatic Web Analytics script, so leave that off for this host |
+| Moving servers | A shared `cloudflared` is left alone | ok (#32) |
 
 ### REVIEW.md status tables
 
