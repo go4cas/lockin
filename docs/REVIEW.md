@@ -2,6 +2,44 @@
 
 Independent review of `main` at `bed9010` (B0 to B9 merged, PRs 6 to 17), 2026-11-24. The reviewer did not build any of it and judged only from the repository, the test run and a night played against the compiled binary. **No code was changed.** This file is written to be handed to a separate code review and security audit.
 
+## Pre-tag re-check for v1.0.0 (2026-11-24)
+
+A short re-check of `main` at `6fba7ec` (PR #38 merged), after the final review below. Only this section was added; no code, deploy or test file changed.
+
+**Verdict: go for tagging `v1.0.0`**, once the real-device checks (B4) are done and the version bump PR (B5) is merged. Nothing new blocks it.
+
+**What changed since the final review.** `git diff --stat de564bb 6fba7ec -- src public scripts assets bunfig.toml tsconfig.json bun.lock` is empty: no app code, shipped file or runtime dependency changed. The changes are deploy files (#32, #38), docs, CI workflows, Dependabot settings, the browser-check harness and Playwright 1.65.1 in `tools/browser` (#36), and the version 0.2.0 (#37). So no new code review was needed; the deploy changes were tested in a systemd container instead (below).
+
+| Check | Result |
+|---|---|
+| `bun run typecheck`, Bun 1.4.5 | clean |
+| `bun test`, whole suite, `sqlite3` and `shellcheck` installed | **906 pass, 0 skip, 0 fail**, 40,783 `expect()` calls, 60 files, 90 s |
+| `bun run build`, AVX2 and baseline | 74 embedded files each. The AVX2 build from `main` is **byte for byte the published `v0.2.0` release asset** (its `.sha256` checks), so the release build is reproducible |
+| Load test on the binary, 30 teams, 6×5 quiz | 990 answers acked (90 changes), 900 stored, **0 dropped**. Send to host sees it: p50 62 ms, p95 103 ms, **max 147 ms**. Server memory at the end 70 MB. Privacy problems 0. Baseline binary: max 112 ms, 0 dropped |
+| Full nights on the binary, both lock modes, kill -9 mid-question | pass, on both binaries. Privacy watch per question 81 display and 405 team views, per round 73 and 370, none leaked |
+| Hardening, privacy and packaging tests on the binary | 46 pass, 0 fail (includes killed while the timer runs out, killed during marking, reconnect storm, answer flood) |
+| Browser checks on the binary, Playwright 1.65.1 | **all 5 pass** in 2 min 19 s: night per question and per round, review fixes, audit batch 2, display stress (3 seeds and recovery, 0 errors). `tools/browser` typecheck clean |
+
+**Upgrade from a v0.2.0 server, in a systemd container** (Ubuntu 24.04, systemd 255). The `v0.2.0` server was set up the way the live one was: the published `v0.2.0` binary and the `v0.2.0` `deploy/`, `setup.sh --port <port> --public-url https://quiz.example.com`, another app listening on a different loopback port, a host password, a quiz, a theme, backups, and an `/etc/lockin/r2.env` (fake keys) pointing the off-server copy at a local S3 stand-in. Then the kit was built exactly as `release.yml` builds `lockin-deploy.tar.gz`, checked against its `.sha256`, unpacked, and `sudo lockin-deploy/setup.sh --binary <a 1.0.0 build>` run with no other flags (the same path as `--version v1.0.0` after the download).
+
+| Check | Result |
+|---|---|
+| Saved settings | port and public URL read from `/etc/lockin/lockin.env`; no flags needed |
+| Port check | Lock-In's own listener on the port was recognised; no refusal |
+| Move to `/opt/lockin` | "moving Lock-In's program from /usr/local to /opt/lockin"; `/opt/lockin/lockin` is 1.0.0, `/opt/lockin/lockin.previous` is byte for byte the `v0.2.0` asset; scripts in `/opt/lockin/scripts/`; units point at `/opt` |
+| Backup before replacing | taken, then the binary replaced |
+| Data and settings | `/etc/lockin` (both files, modes `644` and `600`, root) and `/var/lib/lockin` (auth, quiz, theme, database dump) **identical** before and after; folder `700` lockin |
+| Old files removed only after the health check | yes: removed after "is running". With a binary that never answers, setup stopped with exit 1, `/usr/local/bin/lockin` and `/usr/local/lib/lockin/` were left in place, and its rollback line (`cp -p /opt/lockin/lockin.previous /opt/lockin/lockin`) brought `0.2.0` back. Running setup again with a good binary then finished the move |
+| Service | active, enabled, `/api/ping` gives `{"app":"lockin","version":"1.0.0"}`; the host session from before the update still signed in; `MemoryMax=1G`, `CPUQuota=150%`, `LogNamespace=lockin`; logs in the `lockin` journal namespace; the other app untouched |
+| Backup timer and off-server copy | timer enabled with its next run at 05:00 (+ up to 10 min); `lockin-backup.service` succeeded and started `lockin-offsite.service`, which uploaded the newest archive with a SigV4-signed PUT, its keys read through `LoadCredential`. Without `r2.env` the copy is skipped by its condition and the backup still succeeds |
+| Restore | `/opt/lockin/scripts/restore.sh` of a backup taken after the update, and of one taken by `0.2.0`: data back exactly as before, service and timer active again, the replaced data kept aside |
+
+Notes, none blocking:
+
+- **A harmless warning during the update.** The pre-update backup runs as the `lockin` user from the folder `setup.sh` was started in. From a home folder that user cannot read, `find` prints `Failed to restore initial working directory: … Permission denied`. The backup is still written and pruned. `v0.2.0` does the same. A `cd /` in `setup.sh` before the backup would silence it (later).
+- **Container limits.** The container had cgroup v1 and needed `mount --make-rshared /` (a real boot does this) for `LoadCredential`. The VPS uses cgroup v2, and its `0.2.0` units have already run there, so this changes nothing for the real update.
+- The local `Playwright 1.65.1` run used Chromium 1243 (the browser installed here); CI runs the browser job with its own pinned browser.
+
 ## v1.0.0 final review (2026-11-24)
 
 A fresh, independent check of `main` before tagging `v1.0.0`. The reviewer did not write the code. The main check ran on `de564bb` (everything through PR #31). After PR #32 (deploy changes for a shared server) merged, it was re-checked on `502a61d`. This review changed no code, docs or deploy files; the only edits are this section and the PR numbers in the status table below. The older sections below are the earlier pilot review and the fix history, kept as they were.
