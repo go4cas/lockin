@@ -63,7 +63,7 @@ for (const lockMode of ["question", "round"] as const) {
       writeQuiz(s.dataDir, quiz, { "cover.png": PNG });
       const cookie = await s.signIn();
       const hostC = await client(s, "host", cookie);
-      const display = await client(s, "display");
+      const display = await client(s, "display", cookie);   // opened from the console's browser: paired
 
       const opened = await ok(hostC, "night.open", { quizId: quiz.id });
       const roomCode = opened.roomCode as string;
@@ -289,7 +289,7 @@ describe("theme changes (B4)", () => {
   test("saving the theme sends every screen a fresh view with the new venue name and themeVersion", async () => {
     const { s } = await server();
     const cookie = await s.signIn();
-    const display = await client(s, "display");
+    const display = await client(s, "display", cookie);
     const before = view<DisplayView>(display).venue;
     const res = await s.fetch("/api/theme", { method: "PUT", cookie, body: JSON.stringify({ theme: { format: "lockin.theme/1", name: "The Example Arms" } }) });
     expect(res.status).toBe(200);

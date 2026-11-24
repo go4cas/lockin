@@ -81,6 +81,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
 .join-url b { color: var(--color-text); }
 .code { font-size: var(--display-text-xxl); font-weight: var(--weight-bold); letter-spacing: 0.12em; line-height: 1; margin-top: 1vh; font-variant-numeric: tabular-nums; }
 .code-label { font-size: var(--display-text-xs); color: var(--color-text-muted); margin-top: var(--display-space-2); }
+.pair-code { font-size: 18vh; font-weight: var(--weight-bold); letter-spacing: 0.2em; line-height: 1; font-variant-numeric: tabular-nums; }
 
 /* Team chips (lobby) */
 .chips { display: flex; flex-wrap: wrap; align-content: flex-start; }

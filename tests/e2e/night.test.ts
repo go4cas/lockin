@@ -200,7 +200,8 @@ for (const lockMode of ["question", "round"] as const) {
             }
           } else {
             for (let i = 0; i < qs.length; i++) await night.cmd("question.next");
-            expect(night.teamView("Alpha").questions.length).toBe(3);
+            // wait for the phone: its view can arrive after the host's ack (flaky on PR #18 CI)
+            await waitFor<TeamView>(night.phone("Alpha").c, (v) => v.questions.length === 3, "3 questions on Alpha's phone");
             await night.cmd("timer.start");
             if (restartHere) {
               await sendAll(r, 0, ["Alpha", "Bravo", "Charlie"]);
@@ -216,8 +217,8 @@ for (const lockMode of ["question", "round"] as const) {
               expect(hv.round!.questions.map((x) => x.answered)).toEqual([3, 2, 2]);
               expect(hv.round!.questions.every((x) => x.status === "open" && x.timer.locksAt === before)).toBe(true);
               expect(hv.standings).toEqual(snapshot.standings as never);
-              expect(night.teamView("Alpha").answers.length).toBe(3);
-              expect(night.teamView("Charlie").answers.length).toBe(1);
+              await waitFor<TeamView>(night.phone("Alpha").c, (v) => v.answers.length === 3, "Alpha's 3 answers");
+              await waitFor<TeamView>(night.phone("Charlie").c, (v) => v.answers.length === 1, "Charlie's answer");
               await sendAll(r, 0, ["Delta"]);
               await sendAll(r, 1, ["Charlie", "Delta"]);
               await sendAll(r, 2, ["Charlie", "Delta"]);
@@ -286,7 +287,7 @@ for (const lockMode of ["question", "round"] as const) {
         const sd = quiz.suddenDeath;
         // question 1: both right, both stay in
         await night.cmd("sd.ask");
-        expect(night.teamView("Alpha").self!.inSuddenDeath).toBe(true);
+        await waitFor<TeamView>(night.phone("Alpha").c, (v) => v.self!.inSuddenDeath === true, "Alpha in sudden death");
         expect(night.teamView("Charlie").self!.inSuddenDeath).toBe(false);
         expect(await code(night.phone("Charlie").c, "answer.submit", { questionId: sd[0]!.id, value: { type: "choice", index: 1 } })).not.toBe("ok");
         await ok(night.phone("Alpha").c, "answer.submit", { questionId: sd[0]!.id, value: { type: "choice", index: 1 } });

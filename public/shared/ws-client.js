@@ -6,7 +6,8 @@
 //
 //   var client = LockIn.connect({
 //     role: "display",                              // "display" | "team" | "host"
-//     getToken: function () { return null; },       // team device token, read on every connect
+//     getToken: function () { return null; },       // team device token or display pairing token, read on every connect
+//     onPaired: function (token) {},                // display only: keep this token (REVIEW finding 4)
 //     onState: function (view, msg) {},             // render the view
 //     onStatus: function (status) {},               // "connecting" | "online" | "offline"
 //     onWelcome: function (msg) {},
@@ -62,6 +63,7 @@
       this.onStatus = opts.onStatus || noop;
       this.onWelcome = opts.onWelcome || noop;
       this.onBye = opts.onBye || noop;
+      this.onPaired = opts.onPaired || noop;
       this.createSocket = opts.createSocket || function (/** @type {string} */ url) { return new WebSocket(url); };
       this.offlineAfterMs = typeof opts.offlineAfterMs === "number" ? opts.offlineAfterMs : OFFLINE_AFTER_MS;
       this.random = opts.random || Math.random;
@@ -156,6 +158,8 @@
         else p.reject(msg.error);
       } else if (msg.t === "pong") {
         this.clock.sample(msg.c, msg.s, Date.now());
+      } else if (msg.t === "paired") {
+        this.onPaired(msg.token);
       } else if (msg.t === "bye") {
         if (STOP_ON_BYE[msg.reason]) this.stopped = true;
         this.onBye(msg.reason);

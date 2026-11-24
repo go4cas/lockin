@@ -34,8 +34,14 @@ function svg(text: string, title: string): Response {
 }
 
 export function register(app: App): void {
-  // Shown on the display and the console, so it is public.
-  app.route("GET", "/qr/join.svg", () => svg(joinUrl(app), "QR code to join the quiz"));
+  // Shown on the console (host session) and on a paired display, which sends its pairing token as
+  // ?d=<token> (REVIEW finding 4: it carries the room code, so it is not public).
+  app.route("GET", "/qr/join.svg", (_req, ctx) => {
+    const pairing = app.services.displayPairing;
+    const allowed = !!ctx.hostSession || !pairing || pairing.isPaired(ctx.url.searchParams.get("d"));
+    if (!allowed) return errorResponse(404, "not_found", "There is nothing at this address.");
+    return svg(joinUrl(app), "QR code to join the quiz");
+  });
 
   app.route("GET", "/qr/display.svg", () => svg(displayUrl(app), "QR code for the display address"), { host: true });
 

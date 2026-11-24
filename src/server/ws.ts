@@ -33,6 +33,8 @@ export interface Conn {
   /** The team this connection is bound to (team role only). */
   readonly teamId: string | null;
   readonly hostSession: string | null;
+  /** Display role: true once paired (token or host session). Always true without a display authoriser. */
+  readonly paired: boolean;
   readonly connectedAt: number;
   lastMessageAt: number;
   send(msg: ServerMsg): void;
@@ -40,11 +42,15 @@ export interface Conn {
   bindTeam(teamId: string | null): void;
   /** Sends `bye` and closes the connection. */
   bye(reason: ByeReason): void;
+  /** Marks a display paired or not; with a token, sends it `paired` so it keeps the token. */
+  setPaired(paired: boolean, token?: string): void;
 }
 
 export type CommandHandler = (conn: Conn, name: CommandName, args: Record<string, unknown>) => CommandResult | Promise<CommandResult>;
 export type ViewProvider = (conn: Conn) => { seq: number; view: View };
 export type TeamTokenResolver = (token: string) => string | null;
+/** Decides at hello whether a display connection is paired (it may call conn.setPaired with a new token). */
+export type DisplayAuthoriser = (conn: Conn, token: string | null) => void;
 
 export const MESSAGES: Partial<Record<ErrorCode, string>> = {
   not_allowed: "This screen cannot do that.",
@@ -75,6 +81,7 @@ export function idleView(role: Role, venueName = "Lock-In"): View {
 class Connection implements Conn {
   role: Role | null = null;
   teamId: string | null = null;
+  paired = true;
   lastMessageAt: number;
   readonly connectedAt: number;
   helloTimer: ReturnType<typeof setTimeout> | null = null;
@@ -93,6 +100,10 @@ class Connection implements Conn {
   }
   bindTeam(teamId: string | null): void {
     this.teamId = teamId;
+  }
+  setPaired(paired: boolean, token?: string): void {
+    this.paired = paired;
+    if (token) this.send({ t: "paired", token });
   }
   bye(reason: ByeReason): void {
     if (this.closed) return;
@@ -115,6 +126,7 @@ export class Hub {
   private commandHandler: CommandHandler = () => fail("wrong_phase", "No night is running yet.");
   private viewProvider: ViewProvider = (conn) => ({ seq: 0, view: idleView(conn.role ?? "display") });
   private tokenResolver: TeamTokenResolver = () => null;
+  private displayAuthoriser: DisplayAuthoriser | null = null;
   private connectListeners: ((conn: Conn) => void)[] = [];
   private disconnectListeners: ((conn: Conn) => void)[] = [];
 
@@ -125,6 +137,12 @@ export class Hub {
   setCommandHandler(fn: CommandHandler): void { this.commandHandler = fn; }
   setViewProvider(fn: ViewProvider): void { this.viewProvider = fn; }
   setTeamTokenResolver(fn: TeamTokenResolver): void { this.tokenResolver = fn; }
+  /** Display pairing (REVIEW finding 4): without one, every display counts as paired. */
+  setDisplayAuthoriser(fn: DisplayAuthoriser): void { this.displayAuthoriser = fn; }
+  /** True if the connection's host session (from its upgrade request) is still valid. */
+  hostSessionAlive(conn: Conn): boolean { return !!conn.hostSession && this.opts.sessionAlive(conn.hostSession); }
+  /** A connection by id, if it is open. */
+  connection(id: number): Conn | null { const c = this.conns.get(id); return c && !c.closed ? c : null; }
   /** Called after a connection's hello has been accepted (welcome and state sent). */
   onConnect(fn: (conn: Conn) => void): void { this.connectListeners.push(fn); }
   /** Called when a connection that said hello closes. */
@@ -223,6 +241,11 @@ export class Hub {
         conn.teamId = this.tokenResolver(msg.token);
       }
       conn.send({ t: "welcome", protocol: PROTOCOL, role: conn.role, serverNow: this.opts.clock.now(), teamId: conn.teamId });
+      if (msg.role === "display" && this.displayAuthoriser) {
+        conn.paired = false;
+        const token = typeof msg.token === "string" && msg.token.length > 0 && msg.token.length <= 100 ? msg.token : null;
+        this.displayAuthoriser(conn, token);
+      }
       this.sendState(conn);
       for (const fn of this.connectListeners) fn(conn);
       return;

@@ -133,8 +133,9 @@ describe.skipIf(!canRun)("the compiled binary", () => {
   });
 
   test("QR codes work from the binary", async () => {
+    // The join QR carries the room code, so a visitor with no session or paired display gets nothing (REVIEW finding 4).
     const res = await fetch(`${base}/qr/join.svg`);
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("image/svg+xml");
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("not_found");
   });
 });
