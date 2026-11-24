@@ -9,26 +9,16 @@ import type { Conn } from "../ws.ts";
 import { COALESCE_MS, Engine } from "./engine.ts";
 import { answerText as answerTextOf, valueText } from "./quiz.ts";
 import { ClockScheduler } from "./scheduler.ts";
-import { fileSources, type Sources } from "./sources.ts";
-import * as brandingModule from "../branding/index.ts";
-import type { VenueFile } from "../../shared/formats.ts";
+import { DEFAULT_VENUE_NAME, fileSources, type Sources } from "./sources.ts";
+import { branding as brandingOf, type BrandingStore } from "../branding/index.ts";
 import type { HistoryDetail } from "../../shared/protocol.ts";
 
-/** What B4's branding store offers (PR 11): used when it is there, else the engine reads the files itself. */
-interface BrandingLike {
-  venueName(): string;
-  themeVersion(): string;
-  venue(): VenueFile;
-  onThemeChange(fn: () => void): void;
-}
-
-function sourcesFor(app: App): { sources: Sources; branding: BrandingLike | null } {
+/** The engine reads the venue through B4's branding store; the store's name is null when unset. */
+function sourcesFor(app: App): { sources: Sources; branding: BrandingStore } {
   const files = fileSources(app.config.dataDir);
-  const get = (brandingModule as unknown as { branding?: (app: App) => BrandingLike }).branding;
-  if (typeof get !== "function") return { sources: files, branding: null };
-  const b = get(app);
+  const b = brandingOf(app);
   return {
-    sources: { ...files, venueInfo: () => ({ name: b.venueName(), themeVersion: b.themeVersion(), venue: b.venue() }) },
+    sources: { ...files, venueInfo: () => ({ name: b.venueName() ?? DEFAULT_VENUE_NAME, themeVersion: b.themeVersion(), venue: b.venue() }) },
     branding: b,
   };
 }
@@ -143,7 +133,7 @@ export function register(app: App): void {
     }
   });
 
-  branding?.onThemeChange(() => engine.venueChanged());
+  branding.onThemeChange(() => engine.venueChanged());
 
   app.onStart(() => {
     engine.load();
