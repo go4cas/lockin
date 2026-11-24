@@ -1,0 +1,34 @@
+# Lock-In nightly backup (docs/RELEASE.md, "Backups"). Started by lockin-backup.timer.
+
+[Unit]
+Description=Lock-In backup of the data folder
+Documentation=https://github.com/go4cas/lockin/blob/main/docs/RELEASE.md
+
+[Service]
+Type=oneshot
+User=lockin
+Group=lockin
+ExecStart=/usr/local/lib/lockin/backup.sh --data /var/lib/lockin --keep 14
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+
+PrivateNetwork=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/lockin
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native

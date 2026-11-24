@@ -1,0 +1,58 @@
+# Lock-In server (docs/RELEASE.md). Installed by deploy/setup.sh to /etc/systemd/system/.
+# Settings (public URL, port) live in /etc/lockin/lockin.env, not here.
+
+[Unit]
+Description=Lock-In pub quiz server
+Documentation=https://github.com/go4cas/lockin/blob/main/docs/RELEASE.md
+After=network-online.target
+Wants=network-online.target
+# Never give up restarting (SA-09): a night in progress is recovered from the database.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=lockin
+Group=lockin
+EnvironmentFile=/etc/lockin/lockin.env
+ExecStart=/usr/local/bin/lockin serve --data /var/lib/lockin
+WorkingDirectory=/var/lib/lockin
+Restart=always
+RestartSec=1
+TimeoutStopSec=15
+
+# The data folder: made by systemd for the lockin user only (SA-10).
+StateDirectory=lockin
+StateDirectoryMode=0700
+UMask=0077
+
+# Only the Cloudflare tunnel on this machine may connect (SA-06): even if the bind address
+# is changed by mistake, packets from anywhere but this machine are dropped.
+IPAddressAllow=localhost
+IPAddressDeny=any
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Hardening (SA-09). Not MemoryDenyWriteExecute: Bun's JavaScript engine compiles code at run time.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/lockin
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
