@@ -284,3 +284,17 @@ describe("history detail with sudden death", () => {
     expect(detail.standings.map((r: { name: string; position: number }) => [r.name, r.position])).toEqual([["Alpha", 1], ["Bravo", 2]]);
   });
 });
+
+describe("theme changes (B4)", () => {
+  test("saving the theme sends every screen a fresh view with the new venue name and themeVersion", async () => {
+    const { s } = await server();
+    const cookie = await s.signIn();
+    const display = await client(s, "display");
+    const before = view<DisplayView>(display).venue;
+    const res = await s.fetch("/api/theme", { method: "PUT", cookie, body: JSON.stringify({ theme: { format: "lockin.theme/1", name: "The Example Arms" } }) });
+    expect(res.status).toBe(200);
+    const st = await display.next("state");
+    expect(st.view.venue.name).toBe("The Example Arms");
+    expect(st.view.venue.themeVersion).not.toBe(before.themeVersion);
+  });
+});
