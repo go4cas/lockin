@@ -77,6 +77,17 @@ This PR fixes audit Batch 3 (SA-13 to SA-21; SA-20 was already fixed with LI-004
 | new | **Fixed** (SA-13, SA-14, SA-17 to SA-21) | Headers (HSTS, COOP, CORP, Permissions-Policy, `no-store` on the API, tighter CSP, `__Host-` cookie, `development: false`); a guesser can no longer lock a pub out of rejoining; security events are logged; venue text is no longer read as replacement patterns; the preview CSS echoes nothing; small items. |
 | 1, 2, 12-17 | Open | Unchanged. Finding 1 (run sheet) also carries log retention (SA-17), and turning on secret scanning, push protection and private vulnerability reporting (SA-16). |
 
+### Status after the Release docs PR (2026-11-24)
+
+This PR adds `docs/RELEASE.md`, the host run sheet `docs/RUN-SHEET.md` and the server files in `deploy/`.
+
+| # | Status | What changed |
+|---|---|---|
+| 1 | **Fixed in the repo**; the VPS and Cloudflare steps are Cas's | RELEASE.md covers the tunnel (S-01), backups and restore (S-08) and the password reset (S-03); RUN-SHEET.md is the host's sheet. `deploy/setup.sh` (re-runnable), the systemd unit (SA-09 hardening, loopback only), a daily backup that keeps modes (SA-10), 30-day log retention (SA-17), Cloudflare rate-limit rules on `/api/auth/*` and `/ws` (SA-08). Not yet run on a real VPS. |
+| 11 | **Fixed** | `setup.sh` picks the baseline binary on a CPU without AVX2; the power-cut note is in RELEASE.md's release notes. |
+| 2 | Open | Real-hardware checks are listed in RELEASE.md section 10, for Cas before `v1.0.0`. |
+| 12-17 | Open | Unchanged. |
+
 ## How this was checked
 
 | Check | Result |
