@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "bun scripts/build.ts dev",
+    "build": "bun scripts/build.ts compile",
     "start": "bun src/server/main.ts serve",
     "fixtures": "bun scripts/fixture-server.ts",
     "typecheck": "tsc --noEmit -p .",
