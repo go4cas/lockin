@@ -54,7 +54,7 @@ Support has three tiers:
 
 | Tier | Setups | What it means |
 |---|---|---|
-| **Supported, tested before `v1.0.0`** | A laptop over HDMI with current Chrome, Edge, Firefox or Safari. "Cast tab" from desktop Chrome to a Chromecast or Google TV. The smart-TV browser at the pilot pub (Cas reports modern TVs; model to confirm, 15.1). | Checked by hand on real hardware (T-01). |
+| **Supported, tested before `v1.0.0`** | A laptop over HDMI with current Chrome, Edge, Firefox or Safari. "Cast tab" from desktop Chrome to a Chromecast or Google TV. The smart-TV browser and the streaming or casting device at the pilot pub (Cas reports a modern TV; models to confirm, 15.1). | Checked by hand on real hardware (T-01). |
 | **Targeted, not tested** | Smart-TV browsers at or above the baseline in 3.3 (roughly Samsung Tizen and LG webOS models from 2022 onwards; check the browser version, not the year), Android TV and Google TV browsers with Chromium 86 or newer, current Fire TV Silk browser, AirPlay or Miracast screen extension from a laptop (behaves like HDMI). | The code follows the baseline in 3.3, so these should work; bugs are fixed when reported. |
 | **Not supported** | Smart-TV browsers older than the baseline (use a laptop or Chromecast instead), casting a browser tab to a Fire TV stick (not possible), anything that needs input on the display (T-22). | The display page says so in plain English instead of showing a blank screen (B6). |
 
@@ -1247,7 +1247,7 @@ Done when:
 
 ## 15. Open questions
 
-1. **The pilot pub's TV.** Cas reports modern smart TVs. The make and model (or the browser version shown in its settings) confirms it meets the display baseline (1.2, 3.3) and is the smart-TV browser tested before `v1.0.0`. Cas to find out.
+1. **The pilot pub's TV.** Cas reports a modern smart TV with a streaming or casting device attached (2026-11-24), so either can show the display. The make and model of both (or the browser version in the TV's settings) confirm they meet the display baseline (1.2, 3.3) and decide which setups are tested there before `v1.0.0`. Cas to confirm later.
 2. **"Hide answers" switch on the console (1.1).** A guard against a mirrored display showing the console. Small, but a scope addition, so it needs Cas's yes before Design or B5 adds it.
 3. **Round win when everyone scores 0 (8.3).** This spec says such a round has no winner. Cas to confirm.
 4. **Fallback display for older TVs (Later).** The display supports modern browsers only (1.2). If users report TVs below the baseline after launch, a vanilla, classic-script fallback display page could be added, chosen by the same check that B6 adds. Not planned for `v1.0.0`; Cas decides if it is needed.
