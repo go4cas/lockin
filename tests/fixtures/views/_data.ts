@@ -115,7 +115,7 @@ export function standings(n: number, round = 2, jokerAt: number[] = [1]): Standi
   rows.sort((a, b) => b.total - a.total || b.wins - a.wins);
   return {
     round,
-    rows: rows.map((r) => {
+    rows: rows.map((r, k) => {
       const firstSame = rows.findIndex((x) => x.total === r.total && x.wins === r.wins);
       const sameTotal = rows.filter((x) => x.total === r.total).length > 1;
       const shared = rows.filter((x) => x.total === r.total && x.wins === r.wins).length > 1;
@@ -124,6 +124,8 @@ export function standings(n: number, round = 2, jokerAt: number[] = [1]): Standi
         teamId: teamId(r.i), position: firstSame + 1, shared, total: r.total, roundScores, roundWins: r.wins,
         decidedBy: shared ? "shared" as const : sameTotal ? "tie_breaker" as const : "points" as const,
         name: TEAM_NAMES[r.i]!, colour: (r.i % 8) + 1, roundScore: roundScores[round]!, jokerThisRound: jokerAt.includes(r.i),
+        // Movement since the round before: a mix of up, down and same; none after the first round.
+        prevPosition: round === 0 ? null : k % 4 === 1 ? firstSame + 3 : k % 4 === 2 ? Math.max(1, firstSame) : firstSame + 1,
       };
     }),
   };
@@ -183,7 +185,7 @@ export function teamBase() {
 export function hostBase() {
   return {
     role: "host" as const, teams: [] as HostTeam[], round: null, current: null, marking: null, reveal: null, standings: null,
-    suddenDeath: null, suddenDeathNeeded: null, can: {}, lines: lines(),
+    suddenDeath: null, suddenDeathNeeded: null, finalStandingsAt: null as number | null, can: {}, lines: lines(),
   };
 }
 

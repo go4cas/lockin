@@ -91,6 +91,9 @@ const venue = reactive({
   panels: PANELS.map((p) => ({ id: p.id, on: true })),
   /** @type {{ key: number, place: string, text: string }[]} */
   prizes: [],
+  /** @type {"timer" | "host"} after the winner screen (T-12) */
+  afterMode: "timer",
+  afterSeconds: "15",
 });
 
 /** Save and upload feedback, per tab. */
@@ -163,17 +166,24 @@ function draftFromVenue(v) {
     ...PANELS.filter((p) => !on.includes(p.id)).map((p) => ({ id: p.id, on: false })),
   ];
   venue.prizes = v.prizes.map((p) => ({ key: prizeKey++, place: String(p.place), text: p.text }));
+  venue.afterMode = v.afterWinner.mode;
+  venue.afterSeconds = String(v.afterWinner.seconds);
 }
 
 /** @returns {unknown} sent as typed; the server validates it */
 function venueFromDraft() {
   const minutes = Number(venue.minutesBefore);
+  const seconds = Number(venue.afterSeconds);
   return {
     format: "lockin.venue/1",
     prizes: venue.prizes.map((p) => ({ place: Number(p.place), text: p.text.trim() })),
     holding: {
       minutesBefore: venue.minutesBefore.trim() === "" || !Number.isFinite(minutes) ? venue.minutesBefore : minutes,
       panels: venue.panels.filter((p) => p.on).map((p) => p.id),
+    },
+    afterWinner: {
+      mode: venue.afterMode,
+      seconds: venue.afterSeconds.trim() === "" || !Number.isFinite(seconds) ? venue.afterSeconds : seconds,
     },
   };
 }
@@ -579,6 +589,20 @@ function holdingTab() {
           <button type="button" class="btn ghost small" aria-label="${"Move " + p.id + " down"}" disabled="${i === venue.panels.length - 1}" @click="${() => movePanel(i, 1)}">↓</button>
         </div>`.key(p.id))}
       <p class="hint" style="margin-top:8px">Panels that are on are shown in this order.</p>
+    </div>
+    <div class="card">
+      <h2>After the winner</h2>
+      <div class="row">
+        <input type="radio" id="after-timer" name="after" checked="${() => venue.afterMode === "timer"}" @change="${() => { venue.afterMode = "timer"; }}">
+        <label for="after-timer">Show the final standings after</label>
+        <input id="after-seconds" class="input short" type="number" min="5" max="120" step="1" inputmode="numeric" aria-label="Seconds" value="${() => venue.afterSeconds}" disabled="${() => venue.afterMode !== "timer"}" @input="${(/** @type {Event} */ e) => { venue.afterSeconds = /** @type {HTMLInputElement} */ (e.target).value; }}">
+        <span>seconds</span>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <input type="radio" id="after-host" name="after" checked="${() => venue.afterMode === "host"}" @change="${() => { venue.afterMode = "host"; }}">
+        <label for="after-host">Wait until I press Next on the host screen</label>
+      </div>
+      <p class="hint" style="margin-top:6px">At Quiz End the display shows the winner, then the final standings. 5 to 120 seconds. You can press Next early either way.</p>
     </div>
     ${message()}
     ${venueActions()}

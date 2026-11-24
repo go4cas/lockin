@@ -68,7 +68,7 @@ export function idleView(role: Role, venueName = "Lock-In"): View {
   }
   return {
     ...common, role: "host", teams: [], round: null, current: null, marking: null, reveal: null, standings: null,
-    suddenDeath: null, suddenDeathNeeded: null, can: {}, lines: emptyLines(),
+    suddenDeath: null, suddenDeathNeeded: null, finalStandingsAt: null, can: {}, lines: emptyLines(),
   } satisfies HostView;
 }
 
