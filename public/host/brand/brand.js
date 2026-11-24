@@ -474,11 +474,11 @@ function brandingTab() {
               <input type="color" value="${() => draft.bgColour || draft.background}" @input="${(/** @type {Event} */ e) => { draft.bgColour = /** @type {HTMLInputElement} */ (e.target).value.toLowerCase(); }}">
               <span>${() => (draft.bgColour ? "Own colour" : "Same as the background")}</span></label>
               ${() => (draft.bgColour ? html`<button type="button" class="link" @click="${() => { draft.bgColour = null; }}">Use the background colour</button>` : "")}</div>`
-          : html`<div class="row" style="margin-top:8px">
+          : html`<div><div class="row" style="margin-top:8px">
               <label class="btn ghost small file-btn">${() => (ui.uploading === "displayBackground" ? "Uploading…" : draft.bgImage ? "Change picture" : "Upload JPEG, PNG or WebP")}
                 <input type="file" accept="image/jpeg,image/png,image/webp" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "displayBackground"); if (f) draft.bgImage = f; }}">
               </label></div>
-              <p class="hint">Busy photos make questions harder to read. Pick something calm. Up to 5 MB.</p>`}
+              <p class="hint">Busy photos make questions harder to read. Pick something calm. Up to 5 MB.</p></div>`}
       </div>
 
       <div class="field">
@@ -496,7 +496,7 @@ function brandingTab() {
           <button type="button" class="font-plain" aria-pressed="${() => String(draft.bodyFont !== "upload")}" @click="${() => { draft.bodyFont = "atkinson-hyperlegible"; }}">Plain (recommended)</button>
           <button type="button" aria-pressed="${() => String(draft.bodyFont === "upload")}" @click="${() => { draft.bodyFont = "upload"; }}">Upload</button>
         </div>
-        ${() => (draft.bodyFont === "upload" ? html`${fontUpload("body")}<p class="hint" style="color:var(--color-warning)">Questions and team names must be easy to read from across the room. A plain font works best.</p>` : "")}
+        ${() => (draft.bodyFont === "upload" ? html`<div>${fontUpload("body")}<p class="hint" style="color:var(--color-warning)">Questions and team names must be easy to read from across the room. A plain font works best.</p></div>` : "")}
       </div>
 
       ${warnings()}
