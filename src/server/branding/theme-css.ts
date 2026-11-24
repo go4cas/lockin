@@ -6,7 +6,7 @@
 import type { FontRef, ThemeFile } from "../../shared/formats.ts";
 import {
   BODY_FALLBACK, BUNDLED_FONT_INFO, DISPLAY_FALLBACK, assetUrl, deriveBrandTokens, inputsFromTheme,
-} from "../../../public/host/brand/derive.js";
+} from "./derive.ts";
 
 export const DEFAULT_DISPLAY_FONT = "caveat-brush";
 export const DEFAULT_BODY_FONT = "atkinson-hyperlegible";

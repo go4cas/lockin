@@ -5,17 +5,19 @@
 //   branding(app).theme(), .themeVersion(), .venueName(), .venue(), .onThemeChange(fn)
 // and the copy picker through app.services.copyPicker.
 
-import copyFile from "../../../docs/brand/copy.en.json" with { type: "json" };
 import type { App } from "../app.ts";
 import { BUNDLED_FONTS, validateTheme } from "../../shared/formats.ts";
 import { UPLOAD_CSP, errorResponse, json, readJsonBody } from "../http.ts";
-import { BUNDLED_FONT_INFO } from "../../../public/host/brand/derive.js";
+import { BUNDLED_FONT_INFO } from "./derive.ts";
 import { ASSET_KINDS, ASSET_RULES, type AssetKind } from "./assets.ts";
 import { createCopyPicker, mergePools, poolsFromCopyFile, type Pools } from "./copy.ts";
 import { BrandingStore } from "./store.ts";
 import { themeCss } from "./theme-css.ts";
 
 export { BrandingStore } from "./store.ts";
+
+/** The default copy pools, a shipped file (embedded in the binary, TECH-SPEC 4.6). */
+export const COPY_PATH = "docs/brand/copy.en.json";
 
 const stores = new WeakMap<App, BrandingStore>();
 
@@ -48,12 +50,22 @@ function problemsResponse(problems: { path: string; message: string }[]): Respon
 export function register(app: App): void {
   const store = branding(app);
 
-  // Default copy pools; the theme's copy is merged on every pick.
-  const defaults: Pools = poolsFromCopyFile(copyFile);
+  // Default copy pools, read through app.files so the compiled binary finds its
+  // embedded copy (B8). The theme's copy is merged on every pick.
+  let defaults: Pools = {};
+  const copyLoaded = app.files.read(COPY_PATH).then((bytes) => {
+    if (!bytes) { app.log(`${COPY_PATH} is missing, so screens show no copy lines.`); return; }
+    try {
+      defaults = poolsFromCopyFile(JSON.parse(new TextDecoder().decode(bytes)));
+    } catch (e) {
+      app.log(`${COPY_PATH} could not be read, so screens show no copy lines: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  });
   app.services.copyPicker = createCopyPicker(() => mergePools(defaults, store.theme().copy), () => store.venueName());
 
   // Start-up (4.4): load both files now so problems show in the log at start.
-  app.onStart(() => {
+  app.onStart(async () => {
+    await copyLoaded;
     store.theme();
     store.venue();
   });

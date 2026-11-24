@@ -1,7 +1,9 @@
-// The branding page and the server share public/host/brand/derive.js. It must
-// give the same results as Design's reference, docs/design/tools/derive.ts.
+// The branding page (public/host/brand/derive.js) and the server
+// (src/server/branding/derive.ts) must give the same results as Design's
+// reference, docs/design/tools/derive.ts.
 import { describe, expect, test } from "bun:test";
 import * as port from "../../public/host/brand/derive.js";
+import * as server from "../../src/server/branding/derive.ts";
 
 // Loaded by a computed path so `bun run typecheck` does not check Design's tool
 // file (docs/ is outside tsconfig's include and not written for its strict flags).
@@ -31,6 +33,18 @@ describe("derive.js matches docs/design/tools/derive.ts", () => {
 
   test("deriveBrandTokens gives the same tokens for 507 inputs", () => {
     for (const inp of inputs) expect(port.deriveBrandTokens(inp)).toEqual(ref.deriveBrandTokens(inp));
+  });
+
+  test("the server's copy (src/server/branding/derive.ts) gives the same tokens for 507 inputs", () => {
+    for (const inp of inputs) expect(server.deriveBrandTokens(inp)).toEqual(ref.deriveBrandTokens(inp));
+  });
+
+  test("the server and the page agree on fonts, fallbacks and asset URLs", () => {
+    expect(server.BUNDLED_FONT_INFO).toEqual(port.BUNDLED_FONT_INFO);
+    expect(server.DISPLAY_FALLBACK).toBe(port.DISPLAY_FALLBACK);
+    expect(server.BODY_FALLBACK).toBe(port.BODY_FALLBACK);
+    expect(server.DEFAULT_INPUTS).toEqual(port.DEFAULT_INPUTS);
+    expect(server.assetUrl("assets/x.png")).toBe(port.assetUrl("assets/x.png"));
   });
 
   test("checkReadability gives the same checks for 507 inputs", () => {
