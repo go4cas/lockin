@@ -5,6 +5,8 @@
 //
 // UI-01: Run night, Open a night: a quiz that is not ready shows its problem text, never
 //        "[object Object]", and "1 round", not "1 rounds".
+// UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
+//        lobby screen; that pool is for the join page and the display (copy-review.md).
 
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -31,6 +33,13 @@ const notReady = {
   suddenDeath: [],
 } as unknown as QuizFile;
 
+const ready: QuizFile = {
+  format: QUIZ_FORMAT, id: "ready", title: "Ready Quiz", updatedAt: "2026-11-24T10:00:00.000Z",
+  settings: { ...DEFAULT_QUIZ_SETTINGS, timerSeconds: 60 },
+  rounds: [{ id: "r-ui100000", title: "Round 1", questions: [{ id: "q-ui300000", text: "What is the capital of England?", answer: { type: "text", accepted: ["London"] } }] }],
+  suddenDeath: [],
+};
+
 const problems: string[] = [];
 const results: string[] = [];
 const check = (ok: boolean, what: string) => { results.push(`${ok ? "PASS" : "FAIL"} ${what}`); if (!ok) problems.push(what); };
@@ -38,6 +47,7 @@ const check = (ok: boolean, what: string) => { results.push(`${ok ? "PASS" : "FA
 async function main() {
   const dataDir = tempDataDir("lockin-ui-bugs-");
   writeQuiz(dataDir, notReady);
+  writeQuiz(dataDir, ready);
   const night = new Night(dataDir, { port: PORT, publicUrl: PUBLIC });
   await night.start();
   const browser = await chromium.launch();
@@ -62,6 +72,21 @@ async function main() {
     await host.screenshot({ path: join(OUT, "ui-01-open-night.png") });
     check(!row.problems.includes("[object Object]") && row.problems.trim().length > 0, `UI-01 not-ready reason is text: "${row.problems}"`);
     check(row.counts === "1 round · 2 questions", `UI-01 counts read "${row.counts}"`);
+
+    // UI-02
+    const { roomCode } = await night.cmd("night.open", { quizId: ready.id }) as { roomCode: string };
+    const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+    watch("phone", phone);
+    await phone.goto(`${PUBLIC}${new URL(night.hostView().night!.joinUrl).pathname}`);
+    const joinLine = await phone.waitForSelector(".voice", { timeout: 5000 }).then(() => true, () => false);
+    check(joinLine, `UI-02 the join page shows a lobby line (room ${roomCode})`);
+    await phone.fill("#team-name", "Test Team");
+    await phone.click(".ph-foot .btn.primary");
+    await phone.waitForFunction(() => document.querySelector(".ph-top .team")?.textContent === "Test Team", null, { timeout: 5000 });
+    await phone.waitForTimeout(300);
+    await phone.screenshot({ path: join(OUT, "ui-02-phone-lobby.png") });
+    const lobbyLine = await phone.evaluate(() => [...document.querySelectorAll<HTMLElement>(".voice")].filter((e) => e.offsetParent !== null).map((e) => e.textContent).join(" | "));
+    check(lobbyLine === "", `UI-02 the joined phone's lobby shows no join line: "${lobbyLine}"`);
   } finally {
     await browser.close();
     await night.stop();
