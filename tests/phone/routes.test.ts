@@ -131,6 +131,7 @@ describe("service worker app shell", () => {
     const dir = join(ROOT, "public/phone");
     for (const f of ["app.mjs", "state.mjs", "screens.mjs"]) {
       for (const m of readFileSync(join(dir, f), "utf8").matchAll(/from "\.\/([\w.-]+)"/g)) expect(shell).toContain(`/static/phone/${m[1]}`);
+      for (const m of readFileSync(join(dir, f), "utf8").matchAll(/from "(\/static\/shared\/[\w.-]+)"/g)) expect(shell).toContain(m[1]!);
     }
   });
 

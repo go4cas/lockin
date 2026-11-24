@@ -17,7 +17,7 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "paths": { "/vendor/*": ["./public/vendor/*"] }
+    "paths": { "/vendor/*": ["./public/vendor/*"], "/static/*": ["./public/*"] }
   },
   "include": ["src", "tests", "scripts", "public"],
   // Browser checks need Playwright from tools/browser; typechecked by tools/browser/tsconfig.json (LI-018).

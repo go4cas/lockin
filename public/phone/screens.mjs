@@ -5,6 +5,7 @@
 // ${} slot (a text node or attribute), never into markup (TECH-SPEC 12.4).
 
 import { html, reactive, nextTick, watch } from "/vendor/arrow/index.mjs";
+import { pool, retained, slotKeys } from "/static/shared/parts.mjs";
 import * as L from "./logic.mjs";
 import { page as live, ui, nav, join, rejoin, setJoinMode, send, choose, playJoker, skipJoker, offline } from "./state.mjs";
 
@@ -39,46 +40,12 @@ const tick = () => html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 
 
 const padlock = () => html`<svg class="lockbig" viewBox="0 0 100 120" aria-hidden="true"><path class="shackle" d="M28 58 V36 A22 22 0 0 1 72 36 V58"/><rect class="body" x="10" y="54" width="80" height="62" rx="13"/><path class="qmark" d="M40 75 A10 10 0 1 1 55.5 83.3 C51.5 86 50 88 50 92"/><circle class="hole" cx="50" cy="104" r="4.6"/></svg>`;
 
-/** @type {Record<string, { key: string; n: number }>} */
-const generations = {};
-
 /**
- * A list whose rows are never removed: row i always shows item i, rows past the end
- * are hidden, and the list only grows. Arrow 1.0.6 throws ("expressionPool[effect]
- * is not a function", "setEndAfter … has no parent") when it removes a keyed row
- * whose own slots still have updates queued, which happened whenever one view's
- * questions or standings replaced another's (NOTES, B7). Rows read their item
- * through get(), so a reused row always shows the current item.
- * @template T
- * @param {() => T[]} items
- * @param {(get: () => T | undefined, i: number) => any} render
+ * Lists are row pools that only grow, and a slot that can show different things (a
+ * screen, a question) is a one-item keyed list whose key is never reused. Both are in
+ * public/shared/parts.mjs with the Arrow 1.0.6 failures they avoid (NOTES, B7).
  */
-const pool = (items, render) => {
-  let size = 0;
-  return () => {
-    const n = items().length;
-    if (n > size) size = n;
-    return Array.from({ length: size }, (_, i) => render(() => items()[i], i).key(String(i)));
-  };
-};
-
-/**
- * One keyed template as a one-item list, for a slot that can show different things
- * (a screen, a question). Two Arrow 1.0.6 behaviours make this necessary (NOTES, B7):
- * a template with the same markup is patched into the old elements even when its
- * .key() differs, so question 4 could keep question 1's input; and a slot remembers
- * a key after its elements are gone, so coming back to that key later reuses detached
- * nodes and throws. A keyed list always mounts a new key fresh, and a generation
- * number makes sure a key is never used twice in the same slot.
- * @param {string} slot
- * @param {any} tpl
- * @param {string} key
- */
-const one = (slot, tpl, key) => {
-  const g = generations[slot] ?? (generations[slot] = { key: "", n: 0 });
-  if (g.key !== key) { g.key = key; g.n++; }
-  return [tpl.key(`${key}#${g.n}`)];
-};
+const one = slotKeys();
 
 /** What each swapping slot has mounted now. */
 const mounted = reactive({ question: "", deadlock: "" });
@@ -718,34 +685,25 @@ const connectingScreenOf = (screens) => /** @type {() => any} */ (screens.connec
 export function mount(app) {
   root(app);
   const holder = /** @type {HTMLElement} */ (app.querySelector(".screens"));
-  /** @type {Record<string, { box: HTMLElement; page: { view: TeamView | null } }>} */
-  const built = {};
-  /** @type {string | null} */
-  let showing = null;
+  const boxes = retained(holder, "screen");
+  /** @type {Record<string, { view: TeamView | null }>} */
+  const pages = {};
   const feed = () => {
     const name = nav.screen;
     const view = live.view;
     if (!name) return;
-    let s = built[name];
-    if (!s) {
-      const box = document.createElement("div");
-      box.className = "screen";
-      box.hidden = true;
-      holder.appendChild(box);
-      const page = reactive({ view });
-      const screens = /** @type {Record<string, () => any>} */ (makeScreens(page));
-      const build = screens[name] ?? connectingScreenOf(screens);
-      build()(box);
-      s = built[name] = { box, page };
-    } else if (s.page.view !== view) {
-      s.page.view = view;
+    const page = pages[name];
+    if (!page) {
+      boxes.ensure(name, (box) => {
+        const p = pages[name] = reactive({ view });
+        const screens = /** @type {Record<string, () => any>} */ (makeScreens(p));
+        const build = screens[name] ?? connectingScreenOf(screens);
+        build()(box);
+      });
+    } else if (page.view !== view) {
+      page.view = view;
     }
-    if (showing !== name) {
-      const old = showing ? built[showing] : undefined;
-      if (old) old.box.hidden = true;
-      s.box.hidden = false;
-      showing = name;
-    }
+    boxes.show(name);
   };
   watch(() => [nav.screen, live.view], feed);
 }

@@ -22,6 +22,7 @@ var SHELL = [
   "/static/shared/ws-client.js",
   "/static/shared/view.js",
   "/static/shared/source.js",
+  "/static/shared/parts.mjs",
   "/static/logo/lockin-mark.svg",
   "/static/fonts/atkinson-hyperlegible-400.woff2",
   "/static/fonts/atkinson-hyperlegible-700.woff2",
