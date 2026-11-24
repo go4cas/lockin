@@ -1,6 +1,7 @@
 // Build script. B0 provides the development run; B8 adds compiling and packaging.
 //   bun run dev     start the server from source (TECH-SPEC 4.7)
 //   bun run build   compile dist/lockin-linux-x64 with every served file embedded (TECH-SPEC 4.6)
+//   bun run build -- --baseline   the same for CPUs without AVX2: dist/lockin-linux-x64-baseline
 
 import { existsSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
@@ -8,6 +9,9 @@ import { join, relative, resolve } from "node:path";
 export const ROOT = resolve(import.meta.dir, "..");
 export const TARGET = "bun-linux-x64";
 export const OUTFILE = "dist/lockin-linux-x64";
+/** For CPUs without AVX2 (REVIEW finding 11); the release workflow builds both (SA-16). */
+export const BASELINE_TARGET = "bun-linux-x64-baseline";
+export const BASELINE_OUTFILE = "dist/lockin-linux-x64-baseline";
 const EMBEDDED_TS = "src/server/embedded.ts";
 
 /**
@@ -73,14 +77,14 @@ if (code >= 0) process.exit(code);
 }
 
 /** Compiles the binary. Returns its absolute path. */
-export async function compile(opts: { root?: string; outfile?: string; quiet?: boolean } = {}): Promise<string> {
+export async function compile(opts: { root?: string; outfile?: string; quiet?: boolean; target?: string } = {}): Promise<string> {
   const root = opts.root ?? ROOT;
   const outfile = resolve(root, opts.outfile ?? OUTFILE);
   const paths = embeddedPaths(root);
   const entry = join(root, EMBEDDED_TS);
   writeFileSync(entry, embeddedModule(paths));
   try {
-    const proc = Bun.spawn(["bun", "build", "--compile", `--target=${TARGET}`, entry, "--outfile", outfile], {
+    const proc = Bun.spawn(["bun", "build", "--compile", `--target=${opts.target ?? TARGET}`, entry, "--outfile", outfile], {
       cwd: root,
       stdout: opts.quiet ? "pipe" : "inherit",
       stderr: opts.quiet ? "pipe" : "inherit",
@@ -111,7 +115,7 @@ if (import.meta.main) {
     process.on("SIGTERM", () => proc.kill("SIGTERM"));
     process.exit(await proc.exited);
   } else if (command === "compile") {
-    await compile();
+    await compile(rest.includes("--baseline") ? { target: BASELINE_TARGET, outfile: BASELINE_OUTFILE } : {});
   } else {
     console.error(`Unknown build command "${command}". Use "dev" or "compile".`);
     process.exit(2);

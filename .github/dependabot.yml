@@ -1,0 +1,16 @@
+# SA-16: weekly update proposals for the pinned GitHub Actions and the dev-only packages.
+# Bun itself is pinned in ci.yml and watched by bun-release-check.yml.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: bun
+    directory: /tools/browser
+    schedule:
+      interval: weekly
