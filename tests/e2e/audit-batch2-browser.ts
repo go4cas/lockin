@@ -1,5 +1,6 @@
-// Audit Batch 2 in a real browser (SA-11, D5, per-display unpair). A Playwright tool, not a
-// bun test, like browser-night.ts. Fails on any page error or failed request.
+// Audit Batch 2 in a real browser (SA-11, D5, per-display unpair). A Playwright check, not a
+// bun test, like browser-night.ts; part of tools/browser/checks.ts. Fails on any page error or
+// failed request.
 //
 //   bun tests/e2e/audit-batch2-browser.ts [outDir]
 //
@@ -11,7 +12,7 @@
 
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { chromium, type Page } from "playwright";
+import { chromium, type Page } from "../../tools/browser/playwright.mjs";
 import { DEFAULT_QUIZ_SETTINGS, QUIZ_FORMAT, type QuizFile } from "../../src/shared/formats.ts";
 import { writeQuiz } from "../night/fakes.ts";
 import { tempDataDir } from "../helpers/process.ts";

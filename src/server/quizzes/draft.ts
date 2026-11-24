@@ -7,12 +7,14 @@
 // hold, but anything a QM fills in later may still be empty. It also writes
 // every object in the format's field order, so files diff cleanly (5.1).
 
-import { DEFAULT_QUIZ_SETTINGS, QUIZ_FORMAT, type Problem, type QuizFile, type QuizSettings } from "../../shared/formats.ts";
+import {
+  DEFAULT_QUIZ_SETTINGS, MEDIA_FILE, QUESTION_ID, QUIZ_FORMAT, QUIZ_LIMITS, ROUND_ID, validateSettings,
+  type Problem, type QuizFile, type QuizSettings,
+} from "../../shared/formats.ts";
 
-export const ROUND_ID = /^r-[a-z0-9]{8}$/;
-export const QUESTION_ID = /^q-[a-z0-9]{8}$/;
-export const QUIZ_ID = /^[a-z0-9-]{1,60}$/;
-export const MEDIA_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+// The ids, file names, limits and settings rules are the ones readiness uses (LI-009).
+export { MEDIA_FILE, QUESTION_ID, QUIZ_ID, ROUND_ID } from "../../shared/formats.ts";
+const L = QUIZ_LIMITS;
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -57,14 +59,14 @@ export function checkDraft(v: unknown): { ok: true; quiz: Obj } | { ok: false; p
   if (v.format !== QUIZ_FORMAT) add("format", `The quiz must use format "${QUIZ_FORMAT}".`);
   const title = typeof v.title === "string" ? v.title.trim() : "";
   if (title === "") add("title", "The quiz needs a title.");
-  else if (len(title) > 80) add("title", "The quiz title can be at most 80 characters.");
+  else if (len(title) > L.titleChars) add("title", `The quiz title can be at most ${L.titleChars} characters.`);
 
   const settings = checkSettings(v.settings, add);
   const seen = new Set<string>();
 
   const rounds: Obj[] = [];
   if (!Array.isArray(v.rounds)) add("rounds", "The rounds must be a list.");
-  else if (v.rounds.length > 20) add("rounds", "A quiz can have at most 20 rounds.");
+  else if (v.rounds.length > L.rounds) add("rounds", `A quiz can have at most ${L.rounds} rounds.`);
   else v.rounds.forEach((r, i) => {
     const path = `rounds.${i}`;
     const label = `Round ${i + 1}`;
@@ -72,10 +74,10 @@ export function checkDraft(v: unknown): { ok: true; quiz: Obj } | { ok: false; p
     if (typeof r.id !== "string" || !ROUND_ID.test(r.id) || seen.has(r.id)) add(`${path}.id`, `${label} has a missing, malformed or repeated id.`);
     else seen.add(r.id);
     const rt = r.title === undefined ? "" : r.title;
-    if (!str(rt, 60)) add(`${path}.title`, `${label}'s title can be at most 60 characters.`);
+    if (!str(rt, L.roundTitleChars)) add(`${path}.title`, `${label}'s title can be at most ${L.roundTitleChars} characters.`);
     const questions: Obj[] = [];
     if (!Array.isArray(r.questions)) add(`${path}.questions`, `${label}'s questions must be a list.`);
-    else if (r.questions.length > 30) add(`${path}.questions`, `${label} can have at most 30 questions.`);
+    else if (r.questions.length > L.questionsPerRound) add(`${path}.questions`, `${label} can have at most ${L.questionsPerRound} questions.`);
     else r.questions.forEach((q, j) => {
       const out = checkQuestion(q, `${path}.questions.${j}`, `${label}, question ${j + 1}`, seen, add);
       if (out) questions.push(out);
@@ -86,7 +88,7 @@ export function checkDraft(v: unknown): { ok: true; quiz: Obj } | { ok: false; p
   const suddenDeath: Obj[] = [];
   const sd = v.suddenDeath === undefined ? [] : v.suddenDeath;
   if (!Array.isArray(sd)) add("suddenDeath", "The sudden-death questions must be a list.");
-  else if (sd.length > 20) add("suddenDeath", "A quiz can have at most 20 sudden-death questions.");
+  else if (sd.length > L.suddenDeath) add("suddenDeath", `A quiz can have at most ${L.suddenDeath} sudden-death questions.`);
   else sd.forEach((q, i) => {
     const out = checkQuestion(q, `suddenDeath.${i}`, `Sudden-death question ${i + 1}`, seen, add);
     if (out) suddenDeath.push(out);
@@ -97,43 +99,7 @@ export function checkDraft(v: unknown): { ok: true; quiz: Obj } | { ok: false; p
 }
 
 function checkSettings(v: unknown, add: (p: string, m: string) => void): QuizSettings {
-  const s: QuizSettings = { ...DEFAULT_QUIZ_SETTINGS };
-  if (v === undefined) return s;
-  if (!isObj(v)) { add("settings", "The quiz settings are not a JSON object."); return s; }
-  const bad = (k: string, m: string) => add(`settings.${k}`, m);
-  if (v.lockMode !== undefined) {
-    if (v.lockMode === "question" || v.lockMode === "round") s.lockMode = v.lockMode;
-    else bad("lockMode", 'Lock mode must be "question" or "round".');
-  }
-  if (v.timerSeconds !== undefined) {
-    if (isInt(v.timerSeconds) && v.timerSeconds >= 10 && v.timerSeconds <= 300) s.timerSeconds = v.timerSeconds;
-    else bad("timerSeconds", "The timer must be a whole number of seconds from 10 to 300.");
-  }
-  if (v.halftimeAfterRound !== undefined) {
-    const h = v.halftimeAfterRound;
-    if (h === "auto" || h === "none" || (isInt(h) && h >= 1 && h <= 20)) s.halftimeAfterRound = h;
-    else bad("halftimeAfterRound", 'Halftime must be "auto", "none" or a round number.');
-  }
-  if (v.joker !== undefined) {
-    if (typeof v.joker === "boolean") s.joker = v.joker;
-    else bad("joker", "The joker setting must be on or off.");
-  }
-  if (v.maxTeams !== undefined) {
-    if (isInt(v.maxTeams) && v.maxTeams >= 2 && v.maxTeams <= 30) s.maxTeams = v.maxTeams;
-    else bad("maxTeams", "The team limit must be a whole number from 2 to 30.");
-  }
-  if (v.suddenDeathScope !== undefined) {
-    if (v.suddenDeathScope === "first" || v.suddenDeathScope === "all") s.suddenDeathScope = v.suddenDeathScope;
-    else bad("suddenDeathScope", 'Sudden death must apply to "first" place or "all" places.');
-  }
-  if (v.suddenDeathMax !== undefined) {
-    if (isInt(v.suddenDeathMax) && v.suddenDeathMax >= 1 && v.suddenDeathMax <= 10) s.suddenDeathMax = v.suddenDeathMax;
-    else bad("suddenDeathMax", "The most sudden-death questions per place must be a whole number from 1 to 10.");
-  }
-  if (v.closestScoring !== undefined) {
-    if (v.closestScoring === "closest" || v.closestScoring === "range") s.closestScoring = v.closestScoring;
-    else bad("closestScoring", 'Closest-number scoring must be "closest" or "range".');
-  }
+  const s = validateSettings(v, add);
   // Field order of QuizSettings in formats.ts
   return {
     lockMode: s.lockMode, timerSeconds: s.timerSeconds, halftimeAfterRound: s.halftimeAfterRound, joker: s.joker,
@@ -148,8 +114,8 @@ function checkQuestion(q: unknown, path: string, label: string, seen: Set<string
   if (typeof q.id !== "string" || !QUESTION_ID.test(q.id) || seen.has(q.id)) bad(".id", `${label} has a missing, malformed or repeated id.`);
   else seen.add(q.id);
   const text = q.text === undefined ? "" : q.text;
-  if (!str(text, 300)) bad(".text", `${label}'s text can be at most 300 characters.`);
-  if (q.note !== undefined && !str(q.note, 300)) bad(".note", `${label}'s host note can be at most 300 characters.`);
+  if (!str(text, L.textChars)) bad(".text", `${label}'s text can be at most ${L.textChars} characters.`);
+  if (q.note !== undefined && !str(q.note, L.textChars)) bad(".note", `${label}'s host note can be at most ${L.textChars} characters.`);
   if (q.timerSeconds !== undefined && !(isInt(q.timerSeconds) && q.timerSeconds >= 10 && q.timerSeconds <= 300)) {
     bad(".timerSeconds", `${label}'s timer must be a whole number of seconds from 10 to 300.`);
   }
@@ -158,7 +124,7 @@ function checkQuestion(q: unknown, path: string, label: string, seen: Set<string
     const m = q.media;
     if (!isObj(m) || typeof m.kind !== "string" || len(m.kind) > 20) bad(".media", `${label}'s media is not valid.`);
     else if (typeof m.file !== "string" || !MEDIA_FILE.test(m.file)) bad(".media.file", `${label}'s media file name is missing or not allowed.`);
-    else if (m.alt !== undefined && !str(m.alt, 300)) bad(".media.alt", `${label}'s image description can be at most 300 characters.`);
+    else if (m.alt !== undefined && !str(m.alt, L.textChars)) bad(".media.alt", `${label}'s image description can be at most ${L.textChars} characters.`);
     else media = m.alt === undefined ? { kind: m.kind, file: m.file } : { kind: m.kind, file: m.file, alt: m.alt };
   }
   const answer = checkAnswer(q.answer, label, (p, m) => bad(`.answer${p}`, m));
@@ -179,17 +145,17 @@ function checkAnswer(a: unknown, label: string, bad: (p: string, m: string) => v
   switch (a.type) {
     case "text": {
       const acc = a.accepted;
-      if (!Array.isArray(acc) || acc.length > 50 || !acc.every((x) => str(x, 100))) {
-        bad(".accepted", `${label}'s accepted answers must be a list of at most 50, each at most 100 characters.`); return null;
+      if (!Array.isArray(acc) || acc.length > L.accepted || !acc.every((x) => str(x, L.answerChars))) {
+        bad(".accepted", `${label}'s accepted answers must be a list of at most ${L.accepted}, each at most ${L.answerChars} characters.`); return null;
       }
       return { type: "text", accepted: acc };
     }
     case "choice": {
       const opts = a.options;
-      if (!Array.isArray(opts) || opts.length > 6 || !opts.every((x) => str(x, 100))) {
-        bad(".options", `${label} can have at most 6 options, each at most 100 characters.`); return null;
+      if (!Array.isArray(opts) || opts.length > L.options || !opts.every((x) => str(x, L.answerChars))) {
+        bad(".options", `${label} can have at most ${L.options} options, each at most ${L.answerChars} characters.`); return null;
       }
-      if (!isInt(a.correct) || a.correct < -1 || a.correct > 5) { bad(".correct", `${label}'s correct option is not valid.`); return null; }
+      if (!isInt(a.correct) || a.correct < -1 || a.correct >= L.options) { bad(".correct", `${label}'s correct option is not valid.`); return null; }
       return { type: "choice", options: opts, correct: a.correct };
     }
     case "number":

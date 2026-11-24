@@ -5,7 +5,7 @@
 //
 //   bun run fixtures --port 8091 &
 //   node tests/display/stress.cjs [baseUrl] [seeds, e.g. 1,2,3]
-const { chromium } = require("playwright");
+const { chromium } = require("../../tools/browser/playwright.cjs");
 const path = require("path");
 const ROOT = path.resolve(__dirname, "../..");
 const BASE = process.argv[2] || "http://localhost:8091";

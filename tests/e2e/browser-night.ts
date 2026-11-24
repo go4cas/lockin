@@ -12,11 +12,12 @@
 
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { chromium, type Page } from "playwright";
+import { chromium, type Page } from "../../tools/browser/playwright.mjs";
 import { DEFAULT_QUIZ_SETTINGS, QUIZ_FORMAT, type Question, type QuizFile } from "../../src/shared/formats.ts";
 import type { HistoryDetail, HostView } from "../../src/shared/protocol.ts";
 import { writeQuiz } from "../night/fakes.ts";
 import { tempDataDir } from "../helpers/process.ts";
+import { TEST_PASSWORD } from "../helpers/server.ts";
 import { Night, ok, waitFor } from "./driver.ts";
 
 const OUT = process.argv[2] ?? join(import.meta.dir, "../../dist/b9-browser");
@@ -88,12 +89,14 @@ async function main() {
     await display.waitForSelector(".pair-code", { timeout: 5000 });
     await display.waitForFunction(() => /^[0-9]{6}$/.test(document.querySelector(".pair-code")?.textContent?.trim() ?? ""), null, { timeout: 5000 });
 
+    // the console signs in through the login page (the password was set up by the driver)
     const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    const [cname, cvalue] = night.cookie.split("=");
-    await hostCtx.addCookies([{ name: cname!, value: cvalue!, url: PUBLIC }]);
     const consolePage = await hostCtx.newPage();
     watch("console", consolePage);
     await consolePage.goto(`${PUBLIC}/host/run`);
+    await consolePage.waitForSelector("#login-form #password", { timeout: 5000 });
+    await consolePage.fill("#password", TEST_PASSWORD);
+    await consolePage.click("#login-form button[type=submit]");
     await consolePage.waitForSelector(".pair-input", { timeout: 5000 });
     const pairCode = (await display.textContent(".pair-code"))!.trim();
     await consolePage.fill(".pair-input", pairCode);

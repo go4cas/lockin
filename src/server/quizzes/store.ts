@@ -7,7 +7,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { validateQuiz, type Problem, type QuizFile } from "../../shared/formats.ts";
+import { QUIZ_LIMITS, validateQuiz, type Problem, type QuizFile } from "../../shared/formats.ts";
 import { writeJsonAtomic } from "../files.ts";
 import { MEDIA_FILE, QUESTION_ID, QUIZ_ID, checkDraft, newQuiz } from "./draft.ts";
 
@@ -295,7 +295,7 @@ export class QuizStore {
   saveAcceptedAnswer(quizId: string, questionId: string, text: string): void {
     const answer = text.trim();
     try {
-      if (answer === "" || [...answer].length > 100) return;
+      if (answer === "" || [...answer].length > QUIZ_LIMITS.answerChars) return;
       const { raw, updatedAt } = this.readRaw(quizId);
       if (!isObj(raw)) return;
       const questions = [
@@ -309,7 +309,7 @@ export class QuizStore {
       }
       const key = answer.toLowerCase();
       if (q.answer.accepted.some((a) => typeof a === "string" && a.trim().toLowerCase() === key)) return;
-      if (q.answer.accepted.length >= 50) return;
+      if (q.answer.accepted.length >= QUIZ_LIMITS.accepted) return;   // the file stays openable in the builder (LI-009)
       q.answer.accepted.push(answer);
       raw.updatedAt = this.stamp(updatedAt);
       this.write(raw);

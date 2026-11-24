@@ -155,11 +155,31 @@ export interface ValidateQuizOptions {
   mediaExists?: (file: string) => boolean;
 }
 
-const ROUND_ID = /^r-[a-z0-9]{8}$/;
-const QUESTION_ID = /^q-[a-z0-9]{8}$/;
-const QUIZ_ID = /^[a-z0-9-]{1,60}$/;
+export const ROUND_ID = /^r-[a-z0-9]{8}$/;
+export const QUESTION_ID = /^q-[a-z0-9]{8}$/;
+export const QUIZ_ID = /^[a-z0-9-]{1,60}$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const SAFE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+/** A media or asset file name inside a quiz's or theme's folder. */
+export const MEDIA_FILE = SAFE_FILE;
+
+/**
+ * The size limits of a quiz file (section 5.2). Readiness (`validateQuiz`) and the
+ * builder's draft check (`checkDraft` in src/server/quizzes/draft.ts) both use these, so
+ * a quiz that is ready to play always opens and saves in the builder (code review LI-009).
+ * The builder page (public/host/build/) mirrors them in its inputs.
+ */
+export const QUIZ_LIMITS = {
+  titleChars: 80,
+  rounds: 20,
+  roundTitleChars: 60,
+  questionsPerRound: 30,
+  suddenDeath: 20,
+  textChars: 300,      // question text, host note, image description
+  answerChars: 100,    // each accepted answer and each option
+  accepted: 50,        // accepted answers per typed question, also when marking adds them
+  options: 6,
+} as const;
 const COPY_KEY = /^[a-z][a-z0-9_]{0,39}$/;
 
 type Obj = Record<string, unknown>;
@@ -240,7 +260,7 @@ export function validateQuiz(json: unknown, opts: ValidateQuizOptions = {}): Qui
 
   const title = json.title;
   if (typeof title !== "string" || title.trim() === "") add("title", "The quiz has no title.");
-  else if (len(title) > 80) add("title", "The quiz title is longer than 80 characters.");
+  else if (len(title) > QUIZ_LIMITS.titleChars) add("title", `The quiz title is longer than ${QUIZ_LIMITS.titleChars} characters.`);
 
   const updatedAt = json.updatedAt;
   if (typeof updatedAt !== "string" || Number.isNaN(Date.parse(updatedAt))) add("updatedAt", "The quiz's saved time is missing or not a date.");
@@ -252,7 +272,7 @@ export function validateQuiz(json: unknown, opts: ValidateQuizOptions = {}): Qui
   if (!Array.isArray(json.rounds) || json.rounds.length === 0) {
     add("rounds", "The quiz has no rounds.");
   } else {
-    if (json.rounds.length > 20) add("rounds", "The quiz has more than 20 rounds.");
+    if (json.rounds.length > QUIZ_LIMITS.rounds) add("rounds", `The quiz has more than ${QUIZ_LIMITS.rounds} rounds.`);
     json.rounds.forEach((r, i) => {
       const round = validateRound(r, i, seenIds, opts, add);
       if (round) rounds.push(round);
@@ -267,7 +287,7 @@ export function validateQuiz(json: unknown, opts: ValidateQuizOptions = {}): Qui
   if (json.suddenDeath !== undefined) {
     if (!Array.isArray(json.suddenDeath)) add("suddenDeath", "The sudden-death questions must be a list.");
     else {
-      if (json.suddenDeath.length > 20) add("suddenDeath", "The quiz has more than 20 sudden-death questions.");
+      if (json.suddenDeath.length > QUIZ_LIMITS.suddenDeath) add("suddenDeath", `The quiz has more than ${QUIZ_LIMITS.suddenDeath} sudden-death questions.`);
       json.suddenDeath.forEach((q, i) => {
         const label = `Sudden-death question ${i + 1}`;
         const question = validateQuestion(q, `suddenDeath.${i}`, label, seenIds, opts, add);
@@ -294,7 +314,8 @@ export function validateQuiz(json: unknown, opts: ValidateQuizOptions = {}): Qui
   };
 }
 
-function validateSettings(v: unknown, add: (p: string, m: string) => void): QuizSettings {
+/** Checks quiz settings; missing ones take the defaults. Shared with the builder's draft check (LI-009). */
+export function validateSettings(v: unknown, add: (p: string, m: string) => void): QuizSettings {
   const s: QuizSettings = { ...DEFAULT_QUIZ_SETTINGS };
   if (v === undefined) return s;
   if (!isObj(v)) { add("settings", "The quiz settings are not a JSON object."); return s; }
@@ -349,12 +370,12 @@ function validateRound(v: unknown, i: number, seen: Set<string>, opts: ValidateQ
 
   const title = v.title === undefined ? "" : v.title;
   if (typeof title !== "string") { add(`${path}.title`, `${label}'s title must be text.`); ok = false; }
-  else if (len(title) > 60) { add(`${path}.title`, `${label}'s title is longer than 60 characters.`); ok = false; }
+  else if (len(title) > QUIZ_LIMITS.roundTitleChars) { add(`${path}.title`, `${label}'s title is longer than ${QUIZ_LIMITS.roundTitleChars} characters.`); ok = false; }
 
   const questions: Question[] = [];
   if (!Array.isArray(v.questions) || v.questions.length === 0) { add(`${path}.questions`, `${label} has no questions.`); ok = false; }
   else {
-    if (v.questions.length > 30) { add(`${path}.questions`, `${label} has more than 30 questions.`); ok = false; }
+    if (v.questions.length > QUIZ_LIMITS.questionsPerRound) { add(`${path}.questions`, `${label} has more than ${QUIZ_LIMITS.questionsPerRound} questions.`); ok = false; }
     v.questions.forEach((q, j) => {
       const question = validateQuestion(q, `${path}.questions.${j}`, `${label}, question ${j + 1}`, seen, opts, add);
       if (question) questions.push(question); else ok = false;
@@ -374,7 +395,7 @@ function validateQuestion(v: unknown, path: string, label: string, seen: Set<str
   else seen.add(v.id);
 
   if (typeof v.text !== "string" || v.text.trim() === "") err(`${path}.text`, `${label} has no question text.`);
-  else if (len(v.text) > 300) err(`${path}.text`, `${label}'s text is longer than 300 characters.`);
+  else if (len(v.text) > QUIZ_LIMITS.textChars) err(`${path}.text`, `${label}'s text is longer than ${QUIZ_LIMITS.textChars} characters.`);
 
   if (v.note !== undefined && (typeof v.note !== "string" || len(v.note) > 300)) err(`${path}.note`, `${label}'s host note must be text of at most 300 characters.`);
 
@@ -419,18 +440,21 @@ function validateAnswer(v: unknown, path: string, label: string, err: (p: string
       if (!Array.isArray(acc) || acc.length === 0 || acc.every((a) => typeof a === "string" && a.trim() === "")) {
         err(`${path}.accepted`, `${label} has no answer.`); return null;
       }
-      if (!acc.every((a) => typeof a === "string" && a.trim() !== "" && len(a) <= 100)) {
-        err(`${path}.accepted`, `${label} has an accepted answer that is empty or longer than 100 characters.`); return null;
+      if (acc.length > QUIZ_LIMITS.accepted) {
+        err(`${path}.accepted`, `${label} has more than ${QUIZ_LIMITS.accepted} accepted answers.`); return null;
+      }
+      if (!acc.every((a) => typeof a === "string" && a.trim() !== "" && len(a) <= QUIZ_LIMITS.answerChars)) {
+        err(`${path}.accepted`, `${label} has an accepted answer that is empty or longer than ${QUIZ_LIMITS.answerChars} characters.`); return null;
       }
       return { type: "text", accepted: acc as string[] };
     }
     case "choice": {
       const opts = v.options;
-      if (!Array.isArray(opts) || opts.length < 2 || opts.length > 6) {
-        err(`${path}.options`, `${label} needs 2 to 6 options.`); return null;
+      if (!Array.isArray(opts) || opts.length < 2 || opts.length > QUIZ_LIMITS.options) {
+        err(`${path}.options`, `${label} needs 2 to ${QUIZ_LIMITS.options} options.`); return null;
       }
-      if (!opts.every((o) => typeof o === "string" && o.trim() !== "" && len(o) <= 100)) {
-        err(`${path}.options`, `${label} has an option that is empty or longer than 100 characters.`); return null;
+      if (!opts.every((o) => typeof o === "string" && o.trim() !== "" && len(o) <= QUIZ_LIMITS.answerChars)) {
+        err(`${path}.options`, `${label} has an option that is empty or longer than ${QUIZ_LIMITS.answerChars} characters.`); return null;
       }
       if (!isInt(v.correct) || v.correct < 0 || v.correct >= opts.length) {
         err(`${path}.correct`, `${label} has no correct option picked.`); return null;

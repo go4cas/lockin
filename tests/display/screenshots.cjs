@@ -7,7 +7,7 @@
 // Needs Playwright with Chromium on the machine (a tool, not a dependency).
 // Until the routes exist on main, /vendor/*, /qr/join.svg (B8) and /media/q/* (B1)
 // are answered here from disk or with a placeholder, the same way the real server will.
-const { chromium } = require("playwright");
+const { chromium } = require("../../tools/browser/playwright.cjs");
 const fs = require("fs");
 const path = require("path");
 

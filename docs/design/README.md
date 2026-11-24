@@ -107,7 +107,7 @@ The console layout works both with the host on the TV laptop (extended display) 
 ```sh
 bun test docs/design                     # tokens, derivation, display CSS baseline (11 tests)
 bun docs/design/tools/sample-themes.ts   # regenerate the sample venue themes
-node docs/design/tools/render.js         # re-render every wireframe to docs/design/img (needs Playwright)
+node docs/design/tools/render.cjs         # re-render every wireframe to docs/design/img (needs Playwright)
 python3 docs/design/tools/distance.py in.png out.png 12 1.5   # back-of-room simulation (needs Pillow)
 ```
 

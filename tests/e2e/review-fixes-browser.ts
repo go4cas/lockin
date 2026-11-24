@@ -14,7 +14,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
-import { chromium, type Page } from "playwright";
+import { chromium, type Page } from "../../tools/browser/playwright.mjs";
 import { DEFAULT_QUIZ_SETTINGS, QUIZ_FORMAT, type QuizFile } from "../../src/shared/formats.ts";
 import { writeQuiz } from "../night/fakes.ts";
 import { tempDataDir } from "../helpers/process.ts";

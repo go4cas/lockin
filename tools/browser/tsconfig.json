@@ -1,0 +1,8 @@
+{
+  // The browser checks, typechecked with the real Playwright types pinned here (code review LI-018).
+  // Run with: bun run --cwd tools/browser typecheck
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "paths": { "/vendor/*": ["../../public/vendor/*"] } },
+  "include": ["../../tests/e2e/browser-night.ts", "../../tests/e2e/review-fixes-browser.ts", "../../tests/e2e/audit-batch2-browser.ts", "playwright.d.mts", "checks.ts", "../../src/server/types.d.ts"],
+  "exclude": []
+}
