@@ -158,3 +158,12 @@ button.primary:disabled {
   opacity: 0.6;
   cursor: default;
 }
+
+/* "Powered by Lock-In", linked to the source (AGPL-3.0 section 13), added by nav.js. */
+.host-credit {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  padding: 24px 16px 16px;
+}
+.host-credit a { color: inherit; }

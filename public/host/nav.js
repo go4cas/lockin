@@ -51,4 +51,20 @@
     }
   });
   nav.appendChild(out);
+
+  // "Powered by Lock-In", linked to the source (AGPL-3.0 section 13; the address is in shared/source.js).
+  const source = /** @type {any} */ (window).LockIn && /** @type {any} */ (window).LockIn.SOURCE_URL;
+  if (source) {
+    const credit = document.createElement("footer");
+    credit.className = "host-credit";
+    credit.appendChild(document.createTextNode("Powered by "));
+    const link = document.createElement("a");
+    link.href = source;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Lock-In";
+    credit.appendChild(link);
+    credit.appendChild(document.createTextNode(", free software under the AGPL-3.0"));
+    document.body.appendChild(credit);
+  }
 })();

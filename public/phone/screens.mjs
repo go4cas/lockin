@@ -101,7 +101,10 @@ const swap = (slot, key, build) => {
   return "";
 };
 
-const credit = () => html`<div class="credit">Powered by Lock-In</div>`;
+/** The credit links to Lock-In's source (AGPL-3.0 section 13; the address is in shared/source.js). */
+const credit = () => (W.LockIn.SOURCE_URL
+  ? html`<div class="credit">Powered by <a href="${W.LockIn.SOURCE_URL}" target="_blank" rel="noopener noreferrer">Lock-In</a></div>`
+  : html`<div class="credit">Powered by Lock-In</div>`);
 
 /** A host-voice line, or nothing (never carries information the team needs). */
 const voice = (/** @type {() => string | null} */ get) => html`${() => (get() ? html`<p class="voice">${() => get() ?? ""}</p>` : "")}`;

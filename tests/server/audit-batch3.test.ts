@@ -242,6 +242,18 @@ describe("SA-16: CI and release", () => {
   });
 });
 
+describe("AGPL section 13: the credit links to the source", () => {
+  const root = join(import.meta.dir, "../..");
+  test("the address is in one place, and every phone and console page loads it", () => {
+    expect(readFileSync(join(root, "public/shared/source.js"), "utf8")).toContain('LockIn.SOURCE_URL = "https://github.com/go4cas/lockin"');
+    for (const page of ["public/phone/index.html", "public/host/index.html", "public/host/run/index.html", "public/host/build/index.html", "public/host/brand/index.html", "public/host/history/index.html"]) {
+      expect(`${page}: ${readFileSync(join(root, page), "utf8").includes('src="/static/shared/source.js"')}`).toBe(`${page}: true`);
+    }
+    expect(readFileSync(join(root, "public/phone/screens.mjs"), "utf8")).toContain("LockIn.SOURCE_URL");
+    expect(readFileSync(join(root, "public/host/nav.js"), "utf8")).toContain("LockIn.SOURCE_URL");
+  });
+});
+
 // --- SA-17 ---------------------------------------------------------------------------------
 
 describe("SA-17: security events are logged, without secrets, at most once per type and IP per 10 s", () => {
