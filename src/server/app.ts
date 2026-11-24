@@ -19,6 +19,7 @@ import { register as registerDisplay } from "./display/index.ts";
 import { register as registerNight } from "./night/index.ts";
 import { register as registerPhone } from "./phone/index.ts";
 import { register as registerQr } from "./qr/index.ts";
+import type { DisplayPairing } from "./display/pairing.ts";
 import { register as registerQuizzes } from "./quizzes/index.ts";
 import { register as registerRules } from "./rules/index.ts";
 
@@ -36,6 +37,8 @@ export interface Services {
   copyPicker?: CopyPicker;
   /** B3: called by B1 when the host accepts a typed answer while marking (TECH-SPEC 5.2, B1). */
   quizStore?: { saveAcceptedAnswer(quizId: string, questionId: string, text: string): void | Promise<void> };
+  /** Display pairing (REVIEW finding 4): set by the display module. */
+  displayPairing?: DisplayPairing;
 }
 
 export interface App {

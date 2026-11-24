@@ -5,6 +5,7 @@ lockin-data/
 *.db-wal
 *.db-shm
 auth.json
+displays.json
 config.json
 setup-code
 dist/

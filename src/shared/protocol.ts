@@ -26,7 +26,7 @@ export const PROTOCOL = 1;
 export type Role = "host" | "display" | "team";
 
 export type ClientMsg =
-  | { t: "hello"; protocol: 1; role: Role; token?: string }    // token: team device token, if any
+  | { t: "hello"; protocol: 1; role: Role; token?: string }    // token: team device token, or the display's pairing token, if any
   | { t: "cmd"; id: number; name: CommandName; args: object }
   | { t: "ping"; c: number };                                  // c: client time
 
@@ -36,6 +36,7 @@ export type ServerMsg =
   | { t: "ack"; id: number; ok: true; result?: unknown }
   | { t: "ack"; id: number; ok: false; error: { code: ErrorCode; message: string } }
   | { t: "pong"; c: number; s: number }                        // s: server time
+  | { t: "paired"; token: string }                             // display only: it was paired; keep the token and send it in every hello
   | { t: "bye"; reason: "moved" | "removed" | "night_closed" | "signed_out" | "protocol" };
 
 export type CommandName =
@@ -45,6 +46,7 @@ export type CommandName =
   | "mark.group" | "mark.team" | "reveal.start" | "reveal.next" | "leaderboard.show"
   | "sd.start" | "sd.ask" | "sd.reveal" | "final.show"
   | "team.rename" | "team.remove" | "team.moveCode"
+  | "display.pair" | "display.unpairAll"
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
 export const COMMAND_NAMES: readonly CommandName[] = [
@@ -54,6 +56,7 @@ export const COMMAND_NAMES: readonly CommandName[] = [
   "mark.group", "mark.team", "reveal.start", "reveal.next", "leaderboard.show",
   "sd.start", "sd.ask", "sd.reveal", "final.show",
   "team.rename", "team.remove", "team.moveCode",
+  "display.pair", "display.unpairAll",
   "team.join", "team.rejoin", "joker.play", "answer.submit",
 ];
 
@@ -168,6 +171,8 @@ export interface DisplayView extends Common {
     standingsAt: number | null;              // server time the final standings replace the winner screen; null: waiting for the host's final.show
   } | null;
   lines: Lines;
+  /** Set while this display is not paired: show only this code (everything else is the idle view). */
+  pairing?: { code: string } | null;
 }
 
 export interface TeamSelf {
@@ -222,6 +227,8 @@ export interface HostView extends Common {
   finalStandingsAt: number | null;           // ended: server time the display moves from the winner to the final standings (null: waiting for final.show, or not ended)
   can: Partial<Record<CommandName, boolean>>; // which commands are allowed now, to enable buttons
   lines: Lines;                              // what the display is showing, for the host's reference
+  /** Display pairing: paired displays (stored), how many are connected now, and unpaired ones showing a code. */
+  displays?: { paired: number; connected: number; waiting: number };
 }
 
 export type View = HostView | DisplayView | TeamView;

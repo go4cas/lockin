@@ -59,7 +59,7 @@ export class Night {
   }
 
   async client(role: "host" | "display" | "team", label: string, token?: string, headers?: Record<string, string>): Promise<Labelled> {
-    const c = await connectClient({ wsUrl: this.p.wsUrl }, { role, cookie: role === "host" ? this.cookie : undefined, origin: this.p.publicUrl, headers }) as Labelled;
+    const c = await connectClient({ wsUrl: this.p.wsUrl }, { role, cookie: role !== "team" ? this.cookie : undefined, origin: this.p.publicUrl, headers }) as Labelled;
     c.role = role;
     c.label = `${label}#${this.restarts}`;
     this.all.push(c);

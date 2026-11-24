@@ -241,6 +241,7 @@ Not built until it is ranked again. Kept here so the work is known when it is:
 <dataDir>/
   config.json                  runtime config (4.2)
   auth.json                    host password hash (12.1); never in the repo
+  displays.json                paired display token hashes (12.6); never in the repo
   lockin.db                    SQLite: nights, teams, answers, history, sessions
   venue.json                   venue settings (5.4)
   theme/
@@ -728,7 +729,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `GET /sw.js` | B7 | Service worker (caches the app shell, never answers) |
 | `GET /media/q/:questionId` | B1 | A question's image for the open night: served to anyone only once the question has been shown; to host sessions always (so images cannot leak answers early) |
 | `GET /media/quiz/:quizId/:file` | B3 | Quiz media for the builder; host only |
-| `GET /qr/join.svg` | B8 | QR code for the join URL with the room code |
+| `GET /qr/join.svg` | B8 | QR code for the join URL with the room code. Host session, or a paired display's token as `?d=<token>` (12.6); anyone else gets 404 |
 | `GET /qr/display.svg` | B8 | QR code for the display address (host only) |
 | `GET /qr/move/:code.svg` | B8 | QR code for a move link (host only) |
 | `GET /api/ping` | B0 | `{ "app": "lockin", "version": "x.y.z" }` |
@@ -773,7 +774,7 @@ export const PROTOCOL = 1;
 export type Role = "host" | "display" | "team";
 
 export type ClientMsg =
-  | { t: "hello"; protocol: 1; role: Role; token?: string }    // token: team device token, if any
+  | { t: "hello"; protocol: 1; role: Role; token?: string }    // token: team device token, or the display's pairing token, if any
   | { t: "cmd"; id: number; name: CommandName; args: object }
   | { t: "ping"; c: number };                                  // c: client time
 
@@ -783,6 +784,7 @@ export type ServerMsg =
   | { t: "ack"; id: number; ok: true; result?: unknown }
   | { t: "ack"; id: number; ok: false; error: { code: ErrorCode; message: string } }
   | { t: "pong"; c: number; s: number }                        // s: server time
+  | { t: "paired"; token: string }                             // display only: it was paired (12.6); keep the token, send it in every hello
   | { t: "bye"; reason: "moved" | "removed" | "night_closed" | "signed_out" | "protocol" };
 
 export type CommandName =
@@ -792,6 +794,7 @@ export type CommandName =
   | "mark.group" | "mark.team" | "reveal.start" | "reveal.next" | "leaderboard.show"
   | "sd.start" | "sd.ask" | "sd.reveal" | "final.show"
   | "team.rename" | "team.remove" | "team.moveCode"
+  | "display.pair" | "display.unpairAll"                       // host only (12.6)
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
 export type ErrorCode =
@@ -813,6 +816,8 @@ export type ErrorCode =
 2. Server replies `welcome`, then `state`.
 3. After every change the server sends `state` to every affected connection. `seq` increases by one per change; a client ignores a `state` whose `seq` is lower than the last one it rendered.
 4. A connection that sends no `hello` within 5 s, or an unknown `protocol`, is closed.
+5. A `display` hello is paired if its `token` matches a paired display, or if the upgrade request carries a valid host session (the console's "Open display"; the server then sends `paired` with a new token). Otherwise it gets the unpaired view (12.6) until the host pairs it.
+6. An unbound `team` connection's view has `night.roomCode` and `night.joinUrl` set to `""`, no `questions` and no `suddenDeath` (12.6).
 
 ### 10.3 Views
 
@@ -917,6 +922,7 @@ export interface DisplayView extends Common {
     standingsAt: number | null;              // server time the final standings replace the winner screen; null: waiting for the host's final.show
   } | null;
   lines: Lines;
+  pairing?: { code: string } | null;         // set while this display is not paired (12.6): show only the code
 }
 
 export interface TeamSelf {
@@ -971,6 +977,7 @@ export interface HostView extends Common {
   finalStandingsAt: number | null;           // ended: server time the display moves from the winner to the final standings (null: waiting for final.show, or not ended)
   can: Partial<Record<CommandName, boolean>>; // which commands are allowed now, to enable buttons
   lines: Lines;                              // what the display is showing, for the host's reference
+  displays?: { paired: number; connected: number; waiting: number }; // display pairing (12.6)
 }
 ```
 
@@ -1007,7 +1014,7 @@ The engine builds the views after each change and sends: the display view once a
 
 - Each team has a **6-character rejoin code** from `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (no 0, O, 1, I or L), shown on the team's phone in a team menu.
 - `team.rejoin { code }` on another phone issues a new token, sends `bye { reason: "moved" }` to the old phone's connection and closes it, and **issues a new rejoin code**, so the old phone cannot take the team back with the code it showed.
-- Codes are compared case-insensitively. A connection gets 5 wrong tries per minute, then `too_many_tries`.
+- Codes are compared case-insensitively. A connection gets 5 wrong tries per minute, and a client IP (`CF-Connecting-IP`, as login) 10 across all its connections, then `too_many_tries` (REVIEW finding 5: before, reconnecting reset the count). The IP limit is higher because a pub's phones often share one address.
 
 ### 11.3 The host moves a team (H-06)
 
@@ -1017,7 +1024,7 @@ The engine builds the views after each change and sends: the display view once a
 ### 11.4 Display and host
 
 - The display and the console use the same reconnecting client and show a "reconnecting" overlay over the last view (T-11) after 2 s without a connection; it clears on the next `state`.
-- The display has no identity; any number of display connections may be open.
+- The display needs no sign-in, but must be paired once (12.6). Any number of paired displays may be connected.
 - A host connection whose session has expired or been signed out gets `bye { reason: "signed_out" }` and the console goes to the login page.
 
 ### 11.5 What each screen shows while offline
@@ -1064,6 +1071,19 @@ The repo is public, and Lock-In runs on the open internet. Threats that matter: 
 - No secrets exist in the repo or the binary. The host password and sessions live only in the data folder. (The Launch AI features will read an API key from an environment variable or a data-folder file, never the repo.)
 - `.gitignore` (B0) excludes `data/`, `*.db`, `auth.json`, `config.json` and `dist/`.
 - Test fixtures and the default theme use made-up venue names only.
+
+### 12.6 Display pairing and the room code (REVIEW finding 4, Cas 2026-11-24)
+
+The room code is what keeps strangers out of the night, so only screens in the pub get it.
+
+- An unpaired display connection gets the idle view plus `pairing: { code }`: a 4-digit code, unique among waiting displays, made per connection. It carries no night, room code, teams or questions.
+- The host types the code on the console (`display.pair { code }`, "Pair a display" on the run page, idle or lobby). The display gets `paired { token }` (32 random bytes, base64url), keeps it in `localStorage` (`lockin.display`) and sends it in every `hello`. The server stores only its SHA-256 in `<dataDir>/displays.json` (mode 0600). Wrong codes: 10 a minute, then `too_many_tries`.
+- A display opened from a browser signed in to the console is paired at once.
+- `display.unpairAll` forgets every paired display; connected ones go back to showing a code.
+- `HostView.displays = { paired, connected, waiting }` shows stored pairings, paired displays connected now, and unpaired ones showing a code.
+- `GET /qr/join.svg` needs a host session or `?d=<paired token>`.
+- Unbound team connections never see the room code or questions (10.2). Joining is lobby-only already (`joining_closed`).
+- What it does not stop: someone in the pub passing the room code on before Quiz Start. The host can remove teams in the lobby.
 
 ---
 

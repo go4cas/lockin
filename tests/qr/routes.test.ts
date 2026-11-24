@@ -30,15 +30,27 @@ function closeNights(): void {
   s.app.db.run("UPDATE nights SET status = 'ended'");
 }
 
-describe("/qr/join.svg (public)", () => {
+describe("/qr/join.svg (console and paired displays only: REVIEW finding 4)", () => {
   test("with no night open, it points at the join page", async () => {
-    expect(await qrText(await s.fetch("/qr/join.svg"))).toBe(`${TEST_PUBLIC_URL}/`);
+    expect(await qrText(await s.fetch("/qr/join.svg", { cookie }))).toBe(`${TEST_PUBLIC_URL}/`);
   });
 
   test("with a night open, it carries the room code", async () => {
     openNight("BCDF");
     try {
-      expect(await qrText(await s.fetch("/qr/join.svg"))).toBe(`${TEST_PUBLIC_URL}/j/BCDF`);
+      expect(await qrText(await s.fetch("/qr/join.svg", { cookie }))).toBe(`${TEST_PUBLIC_URL}/j/BCDF`);
+    } finally {
+      closeNights();
+    }
+  });
+
+  test("a visitor with no session and no paired-display token gets nothing; a paired display's token works", async () => {
+    openNight("GHJK");
+    try {
+      expect((await s.fetch("/qr/join.svg")).status).toBe(404);
+      expect((await s.fetch("/qr/join.svg?d=not-a-token")).status).toBe(404);
+      const token = s.app.services.displayPairing!.issue();
+      expect(await qrText(await s.fetch(`/qr/join.svg?d=${encodeURIComponent(token)}`))).toBe(`${TEST_PUBLIC_URL}/j/GHJK`);
     } finally {
       closeNights();
     }

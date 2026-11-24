@@ -5,6 +5,7 @@ import type {
   Common, DisplayView, Flash, HostTeam, HostView, Lines, MarkingQuestion, NightInfo, QuestionHost, QuestionPublic,
   RevealItem, Role, RoundInfo, Standings, SuddenDeathPublic, TeamAnswer, TeamChip, TeamView, TimerView, View,
 } from "../../shared/protocol.ts";
+import { emptyLines } from "../../shared/protocol.ts";
 import type { AnswerGroup, StandingRow } from "../../shared/rules-api.ts";
 import { FLASH_MS, TEAM_COLOURS, type Engine } from "./engine.ts";
 import { answerText, halftimeRound, inputOf, timerSecondsOf, valueKey, valueText } from "./quiz.ts";
@@ -245,17 +246,21 @@ function finalOf(e: Engine): DisplayView["final"] {
 export function teamView(e: Engine, teamId: string | null): TeamView {
   const base = { ...common(e), role: "team" as const };
   const team = e.m && teamId ? e.m.teams.get(teamId) : undefined;
+  const bound = !!team && team.removedAt === null;
+  // REVIEW finding 4: a phone that is not in a team gets no room code and no questions, so the
+  // socket can't be used to read the code or follow the quiz from outside the pub.
+  if (!bound && base.night) base.night = { ...base.night, roomCode: "", joinUrl: "" };
   if (!e.m) {
     return { ...base, flash: null, self: null, teams: [], questions: [], answers: [], standings: null, suddenDeath: null, lines: lines(e) };
   }
   const s = e.state;
   const active = team && team.removedAt === null ? team : undefined;
   let questions: QuestionPublic[] = [];
-  if (s.phase === "asking") {
+  if (s.phase === "asking" && bound) {
     const ids = e.quiz.settings.lockMode === "round" ? shownIds(e) : [e.currentQuestionId()].filter((x): x is string => !!x);
     questions = ids.map((id) => questionPublic(e, id));
   }
-  const sdv = suddenDeath(e);
+  const sdv = bound ? suddenDeath(e) : null;
   const answerIds = [...questions.map((q) => q.id), ...(sdv?.question ? [sdv.question.id] : [])];
   const answers: TeamAnswer[] = [];
   if (active) {
@@ -282,6 +287,15 @@ export function teamView(e: Engine, teamId: string | null): TeamView {
     standings: publicStandings(e),
     suddenDeath: sdv,
     lines: lines(e),
+  };
+}
+
+/** What an unpaired display sees: the idle screen with its pairing code, nothing of the night. */
+export function unpairedDisplayView(e: Engine, code: string): DisplayView {
+  return {
+    ...common(e), role: "display", phase: "idle", night: null, flash: null,
+    teams: [], question: null, lockedMoment: null, reveal: null, standings: null, suddenDeath: null, final: null,
+    lines: emptyLines(), pairing: { code },
   };
 }
 

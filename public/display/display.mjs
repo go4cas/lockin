@@ -23,6 +23,14 @@ const W = window;
 const LockIn = W.LockIn;
 /** The venue logo and tagline, filled into the page by GET /display. */
 const BRAND = pageBrand(document);
+/** Where the display keeps its pairing token (REVIEW finding 4). */
+const PAIR_KEY = "lockin.display";
+/** The token in memory too, for a browser that refuses localStorage (paired for this visit only). */
+let pairTokenMem = "";
+/** @returns {string} */
+function pairToken() {
+  try { return W.localStorage.getItem(PAIR_KEY) || pairTokenMem; } catch (e) { return pairTokenMem; }
+}
 
 // check.js has already shown the "browser too old" page; draw nothing.
 if (!W.LockInDisplayUnsupported) start();
@@ -62,6 +70,11 @@ function start() {
 
   client = LockIn.connect({
     role: "display",
+    getToken: function () { return pairToken() || null; },
+    onPaired: function (/** @type {string} */ token) {
+      pairTokenMem = token;
+      try { W.localStorage.setItem(PAIR_KEY, token); } catch (e) { /* private mode: paired for this visit only */ }
+    },
     onWelcome: function () { connections++; display.welcome(connections > 1); },
     onState: function (/** @type {DisplayView} */ view) {
       // A new theme: reload so the new logo, tagline and fonts show (a few seconds' blank at most).
@@ -274,7 +287,7 @@ function createDisplay(root, now) {
   function joinBlock(small) {
     return html`<div class="${small ? "join panel join-side" : "join join-main"}">
       ${small ? html`<div class="t-xs b join-title">Join now</div>` : ""}
-      <div class="qr"><img src="${() => "/qr/join.svg?r=" + withNight((n) => n.roomCode, "")}" alt=""></div>
+      <div class="qr"><img src="${() => "/qr/join.svg?r=" + withNight((n) => n.roomCode, "") + "&d=" + encodeURIComponent(pairToken())}" alt=""></div>
       <div class="join-url">${small ? "" : "Scan, or go to "}<b>${() => hostOf(withNight((n) => n.joinUrl, ""))}</b></div>
       ${small ? "" : html`<div class="code-label">Room code</div>`}
       <div class="code">${() => withNight((n) => n.roomCode, "")}</div>
@@ -304,6 +317,16 @@ function createDisplay(root, now) {
       ${BRAND.logo ? html`<img class="idle-logo" src="${BRAND.logo}" alt="">` : padlock("lock idle-mark")}
       <div class="t-xl b mt3 venue-name">${() => (page.view ? v().venue.name : "")}</div>
       <div class="display t-l mt2 status-colour">${BRAND.tagline}</div>
+    </div>`;
+  }
+
+  /** Not paired yet (REVIEW finding 4): only the pairing code, which the host types on the console. */
+  function pairingScreen() {
+    return html`<div class="display-main col center">
+      ${BRAND.logo ? html`<img class="idle-logo" src="${BRAND.logo}" alt="">` : padlock("lock idle-mark")}
+      <div class="t-l b mt3 venue-name">${() => (page.view ? v().venue.name : "")}</div>
+      <div class="t-s muted mt3">Quizmaster: to show the quiz here, type this code on the console under "Pair a display".</div>
+      <div class="pair-code mt2">${() => (page.view && v().pairing ? (v().pairing || { code: "" }).code : "")}</div>
     </div>`;
   }
 
@@ -766,6 +789,7 @@ function createDisplay(root, now) {
     connecting: connectingScreen,
     blank: function () { return html`<div class="display-main"></div>`; },
     idle: idleScreen,
+    pairing: pairingScreen,
     lobby: lobbyScreen,
     holding: holdingScreen,
     round: roundScreen,
@@ -823,7 +847,7 @@ function createDisplay(root, now) {
 
   const deadlock = () => page.screen.indexOf("dl-") === 0;
 
-  const app = html`<div class="${() => "display-screen" + (deadlock() ? " deadlock" : "") + (page.screen === "idle" || page.screen === "connecting" ? " bare" : "")}">
+  const app = html`<div class="${() => "display-screen" + (deadlock() ? " deadlock" : "") + (page.screen === "idle" || page.screen === "pairing" || page.screen === "connecting" ? " bare" : "")}">
     <div class="${() => "display-safe" + (page.status === "offline" ? " stale" : "")}">
       ${() => (deadlock() ? html`<div class="display-head">${() => html`<div class="dl-strip">${deadlockStrip()}</div>`}</div>` : head())}
       ${() => (SCREENS[page.screen] || idleScreen)()}

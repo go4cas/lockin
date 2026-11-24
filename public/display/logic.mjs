@@ -35,6 +35,7 @@ export const HOT_MS = 10000;
  */
 export function screenFor(view, now) {
   if (!view) return "connecting";
+  if (view.pairing) return "pairing";
   const night = view.night;
   switch (view.phase) {
     case "idle":

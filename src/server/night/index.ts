@@ -33,7 +33,8 @@ function sourcesFor(app: App): { sources: Sources; branding: BrandingLike | null
   };
 }
 import { historyList, historyNight } from "./store.ts";
-import { displayView, viewFor } from "./views.ts";
+import { displayView, unpairedDisplayView, viewFor } from "./views.ts";
+import { displayCommand, displaysSummary } from "../display/index.ts";
 
 /** The engine of each app, so tests can reach it (for example to run due timers on a fake clock). */
 export const engines = new WeakMap<App, { engine: Engine; scheduler: ClockScheduler }>();
@@ -72,6 +73,10 @@ export function register(app: App): void {
   let displayCache: { seq: number; at: number; view: ReturnType<typeof displayView> } | null = null;
   hub.setViewProvider((conn) => {
     engine.ensureRecovered();
+    if (conn.role === "display" && !conn.paired) {
+      // REVIEW finding 4: an unpaired display sees only its pairing code.
+      return { seq: engine.seq, view: unpairedDisplayView(engine, app.services.displayPairing?.codeFor(conn.id) ?? "") };
+    }
     if (conn.role === "display" || conn.role === null) {
       const now = app.clock.now();
       if (!displayCache || displayCache.seq !== engine.seq || Math.abs(now - displayCache.at) > 1_000) {
@@ -79,7 +84,9 @@ export function register(app: App): void {
       }
       return { seq: engine.seq, view: displayCache.view };
     }
-    return { seq: engine.seq, view: viewFor(engine, conn.role, conn.teamId) };
+    const view = viewFor(engine, conn.role, conn.teamId);
+    if (view.role === "host") view.displays = displaysSummary(app);
+    return { seq: engine.seq, view };
   });
   hub.setTeamTokenResolver((token) => engine.teamForToken(token));
 
@@ -109,6 +116,7 @@ export function register(app: App): void {
   };
 
   hub.setCommandHandler((conn, name, args) => {
+    if (name === "display.pair" || name === "display.unpairAll") return displayCommand(app, name, args);
     const actor = conn.role === "team" ? { role: "team" as const, teamId: conn.teamId, connId: conn.id, ip: conn.ip } : { role: "host" as const };
     submitter = conn;
     let result;

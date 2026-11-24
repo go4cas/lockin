@@ -92,6 +92,7 @@ export function idleScreen() {
       </div>
       <div><button type="submit" class="btn next inline" disabled="${() => !enabled("night.open") || !open.quizId}">Open the night</button></div>
     </form>
+    ${pairCard()}
   </div>`;
 }
 
@@ -107,6 +108,53 @@ function prizeRows(store) {
       <button type="button" class="btn ghost" aria-label="${`Remove the ${ordinal(i + 1)} place prize`}" @click="${() => { store.prizes.splice(i, 1); }}">×</button>
     </li>`)}</ol>
     <button type="button" class="btn ghost" @click="${() => { store.prizes.push({ text: "" }); }}">+ Add a prize</button>`;
+}
+
+// ---- Display pairing (REVIEW finding 4) -----------------------------------------
+
+const pair = reactive({ code: "", note: "", confirmUnpair: false });
+
+/** "1 display connected · 2 paired · 1 waiting for a code" from HostView.displays. */
+function displaysLine() {
+  const d = page.view && /** @type {any} */ (page.view).displays;
+  if (!d) return "";
+  const parts = [`${d.connected} paired ${d.connected === 1 ? "display" : "displays"} connected`];
+  if (d.waiting > 0) parts.push(`${d.waiting} waiting for a code`);
+  return parts.join(" · ");
+}
+
+const pairReady = (/** @type {string} */ name) => page.status === "online" && !ui.busy[name];
+
+/** Pair a display by the code it shows, see what is connected, unpair them all. */
+export function pairCard() {
+  const submit = async (/** @type {Event} */ e) => {
+    e.preventDefault();
+    const code = pair.code.replace(/\s+/g, "");
+    if (!/^[0-9]{4}$/.test(code)) { ui.error = "The display shows a 4-digit code. Type all four digits."; return; }
+    pair.note = "";
+    if ((await send("display.pair", { code })).ok) { pair.code = ""; pair.note = "Paired. The display shows the quiz now."; }
+  };
+  const unpair = async () => {
+    pair.confirmUnpair = false;
+    if ((await send("display.unpairAll", {})).ok) pair.note = "Every display is unpaired. Each one now shows a new code.";
+  };
+  return html`<section class="card pair-card">
+    <h3 class="label">Pair a display</h3>
+    <p class="muted s">A display shows nothing of the night until it is paired. Type the 4-digit code it shows. "Open display" from this browser is paired already.</p>
+    <form class="row" @submit="${submit}">
+      <input class="input pair-input" inputmode="numeric" autocomplete="off" maxlength="4" aria-label="Code shown on the display" placeholder="0000"
+        value="${() => pair.code}" @input="${(/** @type {Event} */ e) => { pair.code = /** @type {HTMLInputElement} */ (e.target).value; }}">
+      <button type="submit" class="btn primary" disabled="${() => !pairReady("display.pair")}">Pair</button>
+    </form>
+    <p class="s" hidden="${() => !pair.note}">${() => pair.note}</p>
+    <p class="muted s">${() => displaysLine()}</p>
+    <div class="row">
+      <button type="button" class="link" hidden="${() => pair.confirmUnpair}" @click="${() => { pair.confirmUnpair = true; }}">Unpair every display</button>
+      <span class="s" hidden="${() => !pair.confirmUnpair}">Every paired display goes back to showing a code.</span>
+      <button type="button" class="btn danger" hidden="${() => !pair.confirmUnpair}" disabled="${() => !pairReady("display.unpairAll")}" @click="${unpair}">Unpair all</button>
+      <button type="button" class="btn ghost" hidden="${() => !pair.confirmUnpair}" @click="${() => { pair.confirmUnpair = false; }}">Cancel</button>
+    </div>
+  </section>`;
 }
 
 // ---- Lobby -----------------------------------------------------------------
@@ -165,6 +213,7 @@ export function lobbyScreen() {
           <img class="qr small" src="/qr/display.svg" alt="${() => `QR code for ${ui.displayUrl}`}" width="88" height="88"></div>
       </section>
     </div>
+    ${pairCard()}
     <div class="two">
       <section class="card">
         <label class="label" for="lobby-planned">Planned start</label>
