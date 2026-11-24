@@ -2,7 +2,7 @@
 // Evidence for Review, not a pass/fail test (bun test does not run this file).
 //
 //   bun run fixtures --port 8091 &
-//   node tests/display/screenshots.cjs [baseUrl] [outDir]
+//   node tests/display/screenshots.cjs [baseUrl] [outDir]   (default outDir: docs/screenshots/b6)
 //
 // Needs Playwright with Chromium on the machine (a tool, not a dependency).
 // Until the routes exist on main, /vendor/*, /qr/join.svg (B8) and /media/q/* (B1)
@@ -13,7 +13,7 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "../..");
 const BASE = process.argv[2] || "http://localhost:8091";
-const OUT = path.resolve(process.argv[3] || path.join(__dirname, "screenshots"));
+const OUT = path.resolve(process.argv[3] || path.join(ROOT, "docs/screenshots/b6"));
 
 const PICTURE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><rect width="400" height="400" fill="#3a4a5c"/><circle cx="200" cy="200" r="120" fill="#e2cfa6"/><rect x="40" y="300" width="320" height="18" fill="#17191b"/><text x="200" y="215" font-size="36" text-anchor="middle" font-family="Arial" fill="#17191b">picture</text></svg>`;
 
