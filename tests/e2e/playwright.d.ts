@@ -14,6 +14,19 @@ declare module "playwright" {
     click(selector: string): Promise<void>;
     press(selector: string, key: string): Promise<void>;
     textContent(selector: string): Promise<string | null>;
+    // used by review-fixes-browser.ts
+    evaluate<R>(fn: () => R): Promise<R>;
+    inputValue(selector: string): Promise<string>;
+    locator(selector: string): Locator;
+    route(url: string, handler: (route: Route) => Promise<void> | void): Promise<void>;
+  }
+  export interface Locator {
+    locator(selector: string): Locator;
+    click(): Promise<void>;
+  }
+  export interface Route {
+    request(): { method(): string };
+    continue(): Promise<void>;
   }
   export interface BrowserContext {
     newPage(): Promise<Page>;
