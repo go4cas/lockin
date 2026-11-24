@@ -32,6 +32,7 @@ On Linux, CI uses `playwright install --with-deps chromium` to add the system li
 | `tests/e2e/browser-night.ts` (lock per question, then per round) | Integration: a real server, the console signs in on the login page, pairs the display, four phones join from the QR link and answer through their UI, the server is killed mid-question and every page reconnects, marking, reveal, sudden death, winner, history, close. |
 | `tests/e2e/review-fixes-browser.ts` | Integration: a silent network (LI-001), a picture changed between two nights (LI-003), a phone draft across nights (LI-008), a branding save race (LI-007). |
 | `tests/e2e/audit-batch2-browser.ts` | Integration: a TV paired by code fetches its QR with the token in a header, never in a URL (SA-11); "Open display" from the console is paired by the session with no token (D5); one display unpaired from the console's list; sign-out unpairs the console's display. |
+| `tests/e2e/ui-bugs-browser.ts` | Integration: the UI bugs found on real devices (docs/UI-BUGS.md), one check each. |
 | `tests/display/stress.cjs` | Stress: 400 random phase changes per seed on the display, through the fixture server. |
 
 Each fails on a page error, a console error, a failed request or a screen that does not move on.

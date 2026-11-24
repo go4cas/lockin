@@ -1,12 +1,12 @@
 // @ts-check
 // Idle (open a night) and lobby screens (H-05, H-06, H-15, H-17 on the console).
 import { html, reactive } from "/vendor/arrow/index.mjs";
-import { cleanPrizes, hhmm, ordinal, pairedDisplayLine, plannedFromInput } from "./logic.js";
+import { cleanPrizes, hhmm, ordinal, pairedDisplayLine, plannedFromInput, plural } from "./logic.js";
 import { closeDialog, enabled, getJson, openDialog, page, send, serverNow, ui } from "./state.js";
 import { lobbyTeams } from "./teams.js";
 import { dialogFrame, pool } from "./ui.js";
 
-/** @typedef {{ id: string, title: string, rounds: number, questions: number, updatedAt: number, ready: boolean, problems: string[] }} QuizRow */
+/** @typedef {{ id: string, title: string, rounds: number, questions: number, updatedAt: number, ready: boolean, problems: { path: string, message: string }[] }} QuizRow */
 
 // ---- Idle: open a night ----------------------------------------------------
 
@@ -73,9 +73,9 @@ export function idleScreen() {
             <input type="radio" name="quiz" value="${() => q()?.id || ""}" checked="${() => !!q() && open.quizId === q()?.id}" disabled="${() => !q()?.ready}"
               @change="${() => { const x = q(); if (x) open.quizId = x.id; }}">
             <span class="q-title">${() => q()?.title || ""}</span>
-            <span class="muted s">${() => `${q()?.rounds ?? 0} rounds · ${q()?.questions ?? 0} questions`}</span>
+            <span class="muted s">${() => `${plural(q()?.rounds ?? 0, "round")} · ${plural(q()?.questions ?? 0, "question")}`}</span>
             <span class="pill ok" hidden="${() => !q()?.ready}"><i></i>Ready</span><span class="pill warn" hidden="${() => !!q()?.ready}"><i></i>Not ready</span>
-            <span class="problems s" hidden="${() => !!q()?.ready}">${() => (q()?.problems || []).slice(0, 2).join(" ")}</span>
+            <span class="problems s" hidden="${() => !!q()?.ready}">${() => (q()?.problems || []).slice(0, 2).map((p) => p.message).join(" ")}</span>
           </label></li>`)}</ul>
       </section>
       <div class="two">

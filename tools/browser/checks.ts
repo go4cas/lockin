@@ -37,6 +37,7 @@ results.push(["night, lock per question", await step("night, lock per question",
 results.push(["night, lock per round", await step("night, lock per round", ["bun", "tests/e2e/browser-night.ts", join(OUT, "night-round"), "round"])]);
 results.push(["review fixes", await step("review fixes", ["bun", "tests/e2e/review-fixes-browser.ts", join(OUT, "review-fixes")])]);
 results.push(["audit batch 2", await step("audit batch 2", ["bun", "tests/e2e/audit-batch2-browser.ts", join(OUT, "audit-batch2")])]);
+results.push(["ui bugs", await step("ui bugs", ["bun", "tests/e2e/ui-bugs-browser.ts", join(OUT, "ui-bugs")])]);
 
 const port = 18500 + Math.floor(Math.random() * 1000);
 const fixtures = await startFixtureServer(port, () => {});
