@@ -4,11 +4,14 @@
 import { html } from "/vendor/arrow/index.mjs";
 import { acceptedList, clockText, plural, steps, timerLeft } from "./logic.js";
 import { markingPanel } from "./marking.js";
-import { page } from "./state.js";
+import { page, toggleHideAnswers, ui } from "./state.js";
 import { cmdButton, dot, pool } from "./ui.js";
 
 /** @typedef {import("../../../src/shared/protocol").QuestionHost} QuestionHost */
 /** @typedef {import("../../../src/shared/protocol").TimerView} TimerView */
+
+/** Hover text on a blurred answer. */
+const secretTitle = () => (ui.hideAnswers ? "Hidden on this screen. Tap to see it for a few seconds." : "");
 
 /** The step pills: Q1 locked, Q2 timer running, …, Mark, Reveal, Leaderboard. */
 export function stepsLine() {
@@ -25,9 +28,10 @@ export function questionBlock(q) {
   return html`<div class="question">
     <img class="q-img" hidden="${() => !q()?.image}" src="${() => q()?.image || ""}" alt="The question's picture">
     <p class="qbig">${() => q()?.text || ""}</p>
-    <p class="ans"><span class="tick" aria-hidden="true">✓</span> Answer: <b>${() => q()?.answerText || ""}</b>
-      <span class="muted s" hidden="${() => alts().length === 0}">${() => `Also accepted: ${alts().join(", ")}`}</span></p>
-    <div class="card note" hidden="${() => !q()?.note}"><b>Note:</b> ${() => q()?.note || ""}</div>
+    <p class="ans"><span class="tick" aria-hidden="true">✓</span> Answer: <b class="secret" title="${secretTitle}">${() => q()?.answerText || ""}</b>
+      <span class="muted s secret" hidden="${() => alts().length === 0}">${() => `Also accepted: ${alts().join(", ")}`}</span>
+      <button type="button" class="btn ghost small reveal-btn" aria-pressed="${() => (ui.hideAnswers ? "true" : "false")}" @click="${toggleHideAnswers}">${() => (ui.hideAnswers ? "Show answers on this screen" : "Hide answers on this screen")}</button></p>
+    <div class="card note" hidden="${() => !q()?.note}"><b>Note:</b> <span class="secret">${() => q()?.note || ""}</span></div>
   </div>`;
 }
 
@@ -78,7 +82,7 @@ function scriptList() {
   return html`<section class="card script">
     <h3 class="label">This round</h3>
     <ol class="script-list">${pool(() => (page.view?.round ? page.view.round.questions : []), (q) => html`<li class="${() => (q()?.status === "locked" ? "done" : "")}" hidden="${() => !q()}">
-      <span class="q">${() => q()?.text || ""}</span> <span class="a">${() => q()?.answerText || ""}</span></li>`)}</ol>
+      <span class="q">${() => q()?.text || ""}</span> <span class="a secret">${() => q()?.answerText || ""}</span></li>`)}</ol>
   </section>`;
 }
 
@@ -104,6 +108,6 @@ function openSoFar() {
   return html`<section class="card script">
     <h3 class="label">Shown so far</h3>
     <ol class="script-list">${pool(() => (page.view?.round ? page.view.round.questions.slice(0, page.view.round.shown) : []), (q) => html`<li hidden="${() => !q()}">
-      <span class="q">${() => q()?.text || ""}</span> <span class="a">${() => q()?.answerText || ""}</span> <span class="muted s">${() => `${q()?.answered ?? 0} of ${q()?.of ?? 0}`}</span></li>`)}</ol>
+      <span class="q">${() => q()?.text || ""}</span> <span class="a secret">${() => q()?.answerText || ""}</span> <span class="muted s">${() => `${q()?.answered ?? 0} of ${q()?.of ?? 0}`}</span></li>`)}</ol>
   </section>`;
 }

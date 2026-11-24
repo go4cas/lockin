@@ -44,7 +44,7 @@ export function markQuestion(get) {
     <p class="muted" hidden="${() => !!get()}">Nothing to mark yet.</p>
     <p class="label">${() => { const x = get(); const r = page.view?.night?.round; return x ? (x.question.roundIndex < 0 ? `Deadlock question ${x.question.number}` : `Question ${x.question.number}${r ? ` of ${r.questionCount}` : ""}`) : ""; }}</p>
     <p class="q-text">${() => get()?.question.text || ""}</p>
-    <p class="s">Accepted: <b class="accepted">${() => { const x = get(); return x ? acceptedList(x.question).join(", ") : ""; }}</b></p>
+    <p class="s">Accepted: <b class="accepted secret">${() => { const x = get(); return x ? acceptedList(x.question).join(", ") : ""; }}</b></p>
     <p class="muted s">${() => (get()?.question.answer.type === "text"
       ? "Exact matches are already marked right. Each answer below is marked once for every team that gave it. Accepting adds it to this question's accepted answers in the quiz, so it is right next time too."
       : "Marked automatically. Change a group if the quiz's answer was wrong.")}</p>

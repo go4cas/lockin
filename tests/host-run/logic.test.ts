@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   acceptedList, answerValueText, can, cleanPrizes, clockText, displayNow, endAction, ordinal, pickMarkingQuestion,
-  plannedFromInput, primaryAction, sortGroups, steps, timerLeft, topTitle,
+  HIDE_ANSWERS_KEY, moveMark, plannedFromInput, primaryAction, sortGroups, steps, timerLeft, topTitle,
 } from "../../public/host/run/logic.js";
 import { COMMAND_NAMES, PHASES, type CommandName, type HostView } from "../../src/shared/protocol.ts";
 import { NOW, textGroups, timer } from "../fixtures/views/_data.ts";
@@ -41,7 +41,7 @@ describe("primaryAction picks the obvious next step", () => {
   const expected: Record<string, CommandName | null> = {
     idle: null, lobby: "quiz.start", round_intro: "round.start", asking: "lock", "asking-round": "lock",
     reveal: "reveal.next", leaderboard: "round.next", "leaderboard-30": "round.next", "leaderboard-last": "sd.start",
-    halftime: "round.next", sudden_death: "sd.reveal", ended: "night.close",
+    halftime: "round.next", sudden_death: "sd.reveal", ended: "final.show",
   };
   for (const [name, cmd] of Object.entries(expected)) {
     test(`${name} -> ${cmd}`, () => expect(primaryAction(view(name))?.name ?? null).toBe(cmd));
@@ -86,6 +86,40 @@ describe("primaryAction picks the obvious next step", () => {
     const v = view("lobby");
     v.can = {};
     expect(primaryAction(v)).toBeNull();
+  });
+});
+
+describe("after the winner (venue setting, B6)", () => {
+  test("timer mode: the button skips the wait and says when the display moves on", () => {
+    const v = view("ended");
+    v.finalStandingsAt = NOW + 12_000;
+    v.can = { ...v.can, "final.show": true };
+    expect(primaryAction(v, NOW)).toMatchObject({ name: "final.show", label: "Show the final standings", hint: "The display moves on by itself in 12 s." });
+    expect(displayNow(v)).not.toBe("The final standings.");
+  });
+
+  test("host mode: no countdown, the host moves on", () => {
+    const v = view("ended");
+    v.finalStandingsAt = null;
+    v.can = { ...v.can, "final.show": true };
+    expect(primaryAction(v, NOW)?.hint).toBe("The winner is on the display. Move on when the room is ready.");
+  });
+
+  test("once the standings show, the next step is closing the night", () => {
+    const v = view("ended");
+    v.can = { ...v.can, "final.show": false };
+    expect(primaryAction(v, NOW)?.name).toBe("night.close");
+    expect(displayNow(v)).toBe("The final standings.");
+  });
+});
+
+describe("standings movement", () => {
+  test("up, down, same, and nothing after the first round", () => {
+    expect(moveMark({ position: 1, prevPosition: 3 })).toEqual({ text: "▲2", cls: "up", label: "Up 2 places" });
+    expect(moveMark({ position: 4, prevPosition: 3 })).toEqual({ text: "▼1", cls: "down", label: "Down 1 place" });
+    expect(moveMark({ position: 2, prevPosition: 2 }).text).toBe("–");
+    expect(moveMark({ position: 2, prevPosition: null }).text).toBe("");
+    expect(moveMark(undefined).text).toBe("");
   });
 });
 
@@ -187,6 +221,29 @@ describe("console code", () => {
   test("every host command in TECH-SPEC 7.2 has a control", () => {
     const hostCommands = COMMAND_NAMES.filter((c) => !["team.join", "team.rejoin", "joker.play", "answer.submit"].includes(c));
     for (const c of hostCommands) expect(code).toContain(`"${c}"`);
+  });
+
+  test("hide answers: every place the console shows an answer before the reveal can blur", () => {
+    const asking = readFileSync(join(dir, "asking.js"), "utf8");
+    expect(asking).toContain(`Answer: <b class="secret"`);
+    expect(asking.match(/class="a secret"/g)?.length).toBe(2);   // the round script and "shown so far"
+    expect(asking).toContain(`<span class="secret">\${() => q()?.note`);
+    expect(readFileSync(join(dir, "marking.js"), "utf8")).toContain(`class="accepted secret"`);
+    const css = readFileSync(join(dir, "run.css"), "utf8");
+    expect(css).toContain(".hide-answers .secret:not([data-peek])");
+    expect(HIDE_ANSWERS_KEY).toBe("lockin.host.hideAnswers");
+  });
+
+  test("hide answers is remembered on the device and survives storage being blocked", () => {
+    const state = readFileSync(join(dir, "state.js"), "utf8");
+    expect(state).toMatch(/try \{\s*return localStorage\.getItem\(HIDE_ANSWERS_KEY\) === "1";/);
+    expect(state).toMatch(/try \{\s*localStorage\.setItem\(HIDE_ANSWERS_KEY/);
+  });
+
+  test("no list or conditional removes live templates (Arrow 1.0.6 safety)", () => {
+    // Lists go through pool(); conditional templates are toggled with hidden instead.
+    expect(code).not.toMatch(/\.map\([^)]*\) => html`[\s\S]{0,400}?`\.key\(/);
+    expect(code).not.toMatch(/\? html`/);
   });
 
   test("Arrow comes from the vendored path only", () => {

@@ -1251,6 +1251,6 @@ Done when:
 ## 15. Open questions
 
 1. **The pilot pub's TV.** Cas reports a modern smart TV with a streaming or casting device attached (2026-11-24), so either can show the display. The make and model of both (or the browser version in the TV's settings) confirm they meet the display baseline (1.2, 3.3) and decide which setups are tested there before `v1.0.0`. Cas to confirm later.
-2. **"Hide answers" switch on the console (1.1).** A guard against a mirrored display showing the console. Small, but a scope addition, so it needs Cas's yes before Design or B5 adds it.
+2. **"Hide answers" switch on the console (1.1).** Decided (Cas, 2026-11-24): yes, in v1. B5 adds it on the console only (H-08); no protocol change.
 3. **Round win when everyone scores 0 (8.3).** This spec says such a round has no winner. Cas to confirm.
 4. **Fallback display for older TVs (Later).** The display supports modern browsers only (1.2). If users report TVs below the baseline after launch, a vanilla, classic-script fallback display page could be added, chosen by the same check that B6 adds. Not planned for `v1.0.0`; Cas decides if it is needed.

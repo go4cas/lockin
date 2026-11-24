@@ -211,3 +211,17 @@ tr.offline .tname b { color: var(--color-warning); }
   .answered { margin-left: 0; }
 }
 .host-main > .stage { padding: 0; }
+
+/* Standings movement, like the display: up, down, same. */
+td.move, th.move { width: 48px; font-weight: var(--weight-bold); white-space: nowrap; }
+td.move.up { color: var(--color-correct); }
+td.move.down, td.move.same { color: var(--color-text-muted); }
+
+/* "Hide answers on this screen" (Cas, 2026-11-24): answers blur until tapped. */
+.reveal-btn { margin-left: 12px; font-size: var(--host-text-s); }
+.hide-answers .secret:not([data-peek]) {
+  filter: blur(0.45em);
+  cursor: pointer;
+  user-select: none;
+}
+.hide-answers .secret:not([data-peek]):hover { filter: blur(0.35em); }

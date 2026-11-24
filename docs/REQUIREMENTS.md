@@ -340,6 +340,7 @@ Done when:
 - In per-question lock mode, the host starts the timer when ready; when it ends, that question locks (S-04). The host can also lock early.
 - The host can pause and resume the timer and add 15 seconds, and the display and phones follow within 1 second (plus display lag).
 - When every team has answered, the console says so; the timer keeps running until it ends or the host locks.
+- "Hide answers on this screen" (added with Cas's yes, 2026-11-24): a switch next to the answer and in the Night menu blurs every answer on the console (the answer, other accepted answers, the host note, the round script and the marking "Accepted" line) until the host taps one to see it for a few seconds. The choice is remembered on that device. It guards against a console that is mirrored or faces the room; nothing changes on the display or phones.
 
 #### H-09 Run a per-round lock (MVP · N2)
 

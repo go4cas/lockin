@@ -8,7 +8,7 @@ import { displayNow, endAction, primaryAction, topTitle } from "./logic.js";
 import { idleEnter, idleScreen, lobbyEnter, lobbyScreen, openDisplay, prizesDialog } from "./lobby.js";
 import { markingScreen, pendingNote } from "./marking.js";
 import { disputeDialog, endedScreen, halftimeScreen, leaderboardScreen, loadDetail, revealScreen } from "./results.js";
-import { closeDialog, enabled, openDialog, page, send, setClient, ui } from "./state.js";
+import { closeDialog, enabled, openDialog, page, send, setClient, toggleHideAnswers, ui } from "./state.js";
 import { moveDialog, offlineCount, removeDialog, renameDialog, sideTeams, teamDialog, teamsDialog } from "./teams.js";
 import { cmdButton, dialogFrame, mountParts, nextButton } from "./ui.js";
 
@@ -70,7 +70,7 @@ function sidePanel() {
     <div class="sec muted s" hidden="${() => page.screen !== "lobby"}">Joining closes when you start. Teams that drop out can still rejoin.</div>
     <div class="sec s" hidden="${() => page.screen !== "marking"}"><b>${pendingNote}</b><p class="muted">The reveal waits until every answer is marked.</p></div>
     <div hidden="${() => !(page.view?.night && page.view.phase !== "lobby")}">${sideTeams(() => page.view?.phase === "asking" && !!page.view.current && page.view.current.status === "open")}</div>
-    ${nextButton(() => primaryAction(page.view))}
+    ${nextButton(() => primaryAction(page.view, page.now))}
     <div class="sec secondary" hidden="${() => page.screen !== "marking" && page.screen !== "reveal"}">${cmdButton("leaderboard.show", "Skip the reveal, go to the leaderboard", { cls: "ghost wide" })}</div>
   </aside>`;
 }
@@ -90,6 +90,7 @@ function menuDialog() {
     <button type="button" class="${() => (endAction(page.view)?.tone === "danger" ? "btn danger" : "btn")}" hidden="${() => !endAction(page.view)}"
       @click="${() => { const a = endAction(page.view); if (a) openDialog("confirmEnd", { action: a }); }}">${() => endAction(page.view)?.label || ""}</button>
     <button type="button" class="btn danger" hidden="${() => !(page.view?.phase === "lobby" && enabled("night.close"))}" @click="${() => openDialog("closeNight")}">Close the night without starting</button>
+    <button type="button" class="btn" aria-pressed="${() => (ui.hideAnswers ? "true" : "false")}" @click="${toggleHideAnswers}">${() => (ui.hideAnswers ? "Show answers on this screen" : "Hide answers on this screen")}</button>
     <a class="btn ghost" href="/host">Back to the console menu</a>
   </div>`);
 }
@@ -116,7 +117,7 @@ function closeNightDialog() {
 
 html`${banners()}
   ${topBar()}
-  <div class="${() => `runbody${page.screen === "idle" || page.screen === "loading" ? " no-side" : ""}${page.status === "offline" ? " is-offline" : ""}`}">
+  <div class="${() => `runbody${page.screen === "idle" || page.screen === "loading" ? " no-side" : ""}${page.status === "offline" ? " is-offline" : ""}${ui.hideAnswers ? " hide-answers" : ""}`}">
     <main class="main" id="host-main"></main>
     ${sidePanel()}
   </div>
@@ -158,6 +159,16 @@ setClient(client);
 
 // Timers count down from the view's locksAt with the shared clock (10.6).
 setInterval(() => { page.now = client.clock.now(); }, 250);
+
+// "Hide answers on this screen": tapping a blurred answer shows it for a few seconds.
+// The mark is a data attribute, so Arrow's own class updates never undo it.
+document.addEventListener("click", (e) => {
+  if (!ui.hideAnswers) return;
+  const el = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest?.(".secret"));
+  if (!el || el.hasAttribute("data-peek")) return;
+  el.setAttribute("data-peek", "");
+  setTimeout(() => el.removeAttribute("data-peek"), 5000);
+});
 
 // Escape closes a dialog from anywhere on the page.
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && ui.dialog) closeDialog(); });

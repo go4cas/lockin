@@ -3,7 +3,7 @@
 // from the standings (H-13). Earlier rounds' marks come from GET /api/history/:nightId,
 // which also answers for the open night (TECH-SPEC 9.2, agreed with Cas 2026-11-24).
 import { html, reactive } from "/vendor/arrow/index.mjs";
-import { ordinal, plural } from "./logic.js";
+import { moveMark, ordinal, plural } from "./logic.js";
 import { stepsLine } from "./asking.js";
 import { enabled, getJson, openDialog, page, send, ui } from "./state.js";
 import { dialogFrame, dot, pool } from "./ui.js";
@@ -103,9 +103,10 @@ export function revealScreen() {
 export function standingsTable() {
   const rows = () => (page.view && page.view.standings ? page.view.standings.rows : []);
   return html`<table class="standings">
-    <thead><tr><th class="pos">#</th><th>Team</th><th class="num">This round</th><th class="num">Total</th><th></th><th class="right"><span class="visually-hidden">Marks</span></th></tr></thead>
+    <thead><tr><th class="pos">#</th><th class="move"><span class="visually-hidden">Movement</span></th><th>Team</th><th class="num">This round</th><th class="num">Total</th><th></th><th class="right"><span class="visually-hidden">Marks</span></th></tr></thead>
     <tbody>${pool(rows, (x) => html`<tr hidden="${() => !x()}">
       <td class="pos">${() => { const y = x(); return y ? `${ordinal(y.position)}${y.shared ? "=" : ""}` : ""; }}</td>
+      <td class="${() => `move ${moveMark(x()).cls}`}" title="${() => moveMark(x()).label}"><span aria-hidden="true">${() => moveMark(x()).text}</span><span class="visually-hidden">${() => moveMark(x()).label}</span></td>
       <td><span class="tname">${dot(() => x()?.colour || 1)}<b>${() => x()?.name || ""}</b>
         <span class="pill joker" hidden="${() => !x()?.jokerThisRound}">Joker</span></span></td>
       <td class="num">${() => String(x()?.roundScore ?? "")}</td>

@@ -3,7 +3,7 @@
 // console's own short-lived state (open dialog, typed text, busy buttons), so a new
 // view never closes a dialog or clears a field the host is typing in.
 import { reactive } from "/vendor/arrow/index.mjs";
-import { can } from "./logic.js";
+import { can, HIDE_ANSWERS_KEY } from "./logic.js";
 
 /** @typedef {import("../../../src/shared/protocol").HostView} HostView */
 /** @typedef {import("../../../src/shared/protocol").CommandName} CommandName */
@@ -34,7 +34,27 @@ export const ui = reactive({
   plannedDirty: false,
   /** Server info for the display address (B8's /api/server). */
   displayUrl: "",
+  /** "Hide answers on this screen": blurs answers until tapped. Remembered on this device. */
+  hideAnswers: readHideAnswers(),
 });
+
+function readHideAnswers() {
+  try {
+    return localStorage.getItem(HIDE_ANSWERS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Turns "Hide answers on this screen" on or off and remembers it on this device. */
+export function toggleHideAnswers() {
+  ui.hideAnswers = !ui.hideAnswers;
+  try {
+    localStorage.setItem(HIDE_ANSWERS_KEY, ui.hideAnswers ? "1" : "0");
+  } catch {
+    /* private window: the switch still works until the page is closed */
+  }
+}
 
 /** @type {any} */
 let client = null;

@@ -48,7 +48,7 @@ function roundNo(view) {
  * @param {HostView | null} view
  * @returns {Action | null}
  */
-export function primaryAction(view) {
+export function primaryAction(view, now = 0) {
   if (!view) return null;
   const night = view.night;
   const round = night && night.round;
@@ -111,6 +111,8 @@ export function primaryAction(view) {
       break;
     }
     case "ended":
+      options.push({ name: "final.show", args: {}, label: "Show the final standings",
+        hint: view.finalStandingsAt ? `The display moves on by itself in ${Math.max(0, Math.ceil((view.finalStandingsAt - now) / 1000))} s.` : "The winner is on the display. Move on when the room is ready." });
       options.push({ name: "night.close", args: {}, label: "Close the night", hint: "The display goes back to the venue's waiting screen." });
       break;
     case "idle":
@@ -247,7 +249,7 @@ export function displayNow(view) {
       if (!sd) return "Deadlock.";
       return sd.status === "waiting" ? "Deadlock: who is in it." : `Deadlock · question ${sd.questionNumber} · ${sd.status === "open" ? "answering" : sd.status}.`;
     }
-    case "ended": return l.winner || "The winner and final standings.";
+    case "ended": return view.can["final.show"] ? (l.winner || "The winner.") : "The final standings.";
     default: return "";
   }
 }
@@ -378,3 +380,20 @@ export function answerValueText(v) {
   }
   return "an answer";
 }
+
+/**
+ * The movement arrow for a standings row, like the display's: up, down or the same as
+ * after the round before. Nothing after the first round.
+ * @param {{ position: number, prevPosition?: number | null } | undefined} row
+ * @returns {{ text: string, cls: string, label: string }}
+ */
+export function moveMark(row) {
+  if (!row || row.prevPosition === null || row.prevPosition === undefined) return { text: "", cls: "", label: "" };
+  const d = row.prevPosition - row.position;
+  if (d > 0) return { text: `▲${d}`, cls: "up", label: `Up ${plural(d, "place")}` };
+  if (d < 0) return { text: `▼${-d}`, cls: "down", label: `Down ${plural(-d, "place")}` };
+  return { text: "–", cls: "same", label: "Same place" };
+}
+
+/** The device setting key for "Hide answers on this screen". */
+export const HIDE_ANSWERS_KEY = "lockin.host.hideAnswers";
