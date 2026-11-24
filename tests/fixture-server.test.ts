@@ -14,7 +14,7 @@ afterAll(() => server.stop(true));
 describe("scripts/fixture-server.ts", () => {
   test("lists every fixture", async () => {
     const html = await (await fetch(`${base}/fixtures`)).text();
-    expect(html).toContain("/tv?fixture=tv%2Fleaderboard-20");
+    expect(html).toContain("/display?fixture=display%2Fleaderboard-20");
     expect(html).toContain("/?fixture=team%2Flobby");
     expect(html).toContain("/host/run?fixture=host%2Fmarking");
   });
@@ -26,7 +26,7 @@ describe("scripts/fixture-server.ts", () => {
   });
 
   test("the WebSocket sends the named fixture, with server time starting at the fixture's time", async () => {
-    const c = await connectClient({ wsUrl: `ws://127.0.0.1:${server.port}/ws?fixture=tv/leaderboard-20` }, { origin: null });
+    const c = await connectClient({ wsUrl: `ws://127.0.0.1:${server.port}/ws?fixture=display/leaderboard-20` }, { origin: null });
     const { welcome, state } = await c.hello();
     expect(welcome.serverNow - NOW).toBeLessThan(2000);
     expect(state.view.phase).toBe("leaderboard");
@@ -36,7 +36,7 @@ describe("scripts/fixture-server.ts", () => {
   });
 
   test("an unknown fixture is refused", async () => {
-    const res = await fetch(`${base}/ws?fixture=tv/nope`);
+    const res = await fetch(`${base}/ws?fixture=display/nope`);
     expect(res.status).toBe(404);
   });
 });

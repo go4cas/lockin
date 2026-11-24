@@ -53,7 +53,7 @@ th { font-size: 12px; color: var(--color-text-muted); height: 32px; text-transfo
 .teams { display: flex; flex-direction: column; overflow: hidden; }
 .tm { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: var(--host-text-s); border-bottom: 1px solid var(--color-line); }
 .tm .n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-bold); }
-.tvprev { aspect-ratio: 16 / 9; border-radius: var(--radius-s); background: var(--color-bg); border: 1px solid var(--color-line); display: grid; place-items: center; text-align: center; font-size: 12px; color: var(--color-text-muted); }
+.displayprev { aspect-ratio: 16 / 9; border-radius: var(--radius-s); background: var(--color-bg); border: 1px solid var(--color-line); display: grid; place-items: center; text-align: center; font-size: 12px; color: var(--color-text-muted); }
 .next-wrap { margin-top: auto; padding: var(--host-space-3); border-top: 1px solid var(--color-line); display: flex; flex-direction: column; gap: 8px; }
 .steps-line { display: flex; gap: 6px; flex-wrap: wrap; }
 .steps-line span { font-size: 12px; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--color-surface-2); color: var(--color-text-muted); }

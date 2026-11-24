@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lock-In TV wireframes</title>
+<title>Lock-In display wireframes</title>
 <link rel="stylesheet" href="../tokens.css">
 <link rel="stylesheet" href="base.css">
-<link rel="stylesheet" href="tv.css">
+<link rel="stylesheet" href="display.css">
 <style>
   /* wireframe-only: venue name shown next to the logo, set by sample themes */
   :root { --wf-venue: "Quiz night"; }
-  .tv-logo span::after { content: var(--wf-venue); }
+  .display-logo span::after { content: var(--wf-venue); }
 </style>
 <script src="wf.js"></script>
 </head>
@@ -24,21 +24,21 @@
 </svg>
 
 <!-- T-01 waiting screen: no night open -->
-<section class="screen" id="idle"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"></div>
-  <div class="tv-main col center">
+<section class="screen" id="idle"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"></div>
+  <div class="display-main col center">
     <svg class="lock" style="color:var(--color-text);width:26vh;height:31vh" viewBox="0 0 100 120"><use href="#mark"/></svg>
     <div class="t-xl b mt3 venue-name">Quiz night</div>
     <div class="display t-l mt2" style="color:var(--color-status)">The quiz that stays open late.</div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-02 lobby -->
-<section class="screen" id="lobby"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Starting soon</div></div>
-  <div class="tv-main row">
-    <div class="join" style="width:44vh;margin-right:var(--tv-space-5)">
+<section class="screen" id="lobby"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Starting soon</div></div>
+  <div class="display-main row">
+    <div class="join" style="width:44vh;margin-right:var(--display-space-5)">
       <div class="qr"><img src="qr-placeholder.svg" alt="" style="width:100%;height:100%"></div>
       <div class="join-url">Scan, or go to <b>quiz.example.com</b></div>
       <div class="code-label">Room code</div>
@@ -55,33 +55,33 @@
       </div>
     </div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Tequila Mockingbird just joined. Fresh legs.</div><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Tequila Mockingbird just joined. Fresh legs.</div><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-12 holding page, countdown panel -->
-<section class="screen" id="holding-countdown"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div></div>
-  <div class="tv-main row">
+<section class="screen" id="holding-countdown"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div></div>
+  <div class="display-main row">
     <div class="grow col center">
       <div class="t-s muted">The quiz starts in</div>
       <div class="timer num" style="font-size:30vh;color:var(--color-text)">12:34</div>
       <div class="t-s">at <b>19:30</b> &middot; <b>6 teams</b> ready</div>
       <div class="slots"><i class="now"></i><i></i><i></i><i></i></div>
     </div>
-    <div class="join panel" style="width:46vh;margin-left:var(--tv-space-4)">
-      <div class="t-xs b" style="margin-bottom:var(--tv-space-2)">Join now</div>
+    <div class="join panel" style="width:46vh;margin-left:var(--display-space-4)">
+      <div class="t-xs b" style="margin-bottom:var(--display-space-2)">Join now</div>
       <div class="qr" style="width:34vh;height:34vh"><img src="qr-placeholder.svg" alt="" style="width:100%;height:100%"></div>
       <div class="join-url">quiz.example.com</div>
-      <div class="code" style="font-size:var(--tv-text-xl)">KXBT</div>
+      <div class="code" style="font-size:var(--display-text-xl)">KXBT</div>
     </div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Warming up the questions. Warm up your brain.</div><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Warming up the questions. Warm up your brain.</div><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-12 holding page, home-screen guide panel -->
-<section class="screen" id="holding-homescreen"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Starts in <b class="num">12:34</b></div></div>
-  <div class="tv-main row" style="align-items:center">
+<section class="screen" id="holding-homescreen"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Starts in <b class="num">12:34</b></div></div>
+  <div class="display-main row" style="align-items:center">
     <div class="phone-mock mr4"><div class="bar"><i></i><i class="hl"></i><i></i><i></i></div></div>
     <div class="grow col">
       <div class="t-l b">Put the quiz on your home screen</div>
@@ -92,20 +92,20 @@
       </div>
       <div class="slots" style="justify-content:flex-start"><i></i><i class="now"></i><i></i><i></i></div>
     </div>
-    <div class="join panel" style="width:46vh;margin-left:var(--tv-space-4)">
-      <div class="t-xs b" style="margin-bottom:var(--tv-space-2)">Join now</div>
+    <div class="join panel" style="width:46vh;margin-left:var(--display-space-4)">
+      <div class="t-xs b" style="margin-bottom:var(--display-space-2)">Join now</div>
       <div class="qr" style="width:34vh;height:34vh"><img src="qr-placeholder.svg" alt="" style="width:100%;height:100%"></div>
       <div class="join-url">quiz.example.com</div>
-      <div class="code" style="font-size:var(--tv-text-xl)">KXBT</div>
+      <div class="code" style="font-size:var(--display-text-xl)">KXBT</div>
     </div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- Round intro (H-08, P-04): round title, jokers played -->
-<section class="screen" id="round-intro"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>3</b> of 6</div></div>
-  <div class="tv-main col center">
+<section class="screen" id="round-intro"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>3</b> of 6</div></div>
+  <div class="display-main col center">
     <div class="t-xs muted">Round 3</div>
     <div class="t-hero b" style="font-size:18vh">Movies</div>
     <div class="display t-l mt3" style="color:var(--color-status)">Round 3. Heads together.</div>
@@ -114,62 +114,62 @@
       <div class="chips" data-render="lobbyChips" data-n="2" data-from="1" data-joker="1"></div>
     </div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Double or nothing for The Usual Suspects.</div><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Double or nothing for The Usual Suspects.</div><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-03 question, short text -->
-<section class="screen" id="question"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>3</b> Movies <div class="tv-pips"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div></div></div>
-  <div class="tv-main row" style="padding-bottom:4vh">
+<section class="screen" id="question"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>3</b> Movies <div class="display-pips"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div></div></div>
+  <div class="display-main row" style="padding-bottom:4vh">
     <div class="grow col" style="justify-content:center">
       <div class="t-xs muted">Question 2</div>
       <div class="q-text t-l mt2">Which film won the first ever Academy Award for Best Picture?</div>
     </div>
-    <div class="col center" style="width:34vh;margin-left:var(--tv-space-4)">
+    <div class="col center" style="width:34vh;margin-left:var(--display-space-4)">
       <div class="timer">42</div>
       <div class="answered mt2"><b>4</b> of 6 answered</div>
     </div>
     <div class="timerbar"><b style="transform:scaleX(0.7)"></b></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-03 question, 200 characters, text only (size step m) -->
-<section class="screen" id="question-long"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>1</b> General knowledge <div class="tv-pips"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div></div></div>
-  <div class="tv-main row" style="padding-bottom:4vh">
+<section class="screen" id="question-long"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>1</b> General knowledge <div class="display-pips"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div></div></div>
+  <div class="display-main row" style="padding-bottom:4vh">
     <div class="grow col" style="justify-content:center">
       <div class="t-xs muted">Question 3</div>
       <div class="q-text t-m mt2">This harbour city sits at the foot of a flat-topped mountain, and its stadium was built for a World Cup. Ferries leave from its waterfront for an island prison. Name the city that we are describing.</div>
     </div>
-    <div class="col center" style="width:30vh;margin-left:var(--tv-space-4)">
+    <div class="col center" style="width:30vh;margin-left:var(--display-space-4)">
       <div class="timer">51</div>
       <div class="answered mt2"><b>2</b> of 6 answered</div>
     </div>
     <div class="timerbar"><b style="transform:scaleX(0.85)"></b></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-03 question, 200 characters with a picture -->
-<section class="screen" id="question-image"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>4</b> Picture round <div class="tv-pips"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div></div></div>
-  <div class="tv-main row" style="padding-bottom:4vh;align-items:center">
+<section class="screen" id="question-image"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>4</b> Picture round <div class="display-pips"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div></div></div>
+  <div class="display-main row" style="padding-bottom:4vh;align-items:center">
     <div class="q-img"><span>Picture (fits, never cropped)</span></div>
     <div class="grow col">
-      <div class="row" style="align-items:baseline"><div class="t-xs muted grow">Question 4</div><div class="timer" style="font-size:var(--tv-text-xl)">55</div></div>
+      <div class="row" style="align-items:baseline"><div class="t-xs muted grow">Question 4</div><div class="timer" style="font-size:var(--display-text-xl)">55</div></div>
       <div class="q-text t-s mt2">This harbour city sits at the foot of a flat-topped mountain, and its stadium was built for a World Cup. Ferries leave from its waterfront for an island prison. Name the city in the photo.</div>
       <div class="answered mt3"><b>1</b> of 6 answered</div>
     </div>
     <div class="timerbar"><b style="transform:scaleX(0.92)"></b></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-03 multiple choice -->
-<section class="screen" id="question-mc"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>2</b> Science <div class="tv-pips"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div></div></div>
-  <div class="tv-main row" style="padding-bottom:4vh">
+<section class="screen" id="question-mc"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>2</b> Science <div class="display-pips"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div></div></div>
+  <div class="display-main row" style="padding-bottom:4vh">
     <div class="grow col" style="justify-content:center">
       <div class="t-xs muted">Question 3</div>
       <div class="q-text t-m mt1">Which planet has the most moons?</div>
@@ -178,71 +178,71 @@
         <div class="opt"><b>C</b>Uranus</div><div class="opt"><b>D</b>Neptune</div>
       </div>
     </div>
-    <div class="col center" style="width:30vh;margin-left:var(--tv-space-4)">
+    <div class="col center" style="width:30vh;margin-left:var(--display-space-4)">
       <div class="timer">18</div>
       <div class="answered mt2"><b>5</b> of 6 answered</div>
     </div>
     <div class="timerbar"><b style="transform:scaleX(0.3)"></b></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-03 last 10 seconds -->
-<section class="screen" id="last-seconds"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>3</b> Movies <div class="tv-pips"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div></div></div>
-  <div class="tv-main row" style="padding-bottom:4vh">
+<section class="screen" id="last-seconds"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>3</b> Movies <div class="display-pips"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div></div></div>
+  <div class="display-main row" style="padding-bottom:4vh">
     <div class="grow col" style="justify-content:center">
       <div class="t-xs muted">Question 2</div>
       <div class="q-text t-l mt2">Which film won the first ever Academy Award for Best Picture?</div>
     </div>
-    <div class="col center" style="width:34vh;margin-left:var(--tv-space-4)">
+    <div class="col center" style="width:34vh;margin-left:var(--display-space-4)">
       <div class="timer hot pulse">7</div>
       <div class="answered mt2"><b>5</b> of 6 answered</div>
     </div>
     <div class="timerbar hot"><b style="transform:scaleX(0.12)"></b></div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Gut feeling time.</div><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Gut feeling time.</div><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-04 answers locked -->
-<section class="screen" id="locked"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>3</b> Movies <div class="tv-pips"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div></div></div>
-  <div class="tv-main col center">
+<section class="screen" id="locked"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>3</b> Movies <div class="display-pips"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div></div></div>
+  <div class="display-main col center">
     <div style="position:relative;display:flex;align-items:center;justify-content:center"><div class="ring still"></div><div data-render="padlock" data-cls="lock snap"></div></div>
     <div class="t-xl b mt3" style="color:var(--color-lock)">Answers locked</div>
     <div class="display t-l mt1">Too late to Google now.</div>
     <div class="answered mt2"><b>5</b> of 6 teams answered</div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- Marking: waiting while the host marks (P-03 / H-10) -->
-<section class="screen" id="marking"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>3</b> Movies</div></div>
-  <div class="tv-main col center">
+<section class="screen" id="marking"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>3</b> Movies</div></div>
+  <div class="display-main col center">
     <div data-render="padlock" data-cls="lock" data-style="width:20vh;height:24vh"></div>
     <div class="t-xl b mt3">Round 3 is in</div>
     <div class="t-s muted mt1">The quizmaster is marking. Answers next.</div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Brace yourselves.</div><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Brace yourselves.</div><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-05 reveal -->
-<section class="screen" id="reveal"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>3</b> answers <div class="tv-pips"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div></div></div>
-  <div class="tv-main col" style="justify-content:center">
+<section class="screen" id="reveal"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>3</b> answers <div class="display-pips"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div></div></div>
+  <div class="display-main col" style="justify-content:center">
     <div class="t-xs muted">Question 2</div>
     <div class="t-m mt1 muted">Which film won the first ever Academy Award for Best Picture?</div>
     <div class="t-xl answer mt3"><svg class="tick"><use href="#tick"/></svg>Wings</div>
     <div class="tally"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i></i><i></i><span><b style="color:var(--color-text)">4 of 6</b> teams got it</span></div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Let's see who was paying attention.</div><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Let's see who was paying attention.</div><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-05 reveal, multiple choice -->
-<section class="screen" id="reveal-mc"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Round <b>2</b> answers <div class="tv-pips"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div></div></div>
-  <div class="tv-main col" style="justify-content:center">
+<section class="screen" id="reveal-mc"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Round <b>2</b> answers <div class="display-pips"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div></div></div>
+  <div class="display-main col" style="justify-content:center">
     <div class="t-xs muted">Question 3</div>
     <div class="q-text t-m mt1">Which planet has the most moons?</div>
     <div class="opts">
@@ -251,53 +251,53 @@
     </div>
     <div class="tally" style="margin-top:0"><i class="ok"></i><i class="ok"></i><i></i><i></i><i></i><i></i><span><b style="color:var(--color-text)">2 of 6</b> teams got it</span></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-06 leaderboard, 6 teams, mid-reveal (bottom up) -->
-<section class="screen" id="leaderboard-reveal"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">After round <b>3</b> of 6</div></div>
-  <div class="tv-main col">
-    <div class="t-xl b" style="margin-bottom:var(--tv-space-2)">Leaderboard</div>
+<section class="screen" id="leaderboard-reveal"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">After round <b>3</b> of 6</div></div>
+  <div class="display-main col">
+    <div class="t-xl b" style="margin-bottom:var(--display-space-2)">Leaderboard</div>
     <div class="lb"><div class="lb-col" data-render="board" data-n="6" data-hide="2"></div></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-06 leaderboard, 6 teams, complete, with tie breaker and joker -->
-<section class="screen" id="leaderboard"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">After round <b>3</b> of 6</div></div>
-  <div class="tv-main col">
-    <div class="t-xl b" style="margin-bottom:var(--tv-space-2)">Leaderboard</div>
+<section class="screen" id="leaderboard"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">After round <b>3</b> of 6</div></div>
+  <div class="display-main col">
+    <div class="t-xl b" style="margin-bottom:var(--display-space-2)">Leaderboard</div>
     <div class="lb"><div class="lb-col" data-render="board" data-n="6"></div></div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">All change at the top. Hello, Les Quizerables.</div><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">All change at the top. Hello, Les Quizerables.</div><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-06 leaderboard, 20 teams in two columns -->
-<section class="screen" id="leaderboard-20"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">After round <b>5</b> of 6 &nbsp;&middot;&nbsp; <b>20</b> teams</div></div>
-  <div class="tv-main col">
+<section class="screen" id="leaderboard-20"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">After round <b>5</b> of 6 &nbsp;&middot;&nbsp; <b>20</b> teams</div></div>
+  <div class="display-main col">
     <div class="lb dense"><div class="lb-col" data-render="board" data-n="20" data-slice="0,10"></div><div class="lb-col" data-render="board" data-n="20" data-slice="10,20"></div></div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Too close to call.</div><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Too close to call.</div><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-06 leaderboard, 30 teams: page 2 of 2 (positions 21-30), shown first in the bottom-up reveal -->
-<section class="screen" id="leaderboard-30"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">After round <b>5</b> of 6 &nbsp;&middot;&nbsp; places <b>21&ndash;30</b> of 30 &nbsp;&middot;&nbsp; top 20 next</div></div>
-  <div class="tv-main col">
+<section class="screen" id="leaderboard-30"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">After round <b>5</b> of 6 &nbsp;&middot;&nbsp; places <b>21&ndash;30</b> of 30 &nbsp;&middot;&nbsp; top 20 next</div></div>
+  <div class="display-main col">
     <div class="lb dense"><div class="lb-col" data-render="board" data-n="30" data-slice="20,25"></div><div class="lb-col" data-render="board" data-n="30" data-slice="25,30"></div></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-07 halftime -->
-<section class="screen" id="halftime"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Halftime &middot; round <b>4</b> next</div></div>
-  <div class="tv-main row">
+<section class="screen" id="halftime"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Halftime &middot; round <b>4</b> next</div></div>
+  <div class="display-main row">
     <div class="grow col">
-      <div class="display" style="font-size:var(--tv-text-xxl);line-height:0.9;color:var(--color-lock)">Halftime</div>
+      <div class="display" style="font-size:var(--display-text-xxl);line-height:0.9;color:var(--color-lock)">Halftime</div>
       <div class="display t-l mt2">Get your orders in.</div>
       <div class="grow"></div>
       <div class="panel">
@@ -305,15 +305,15 @@
         <div class="prizes"><div class="prize"><b>1st</b>R300 bar tab</div><div class="prize" style="border:0"><b>2nd</b>A round of shots</div></div>
       </div>
     </div>
-    <div class="lb dense" style="width:52vw;flex:none;margin-left:var(--tv-space-4)"><div class="lb-col" data-render="board" data-n="6" data-compact="1"></div></div>
+    <div class="lb dense" style="width:52vw;flex:none;margin-left:var(--display-space-4)"><div class="lb-col" data-render="board" data-n="6" data-compact="1"></div></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-08 sudden death: Deadlock intro -->
-<section class="screen" id="deadlock-intro"><div class="tv deadlock"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-strip" style="color:#999">After 6 rounds &middot; for <b style="color:#fff">1st place</b></div></div>
-  <div class="tv-main col center">
+<section class="screen" id="deadlock-intro"><div class="display-screen deadlock"><div class="display-safe">
+  <div class="display-head"><div class="display-strip" style="color:#999">After 6 rounds &middot; for <b style="color:#fff">1st place</b></div></div>
+  <div class="display-main col center">
     <div class="dl-sub">Sudden death</div>
     <div class="dl-word mt1">Dead<em>lock</em></div>
     <div class="chain mt3" style="width:70vw"></div>
@@ -323,31 +323,31 @@
       <div class="side"><div class="nm">Agatha Quiztie</div><div class="t-xs" style="color:#aaa">31 pts &middot; 2 round wins</div></div>
     </div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Level on points, level on round wins. One question at a time.</div><div class="tv-credit" style="color:#777">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Level on points, level on round wins. One question at a time.</div><div class="display-credit" style="color:#777">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-08 sudden death question -->
-<section class="screen" id="deadlock-question"><div class="tv deadlock"><div class="tv-safe">
-  <div class="tv-head"><div class="dl-sub" style="font-size:var(--tv-text-xs)">Deadlock &middot; sudden death</div><div class="tv-strip" style="color:#999">Question <b style="color:#fff">1</b> of up to 3 <div class="dl-pips" style="margin-left:2vh"><i></i><i></i><i></i></div></div></div>
-  <div class="tv-main col" style="padding-bottom:4vh">
+<section class="screen" id="deadlock-question"><div class="display-screen deadlock"><div class="display-safe">
+  <div class="display-head"><div class="dl-sub" style="font-size:var(--display-text-xs)">Deadlock &middot; sudden death</div><div class="display-strip" style="color:#999">Question <b style="color:#fff">1</b> of up to 3 <div class="dl-pips" style="margin-left:2vh"><i></i><i></i><i></i></div></div></div>
+  <div class="display-main col" style="padding-bottom:4vh">
     <div class="row grow" style="align-items:center">
       <div class="q-text t-l grow">In what year did the Berlin Wall fall?</div>
-      <div class="timer pulse" style="margin-left:var(--tv-space-4)">23</div>
+      <div class="timer pulse" style="margin-left:var(--display-space-4)">23</div>
     </div>
     <div class="vs" style="margin-bottom:2vh">
       <div class="side"><div class="t-m b">Les Quizerables</div><span class="state in">Answered</span></div>
-      <div class="mid" style="font-size:var(--tv-text-m)">vs</div>
+      <div class="mid" style="font-size:var(--display-text-m)">vs</div>
       <div class="side"><div class="t-m b">Agatha Quiztie</div><span class="state">Thinking&hellip;</span></div>
     </div>
     <div class="timerbar"><b style="transform:scaleX(0.4)"></b></div>
   </div>
-  <div class="tv-foot"><div class="tv-credit" style="color:#777">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit" style="color:#777">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-08 sudden death result: decided -->
-<section class="screen" id="deadlock-result"><div class="tv deadlock"><div class="tv-safe">
-  <div class="tv-head"><div class="dl-sub" style="font-size:var(--tv-text-xs)">Deadlock &middot; sudden death</div><div class="tv-strip" style="color:#999">Question <b style="color:#fff">2</b> of up to 3 <div class="dl-pips" style="margin-left:2vh"><i class="done"></i><i class="done"></i><i></i></div></div></div>
-  <div class="tv-main col center">
+<section class="screen" id="deadlock-result"><div class="display-screen deadlock"><div class="display-safe">
+  <div class="display-head"><div class="dl-sub" style="font-size:var(--display-text-xs)">Deadlock &middot; sudden death</div><div class="display-strip" style="color:#999">Question <b style="color:#fff">2</b> of up to 3 <div class="dl-pips" style="margin-left:2vh"><i class="done"></i><i class="done"></i><i></i></div></div></div>
+  <div class="display-main col center">
     <div class="t-s" style="color:#aaa">In what year did the Berlin Wall fall?</div>
     <div class="t-xl answer mt1"><svg class="tick"><use href="#tick"/></svg>1989</div>
     <div class="vs mt4">
@@ -357,46 +357,46 @@
     </div>
     <div class="t-l b mt4">Les Quizerables take 1st place</div>
   </div>
-  <div class="tv-foot"><div class="tv-voice">Deadlock broken. Les Quizerables held their nerve.</div><div class="tv-credit" style="color:#777">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-voice">Deadlock broken. Les Quizerables held their nerve.</div><div class="display-credit" style="color:#777">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-09 winner -->
-<section class="screen" id="winner"><div class="tv"><div class="tv-safe">
+<section class="screen" id="winner"><div class="display-screen"><div class="display-safe">
   <div class="burst"></div>
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Final result</div></div>
-  <div class="tv-main col center" style="position:relative">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Final result</div></div>
+  <div class="display-main col center" style="position:relative">
     <div class="display t-l" style="color:var(--color-lock)">Champions</div>
     <div class="row mt2" style="align-items:center"><i style="display:block;width:7vh;height:7vh;border-radius:50%;background:var(--team-3);margin-right:3vh"></i><div class="crown-name" style="font-size:16vh">Les Quizerables</div></div>
     <div class="t-m mt2"><b class="num">31</b> points</div>
     <div class="display t-l mt3" style="color:var(--color-status)">Champions: Les Quizerables. Insufferable until next week.</div>
     <div class="panel mt4 t-s"><b style="color:var(--color-joker)">1st prize</b> &nbsp; R300 bar tab</div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-09 final standings with last place and goodbye -->
-<section class="screen" id="final"><div class="tv"><div class="tv-safe">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="tv-strip">Final standings</div></div>
-  <div class="tv-main row">
+<section class="screen" id="final"><div class="display-screen"><div class="display-safe">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div><div class="display-strip">Final standings</div></div>
+  <div class="display-main row">
     <div class="lb dense" style="width:58vw;flex:none"><div class="lb-col" data-render="board" data-n="6" data-final="1"></div></div>
-    <div class="grow col" style="margin-left:var(--tv-space-4);justify-content:flex-end">
+    <div class="grow col" style="margin-left:var(--display-space-4);justify-content:flex-end">
       <div class="display t-m muted">Wooden spoon to Quiz Khalifa. Wear it proudly.</div>
       <div class="display t-l mt4" style="color:var(--color-status)">That's a wrap. Same time next week?</div>
     </div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div></div></section>
 
 <!-- T-11 reconnecting over the last screen -->
-<section class="screen" id="reconnecting"><div class="tv"><div class="tv-safe stale">
-  <div class="tv-head"><div class="tv-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div></div>
-  <div class="tv-main row" style="padding-bottom:4vh">
+<section class="screen" id="reconnecting"><div class="display-screen"><div class="display-safe stale">
+  <div class="display-head"><div class="display-logo"><svg viewBox="0 0 100 120" style="color:var(--color-text)"><use href="#mark"/></svg><span></span></div></div>
+  <div class="display-main row" style="padding-bottom:4vh">
     <div class="grow col" style="justify-content:center">
       <div class="t-xs muted">Question 2</div>
       <div class="q-text t-l mt2">Which film won the first ever Academy Award for Best Picture?</div>
     </div>
   </div>
-  <div class="tv-foot"><div class="tv-credit">Powered by <b>Lock-In</b></div></div>
+  <div class="display-foot"><div class="display-credit">Powered by <b>Lock-In</b></div></div>
 </div><div class="reconnect"><i></i>Reconnecting&hellip;</div></div></section>
 
 <script>

@@ -169,9 +169,9 @@ export function suddenDeath(status: SuddenDeathPublic["status"], over: Partial<S
   };
 }
 
-/** Empty TV fields; a fixture spreads this and sets what its phase shows. */
-export function tvBase() {
-  return { role: "tv" as const, teams: [] as TeamChip[], question: null, lockedMoment: null, reveal: null, standings: null, suddenDeath: null, final: null };
+/** Empty display fields; a fixture spreads this and sets what its phase shows. */
+export function displayBase() {
+  return { role: "display" as const, teams: [] as TeamChip[], question: null, lockedMoment: null, reveal: null, standings: null, suddenDeath: null, final: null };
 }
 
 /** Empty team fields; a fixture spreads this and sets what its phase shows. */

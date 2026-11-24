@@ -13,9 +13,9 @@
   --brand-on-accent-2: #1c140f;
   --brand-accent-soft: #3e2e18;
   --brand-accent-2-soft: #30332b;
-  --brand-tv-bg: #1c140f;
-  --brand-tv-bg-image: none;
-  --brand-tv-scrim: rgba(0, 0, 0, 0);
+  --brand-display-bg: #1c140f;
+  --brand-display-bg-image: none;
+  --brand-display-scrim: rgba(0, 0, 0, 0);
   --brand-font-display: "Alfa Slab One", "Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --wf-venue: "The Example Arms"; /* wireframe only */
 }

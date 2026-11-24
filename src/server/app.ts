@@ -52,7 +52,7 @@ export interface App {
   /** Runs when the server stops. */
   onStop(fn: () => void | Promise<void>): void;
   log(message: string): void;
-  /** The full join/TV base address, e.g. "https://quiz.example.com". */
+  /** The full join/display base address, e.g. "https://quiz.example.com". */
   readonly publicUrl: string;
 }
 

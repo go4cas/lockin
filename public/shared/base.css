@@ -1,6 +1,6 @@
 /*
- * Base styles shared by the TV, phone and host console.
- * TV baseline (TECH-SPEC 3.3): flexbox and custom properties only; no grid,
+ * Base styles shared by the display, phone and host console.
+ * Display baseline (TECH-SPEC 3.3): flexbox and custom properties only; no grid,
  * no flex gap, no clamp()/min()/max(), no :is()/:where().
  */
 *,

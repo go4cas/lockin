@@ -13,9 +13,9 @@
  *                                    following branding.md section "Derived tokens"
  *   2. Fixed tokens: Lock-In's own values (team colours, status, motion,
  *      radii). Not on the branding screen in v1.0.0.
- *   3. Surface scales: TV (vh units), phone and host (px/rem units).
+ *   3. Surface scales: display (vh units), phone and host (px/rem units).
  *
- * TV rule: tokens and TV CSS must work on the Chromium 56 / Safari 11 baseline
+ * Display rule: tokens and display CSS must work on the Chromium 56 / Safari 11 baseline
  * (TECH-SPEC). So no color-mix(), clamp(), min(), max() anywhere in this file;
  * every value is resolved. Plain var() and calc() are fine.
  */
@@ -41,10 +41,10 @@
   --brand-accent-soft: #412a27;   /* @derived D6 mix(bg, accent, 18%) */
   --brand-accent-2-soft: #1e3837; /* @derived D6 mix(bg, accent2, 18%) */
 
-  /* TV background (tvBackground in theme.json) */
-  --brand-tv-bg: #17191b;         /* @brand tvBackground.colour, else colours.background */
-  --brand-tv-bg-image: none;      /* @brand tvBackground.image as url(...), else none */
-  --brand-tv-scrim: rgba(0, 0, 0, 0); /* @derived D7 background at 78% when an image is set, else transparent */
+  /* Display background (displayBackground in theme.json) */
+  --brand-display-bg: #17191b;         /* @brand displayBackground.colour, else colours.background */
+  --brand-display-bg-image: none;      /* @brand displayBackground.image as url(...), else none */
+  --brand-display-scrim: rgba(0, 0, 0, 0); /* @derived D7 background at 78% when an image is set, else transparent */
 
   /* Fonts (fonts.display / fonts.body in theme.json). The server writes the
      @font-face rules and puts the family name first; the fallbacks stay. */
@@ -76,7 +76,7 @@
   --color-joker: #ffc145;                       /* the joker mark (fixed, so it reads the same in every theme) */
   --color-danger: #ff5a5f;                      /* host console only: destructive buttons (remove team, end early) */
   --color-warning: #ffc145;                     /* host console only: "offline", "not ready", contrast warnings */
-  --color-focus: #ffffff;                       /* focus ring, phone and host (TV has no focus) */
+  --color-focus: #ffffff;                       /* focus ring, phone and host (the display has no focus) */
 
   /* Sudden death ("Deadlock") palette. Fixed, not themed: the moment
      should look the same, and serious, in every venue. */
@@ -123,34 +123,34 @@
   --ease-snap: cubic-bezier(0.3, 1.6, 0.5, 1); /* overshoot: the shackle slams and bounces */
 
   /* ---------------------------------------------------------------- */
-  /* 3a. TV scale (1vh = 10.8px at 1080p, 7.2px at 720p)               */
-  /*     Readable distances: README.md, "TV legibility"                */
+  /* 3a. Display scale (1vh = 10.8px at 1080p, 7.2px at 720p)               */
+  /*     Readable distances: README.md, "Display legibility"                */
   /* ---------------------------------------------------------------- */
 
   /* Safe area: old TVs overscan (crop) up to 5% of each edge. Nothing
      that matters goes outside it. */
-  --tv-safe-x: 5vw;
-  --tv-safe-y: 5vh;
+  --display-safe-x: 5vw;
+  --display-safe-y: 5vh;
 
-  --tv-text-hero: 24vh;  /* timer digits, the padlock word, winner name (short) */
-  --tv-text-xxl: 15vh;   /* room code */
-  --tv-text-xl: 11vh;    /* moment titles: "Round 3", "Halftime", "Deadlock" */
-  --tv-text-l: 8vh;      /* text-only question up to 90 characters, the revealed answer */
-  --tv-text-m: 6.5vh;    /* text-only question 91-200 characters, picture question up to 90, options, leaderboard up to 8 teams */
-  --tv-text-s: 5.4vh;    /* picture question 91-200 characters, leaderboard 9-30 teams, host-voice line */
-  --tv-text-xs: 4vh;     /* labels people do not need from the back: "Round 3 of 6", answered count */
-  --tv-text-credit: 2.4vh; /* "Powered by Lock-In" only */
+  --display-text-hero: 24vh;  /* timer digits, the padlock word, winner name (short) */
+  --display-text-xxl: 15vh;   /* room code */
+  --display-text-xl: 11vh;    /* moment titles: "Round 3", "Halftime", "Deadlock" */
+  --display-text-l: 8vh;      /* text-only question up to 90 characters, the revealed answer */
+  --display-text-m: 6.5vh;    /* text-only question 91-200 characters, picture question up to 90, options, leaderboard up to 8 teams */
+  --display-text-s: 5.4vh;    /* picture question 91-200 characters, leaderboard 9-30 teams, host-voice line */
+  --display-text-xs: 4vh;     /* labels people do not need from the back: "Round 3 of 6", answered count */
+  --display-text-credit: 2.4vh; /* "Powered by Lock-In" only */
 
-  --tv-space-1: 1vh;
-  --tv-space-2: 2vh;
-  --tv-space-3: 3.5vh;
-  --tv-space-4: 6vh;
-  --tv-space-5: 10vh;
-  --tv-radius: 1.6vh;
-  --tv-header-h: 9vh;    /* logo + round strip */
-  --tv-row-h: 8.4vh;     /* leaderboard row, up to 8 teams in one column */
-  --tv-row-h-dense: 7.4vh; /* 9-20 teams in two columns of 10 */
-  --tv-chip: 2.6vh;      /* team colour dot */
+  --display-space-1: 1vh;
+  --display-space-2: 2vh;
+  --display-space-3: 3.5vh;
+  --display-space-4: 6vh;
+  --display-space-5: 10vh;
+  --display-radius: 1.6vh;
+  --display-header-h: 9vh;    /* logo + round strip */
+  --display-row-h: 8.4vh;     /* leaderboard row, up to 8 teams in one column */
+  --display-row-h-dense: 7.4vh; /* 9-20 teams in two columns of 10 */
+  --display-chip: 2.6vh;      /* team colour dot */
 
   /* ---------------------------------------------------------------- */
   /* 3b. Phone scale (CSS px; designed at 360-430 px wide)             */

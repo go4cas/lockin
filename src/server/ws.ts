@@ -6,7 +6,7 @@
 import type { Server, ServerWebSocket } from "bun";
 import {
   COMMAND_NAMES, PROTOCOL, TEAM_COMMANDS, emptyLines,
-  type ClientMsg, type CommandName, type ErrorCode, type HostView, type Role, type ServerMsg, type TeamView, type TvView, type View,
+  type ClientMsg, type CommandName, type ErrorCode, type HostView, type Role, type ServerMsg, type TeamView, type DisplayView, type View,
 } from "../shared/protocol.ts";
 import type { Clock } from "./auth.ts";
 
@@ -60,8 +60,8 @@ export function fail(code: ErrorCode, message?: string): CommandResult {
 /** The view every role sees while no night is open, before the engine (B1) provides real views. */
 export function idleView(role: Role, venueName = "Lock-In"): View {
   const common = { phase: "idle" as const, venue: { name: venueName, themeVersion: "default", teamColours: 8 }, night: null, flash: null };
-  if (role === "tv") {
-    return { ...common, role: "tv", teams: [], question: null, lockedMoment: null, reveal: null, standings: null, suddenDeath: null, final: null, lines: emptyLines() } satisfies TvView;
+  if (role === "display") {
+    return { ...common, role: "display", teams: [], question: null, lockedMoment: null, reveal: null, standings: null, suddenDeath: null, final: null, lines: emptyLines() } satisfies DisplayView;
   }
   if (role === "team") {
     return { ...common, role: "team", self: null, teams: [], questions: [], answers: [], standings: null, suddenDeath: null, lines: emptyLines() } satisfies TeamView;
@@ -113,7 +113,7 @@ export class Hub {
   private conns = new Map<number, Connection>();
   private nextId = 1;
   private commandHandler: CommandHandler = () => fail("wrong_phase", "No night is running yet.");
-  private viewProvider: ViewProvider = (conn) => ({ seq: 0, view: idleView(conn.role ?? "tv") });
+  private viewProvider: ViewProvider = (conn) => ({ seq: 0, view: idleView(conn.role ?? "display") });
   private tokenResolver: TeamTokenResolver = () => null;
   private connectListeners: ((conn: Conn) => void)[] = [];
   private disconnectListeners: ((conn: Conn) => void)[] = [];
@@ -215,7 +215,7 @@ export class Hub {
 
     if (msg.t === "hello") {
       if (conn.role !== null) return conn.bye("protocol");
-      if (msg.protocol !== PROTOCOL || !["host", "tv", "team"].includes(msg.role)) return conn.bye("protocol");
+      if (msg.protocol !== PROTOCOL || !["host", "display", "team"].includes(msg.role)) return conn.bye("protocol");
       if (msg.role === "host" && !(conn.hostSession && this.opts.sessionAlive(conn.hostSession))) return conn.bye("signed_out");
       if (conn.helloTimer) { clearTimeout(conn.helloTimer); conn.helloTimer = null; }
       conn.role = msg.role;
@@ -246,7 +246,7 @@ export class Hub {
     const args = msg.args;
     if (typeof args !== "object" || args === null || Array.isArray(args)) return fail("bad_args");
     const isTeamCommand = TEAM_COMMANDS.includes(name);
-    if (conn.role === "tv") return fail("not_allowed");
+    if (conn.role === "display") return fail("not_allowed");
     if (conn.role === "team" && !isTeamCommand) return fail("not_allowed");
     if (conn.role === "host") {
       if (isTeamCommand) return fail("not_allowed");

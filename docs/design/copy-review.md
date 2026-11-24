@@ -5,7 +5,7 @@
 ## General rules (for S-10)
 
 - **Host voice is flavour, not information.** Anything a team or host needs to act on (joining closed, offline, late answer, nothing sent) is in plain words in the screen itself, never only in a voice line.
-- **Where it shows:** on the TV, the footer line (display font, second colour, `--tv-text-s`), except the lobby headline, the locked moment and the winner, where the line sits under the title. On phones, under the title.
+- **Where it shows:** on the display, the footer line (display font, second colour, `--display-text-s`), except the lobby headline, the locked moment and the winner, where the line sits under the title. On phones, under the title.
 - **`{n}` lines are skipped when n is less than 2**, so no screen says "1 teams in". (S-10 already skips a line whose placeholder has no value.)
 - **`{team}` with several teams** (shared winner) is the names joined as "A, B and C".
 - **One line per screen.** Where several pools could apply, the order below decides.
@@ -13,10 +13,10 @@
 
 ## Where each pool appears
 
-| Pool | TV | Phone | When |
+| Pool | Display | Phone | When |
 |---|---|---|---|
 | `taglines` | Waiting screen (no night); holding-page brand panel | | One per screen show |
-| `lobby` | Lobby headline; holding-page footer | Join page | On showing the screen, and every 20 s on the TV |
+| `lobby` | Lobby headline; holding-page footer | Join page | On showing the screen, and every 20 s on the display |
 | `team_joined` | Lobby footer | | Each time a team joins; replaces the footer line for 8 s |
 | `round_start` | Round intro | Joker screen | Each round |
 | `last_seconds` | Question footer | | At 10 s left (once per question) |
@@ -57,9 +57,9 @@ Leaderboard order, when more than one applies: `tie_breaker`, `lead_change`, `cl
 
 ## Kept as they are, with notes
 
-- **`no_answer`** ("Nothing from {team}. Bold strategy.") has no screen in `v1.0.0`: the TV shows only counts, and calling out a team whose phone may have dropped is closer to mean than cheeky. Kept in the file for a Later use (for example, the host console, or a TV line when exactly one team missed out).
+- **`no_answer`** ("Nothing from {team}. Bold strategy.") has no screen in `v1.0.0`: the display shows only counts, and calling out a team whose phone may have dropped is closer to mean than cheeky. Kept in the file for a Later use (for example, the host console, or a TV line when exactly one team missed out).
 - **`winner`: "{team} wins! Drinks are on them."** Fits the voice, but a venue may not want a line that pushes drinking. Venues can replace the pool (S-10); no change.
 - **`close_race`: "Tighter than the parking out back."** Assumes the venue has parking out back. Harmless; venues can replace it.
-- **`last_place`** lines are gentle enough for the TV; they never show on the team's own phone.
+- **`last_place`** lines are gentle enough for the display; they never show on the team's own phone.
 - **`goodbye`: "Thanks for playing at {pub}."** is skipped automatically when no venue name is set.
 - **No line gives away an answer** (S-10): checked, none do.

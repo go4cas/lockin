@@ -1,10 +1,10 @@
 // @ts-check
 // Reconnecting WebSocket client for every screen (TECH-SPEC 10.2, 10.5, 10.6, 11).
-// TV baseline: ES2017 classic script, no modules, no ?. or ??, no object spread.
+// Display baseline: ES2017 classic script, no modules, no ?. or ??, no object spread.
 // Load clock.js first.
 //
 //   var client = LockIn.connect({
-//     role: "tv",                                   // "tv" | "team" | "host"
+//     role: "display",                              // "display" | "team" | "host"
 //     getToken: function () { return null; },       // team device token, read on every connect
 //     onState: function (view, msg) {},             // render the view
 //     onStatus: function (status) {},               // "connecting" | "online" | "offline"

@@ -1,4 +1,4 @@
-# Simulate viewing a 1080p TV frame from N screen-heights away with a given acuity (arcmin per resolvable detail).
+# Simulate viewing a 1080p display frame from N screen-heights away with a given acuity (arcmin per resolvable detail).
 import sys, math
 from PIL import Image, ImageDraw
 src,out,ratio,acuity=sys.argv[1],sys.argv[2],float(sys.argv[3]),float(sys.argv[4])

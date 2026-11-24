@@ -1,4 +1,4 @@
-/* Wireframe base: bundled fonts and resets. Shared by tv.html, phone.html and host.html.
+/* Wireframe base: bundled fonts and resets. Shared by display.html, phone.html and host.html.
    In the app, the server writes the @font-face rules for the theme's fonts (TECH-SPEC). */
 @font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; src: url(../fonts/atkinson-hyperlegible-400.woff2) format("woff2"); }
 @font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; src: url(../fonts/atkinson-hyperlegible-700.woff2) format("woff2"); }

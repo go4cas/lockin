@@ -1,6 +1,6 @@
 // @ts-check
 // Small helpers for rendering views safely (TECH-SPEC 12.4: text always goes
-// through textContent, never innerHTML). TV baseline: ES2017 classic script.
+// through textContent, never innerHTML). Display baseline: ES2017 classic script.
 (/** @param {any} root */ function (root) {
   "use strict";
   var LockIn = root.LockIn || (root.LockIn = {});

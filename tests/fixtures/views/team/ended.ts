@@ -1,5 +1,5 @@
 import type { TeamView } from "../../../../src/shared/protocol.ts";
-import { NOW, VENUE, chips, lines, night, question, roundInfo, standings, suddenDeath, timer , tvBase, teamBase } from "../_data.ts";
+import { NOW, VENUE, chips, lines, night, question, roundInfo, standings, suddenDeath, timer , displayBase, teamBase } from "../_data.ts";
 
 export default {
   phase: "ended", venue: VENUE, night: night({ round: null, started: true }), flash: null,

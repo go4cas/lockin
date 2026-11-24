@@ -1,14 +1,14 @@
-// TECH-SPEC 3.3: public/tv/ and public/shared/ must run on Chromium 56 / Safari 11.
+// TECH-SPEC 3.3: public/display/ and public/shared/ must run on Chromium 56 / Safari 11.
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { scanCss, scanHtml, scanJs, type Finding } from "./helpers/baseline.ts";
 
 const ROOT = join(import.meta.dir, "..");
-const SCANNED = ["public/tv", "public/shared"];
+const SCANNED = ["public/display", "public/shared"];
 
 function scanFolder(folder: string): { files: string[]; findings: Finding[] } {
-  if (!existsSync(join(ROOT, folder))) return { files: [], findings: [] };   // e.g. public/tv/ before B6
+  if (!existsSync(join(ROOT, folder))) return { files: [], findings: [] };   // e.g. public/display/ before B6
   const files = [...new Bun.Glob("**/*.{js,css,html}").scanSync({ cwd: join(ROOT, folder), onlyFiles: true })].map((f) => `${folder}/${f}`);
   const findings: Finding[] = [];
   for (const file of files) {
@@ -20,7 +20,7 @@ function scanFolder(folder: string): { files: string[]; findings: Finding[] } {
   return { files, findings };
 }
 
-describe("TV browser baseline", () => {
+describe("Display browser baseline", () => {
   for (const folder of SCANNED) {
     test(`${folder}/ uses only baseline JS and CSS`, () => {
       const { findings } = scanFolder(folder);

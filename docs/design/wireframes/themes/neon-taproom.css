@@ -13,9 +13,9 @@
   --brand-on-accent-2: #0e0b1a;
   --brand-accent-soft: #391433;
   --brand-accent-2-soft: #14353e;
-  --brand-tv-bg: #0e0b1a;
-  --brand-tv-bg-image: none;
-  --brand-tv-scrim: rgba(0, 0, 0, 0);
+  --brand-display-bg: #0e0b1a;
+  --brand-display-bg-image: none;
+  --brand-display-scrim: rgba(0, 0, 0, 0);
   --brand-font-display: "Bebas Neue", "Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --wf-venue: "Neon Taproom"; /* wireframe only */
 }

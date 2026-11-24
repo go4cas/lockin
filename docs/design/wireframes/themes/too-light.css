@@ -13,9 +13,9 @@
   --brand-on-accent-2: #5c5c5c;
   --brand-accent-soft: #f6eac9;
   --brand-accent-2-soft: #e4e9de;
-  --brand-tv-bg: #f4efe4;
-  --brand-tv-bg-image: none;
-  --brand-tv-scrim: rgba(0, 0, 0, 0);
+  --brand-display-bg: #f4efe4;
+  --brand-display-bg-image: none;
+  --brand-display-scrim: rgba(0, 0, 0, 0);
   --brand-font-display: "Caveat Brush", "Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --wf-venue: "Daylight Bar"; /* wireframe only */
 }

@@ -82,7 +82,7 @@ export async function connectClient(server: { wsUrl: string }, opts: ConnectOpti
       });
     },
     async hello(extra = {}) {
-      const msg: Record<string, unknown> = { t: "hello", protocol: extra.protocol ?? 1, role: extra.role ?? opts.role ?? "tv" };
+      const msg: Record<string, unknown> = { t: "hello", protocol: extra.protocol ?? 1, role: extra.role ?? opts.role ?? "display" };
       if (extra.token) msg.token = extra.token;
       client.send(msg);
       const welcome = await client.next("welcome");

@@ -1,6 +1,6 @@
 // @ts-check
-// Server clock offset (TECH-SPEC 10.6). Shared by the TV, phone and host console.
-// TV baseline: ES2017 classic script, no modules, no ?. or ??, no object spread.
+// Server clock offset (TECH-SPEC 10.6). Shared by the display, phone and host console.
+// Display baseline: ES2017 classic script, no modules, no ?. or ??, no object spread.
 (/** @param {any} root */ function (root) {
   "use strict";
   var LockIn = root.LockIn || (root.LockIn = {});

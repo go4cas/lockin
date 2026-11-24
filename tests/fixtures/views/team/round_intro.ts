@@ -1,5 +1,5 @@
 import type { TeamView } from "../../../../src/shared/protocol.ts";
-import { NOW, VENUE, chips, lines, night, question, roundInfo, standings, suddenDeath, timer , tvBase, teamBase } from "../_data.ts";
+import { NOW, VENUE, chips, lines, night, question, roundInfo, standings, suddenDeath, timer , displayBase, teamBase } from "../_data.ts";
 
 // Round 3 is next; this team has just played its joker on it.
 export default {

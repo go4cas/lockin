@@ -1,5 +1,5 @@
 import type { TeamView } from "../../../../src/shared/protocol.ts";
-import { NOW, VENUE, chips, lines, night, question, roundInfo, standings, suddenDeath, timer , tvBase, teamBase } from "../_data.ts";
+import { NOW, VENUE, chips, lines, night, question, roundInfo, standings, suddenDeath, timer , displayBase, teamBase } from "../_data.ts";
 
 // Per-round mode: every question so far is open; two answered, the round timer runs.
 const q = [1, 2, 3, 4, 5].map((n) => question(n, { timer: timer.running(300, 185), answered: 3 }));

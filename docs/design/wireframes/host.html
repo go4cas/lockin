@@ -56,12 +56,12 @@
 
 <!-- H-05 / H-06 / H-15 night lobby -->
 <section class="screen" id="lobby"><div class="hc run">
-  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Thursday 27 Nov</b><span class="pill ok"><i></i>Lobby open</span><span style="margin-left:auto" class="s muted">TV</span><span class="pill ok"><i></i>Connected</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Thursday 27 Nov</b><span class="pill ok"><i></i>Lobby open</span><span style="margin-left:auto" class="s muted">Display</span><span class="pill ok"><i></i>Connected</span><button class="btn ghost">Night menu &#9662;</button></div>
   <div class="runbody">
     <div class="stage">
       <div class="row" style="gap:24px;align-items:flex-start">
         <div class="card row" style="gap:16px"><img class="qr-s" src="qr-placeholder.svg" alt=""><div><h3>Teams join at</h3><div style="font-weight:700">quiz.example.com</div><h3 style="margin-top:10px">Room code</h3><div style="font-size:30px;font-weight:700;letter-spacing:.15em">KXBT</div></div></div>
-        <div class="card" style="flex:1"><h3>Put this on the TV</h3><div style="font-weight:700;margin:4px 0 8px">quiz.example.com/tv</div><div class="s muted">Open it in the TV's browser, or cast this tab from a laptop. The TV needs no remote after that.</div></div>
+        <div class="card" style="flex:1"><h3>Put this on the display</h3><div style="font-weight:700;margin:4px 0 8px">quiz.example.com/display</div><div class="s muted">Open it in the TV's browser, or cast this tab from a laptop. The display needs no remote after that.</div></div>
       </div>
       <div class="row" style="gap:16px">
         <div class="card" style="flex:1"><h3>Planned start</h3><div class="row" style="margin-top:6px"><input class="input" value="19:30" style="width:110px"><span class="s muted">Holding page with countdown from 19:00</span></div></div>
@@ -71,7 +71,7 @@
         <div data-render="teamTable" data-n="6"></div></div>
     </div>
     <div class="side">
-      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px">Lobby: QR code, room code, 6 teams</div></div>
+      <div class="sec"><h3>On the display now</h3><div class="displayprev" style="margin-top:8px">Lobby: QR code, room code, 6 teams</div></div>
       <div class="sec s muted">Joining closes when you start. Teams that drop out can still rejoin.</div>
       <div class="next-wrap"><button class="btn next">Start the quiz &#9654;</button><div class="s muted" style="text-align:center">6 teams. Starts round 1: General knowledge</div></div>
     </div>
@@ -80,7 +80,7 @@
 
 <!-- H-08 run a question (per-question lock) -->
 <section class="screen" id="run"><div class="hc run">
-  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Movies</b><span class="s muted">Question 2 of 5</span><span style="margin-left:auto" class="s muted">Room <b class="code" style="font-size:15px">KXBT</b></span><span class="pill ok"><i></i>TV</span><span class="pill warn"><i></i>1 team offline</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Movies</b><span class="s muted">Question 2 of 5</span><span style="margin-left:auto" class="s muted">Room <b class="code" style="font-size:15px">KXBT</b></span><span class="pill ok"><i></i>Display</span><span class="pill warn"><i></i>1 team offline</span><button class="btn ghost">Night menu &#9662;</button></div>
   <div class="runbody">
     <div class="stage">
       <div class="steps-line"><span class="done">Q1 locked</span><span class="now">Q2 timer running</span><span>Q3</span><span>Q4</span><span>Q5</span><span>Mark</span><span>Reveal</span><span>Leaderboard</span></div>
@@ -95,7 +95,7 @@
       <div class="muted s">You can mark Q1 now (it's locked), or mark the whole round at the end.</div>
     </div>
     <div class="side">
-      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px">Question 2 &middot; timer 42 &middot; 4 of 6 answered</div></div>
+      <div class="sec"><h3>On the display now</h3><div class="displayprev" style="margin-top:8px">Question 2 &middot; timer 42 &middot; 4 of 6 answered</div></div>
       <div class="sec teams" style="flex:1"><h3 style="margin-bottom:6px">Teams</h3><div data-render="teamAnswered"></div></div>
       <div class="next-wrap"><button class="btn next">Lock now</button><div class="s muted" style="text-align:center">Or wait: it locks by itself at 0:00. Next: show question 3.</div></div>
     </div>
@@ -104,7 +104,7 @@
 
 <!-- H-10 marking and the review queue -->
 <section class="screen" id="marking"><div class="hc run">
-  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Marking</b><span class="pill warn" style="margin-left:8px">7 left to mark</span><span style="margin-left:auto" class="pill ok"><i></i>TV</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Marking</b><span class="pill warn" style="margin-left:8px">7 left to mark</span><span style="margin-left:auto" class="pill ok"><i></i>Display</span><button class="btn ghost">Night menu &#9662;</button></div>
   <div class="runbody">
     <div class="stage" style="gap:10px">
       <div class="row between"><div><h3>Question 2 of 5</h3><div style="font-weight:700;font-size:19px">Which film won the first ever Academy Award for Best Picture?</div><div class="s">Accepted: <b style="color:var(--color-correct)">Wings</b>, Wings (1927)</div></div><div class="seg"><span>Q1</span><span class="on">Q2 &middot; 3</span><span>Q3 &middot; 2</span><span>Q4 &middot; 2</span><span>Q5 &#10003;</span></div></div>
@@ -114,7 +114,7 @@
       <div class="group" style="opacity:.55"><div><div class="a">&mdash; no answer &mdash;</div><div class="who">Tequila Mockingbird</div></div><div class="pill">Scores 0</div></div>
     </div>
     <div class="side">
-      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px">"Round 3 is in. The quizmaster is marking."</div></div>
+      <div class="sec"><h3>On the display now</h3><div class="displayprev" style="margin-top:8px">"Round 3 is in. The quizmaster is marking."</div></div>
       <div class="sec s muted">Accepting adds the answer to this question's accepted list in the quiz, so it is right next time too.</div>
       <div class="next-wrap"><button class="btn next" disabled style="opacity:.45">Reveal answers</button><div class="s muted" style="text-align:center">7 answers left to mark before the reveal</div><button class="btn ghost">Skip the reveal, go to the leaderboard</button></div>
     </div>
@@ -123,7 +123,7 @@
 
 <!-- H-11 reveal / leaderboard steps -->
 <section class="screen" id="reveal"><div class="hc run">
-  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Reveal</b><span style="margin-left:auto" class="pill ok"><i></i>TV</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="topbar"><svg width="22" height="26" style="color:var(--color-text)"><use href="#mark"/></svg><b>Round 3 &middot; Reveal</b><span style="margin-left:auto" class="pill ok"><i></i>Display</span><button class="btn ghost">Night menu &#9662;</button></div>
   <div class="runbody">
     <div class="stage">
       <div class="steps-line"><span class="done">Q1</span><span class="now">Q2 answer</span><span>Q3</span><span>Q4</span><span>Q5</span><span>Leaderboard</span><span>Halftime</span></div>
@@ -136,7 +136,7 @@
       <div class="s muted">Disputes: change any mark until Quiz End. Scores update straight away; past changes are kept in the night's history.</div>
     </div>
     <div class="side">
-      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px">Q2 answer: Wings &middot; 4 of 6</div></div>
+      <div class="sec"><h3>On the display now</h3><div class="displayprev" style="margin-top:8px">Q2 answer: Wings &middot; 4 of 6</div></div>
       <div class="next-wrap"><button class="btn next">Show answer 3 &#9654;</button><div class="s muted" style="text-align:center">Then: leaderboard, then halftime (after round 3)</div></div>
     </div>
   </div>
@@ -144,7 +144,7 @@
 
 <!-- H-14 sudden death -->
 <section class="screen" id="deadlock"><div class="hc run">
-  <div class="topbar" style="background:var(--deadlock-bg)"><b style="color:var(--deadlock-ember);letter-spacing:.2em">DEADLOCK</b><span class="s muted">Sudden death for 1st place</span><span style="margin-left:auto" class="pill ok"><i></i>TV</span><button class="btn ghost">Night menu &#9662;</button></div>
+  <div class="topbar" style="background:var(--deadlock-bg)"><b style="color:var(--deadlock-ember);letter-spacing:.2em">DEADLOCK</b><span class="s muted">Sudden death for 1st place</span><span style="margin-left:auto" class="pill ok"><i></i>Display</span><button class="btn ghost">Night menu &#9662;</button></div>
   <div class="runbody">
     <div class="stage">
       <div class="card" style="border-color:var(--deadlock-ember)"><div class="row between"><div><h3>Tied for 1st after the tie breaker</h3><div style="font-size:20px;font-weight:700;margin-top:4px">Les Quizerables vs Agatha Quiztie</div><div class="s muted">31 points and 2 round wins each</div></div><div class="s">Question <b>1</b> of up to 3</div></div></div>
@@ -154,7 +154,7 @@
       <div class="s muted">If exactly one team is right, it takes 1st. If both are right or both wrong, ask the next one. After 3 questions they share 1st.</div>
     </div>
     <div class="side">
-      <div class="sec"><h3>On the TV now</h3><div class="tvprev" style="margin-top:8px;background:var(--deadlock-bg)">Deadlock &middot; question 1 &middot; 23 s</div></div>
+      <div class="sec"><h3>On the display now</h3><div class="displayprev" style="margin-top:8px;background:var(--deadlock-bg)">Deadlock &middot; question 1 &middot; 23 s</div></div>
       <div class="next-wrap"><button class="btn next" style="background:var(--deadlock-ember);color:#fff">Lock now</button><div class="s muted" style="text-align:center">Then mark and reveal who was right</div></div>
     </div>
   </div>
@@ -167,8 +167,8 @@
     <div class="row between"><h1>Venue settings</h1><div class="seg"><span class="on">Branding</span><span>Holding page</span><span>Prizes</span><span>Host password</span></div></div>
     <div class="split">
       <div class="form">
-        <div><label class="l">Venue name</label><input class="input" value="Daylight Bar"><div class="s muted" style="margin-top:4px">Shown on the TV and phones, and in lines like "Thanks for playing at Daylight Bar".</div></div>
-        <div class="row"><div style="flex:1"><label class="l">Logo</label><button class="btn ghost">Upload PNG, SVG or JPEG</button></div><div style="flex:1"><label class="l">TV background</label><div class="seg"><span class="on">Colour</span><span>Picture</span></div></div></div>
+        <div><label class="l">Venue name</label><input class="input" value="Daylight Bar"><div class="s muted" style="margin-top:4px">Shown on the display and phones, and in lines like "Thanks for playing at Daylight Bar".</div></div>
+        <div class="row"><div style="flex:1"><label class="l">Logo</label><button class="btn ghost">Upload PNG, SVG or JPEG</button></div><div style="flex:1"><label class="l">Display background</label><div class="seg"><span class="on">Colour</span><span>Picture</span></div></div></div>
         <div><label class="l">Colours</label>
           <div class="row" style="gap:14px;flex-wrap:wrap">
             <div class="row"><span class="swatch" style="background:#f4efe4"></span><span class="s">Background</span></div>
@@ -182,7 +182,7 @@
       </div>
       <div><h3>Preview</h3>
         <div class="preview" style="margin-top:8px">
-          <div style="position:relative;width:448px;height:252px;overflow:hidden;border-radius:6px;border:1px solid var(--color-line)"><iframe src="tv.html?s=lobby&amp;theme=too-light" style="width:1280px;height:720px;transform:scale(.35);transform-origin:0 0;border:0;position:absolute"></iframe></div>
+          <div style="position:relative;width:448px;height:252px;overflow:hidden;border-radius:6px;border:1px solid var(--color-line)"><iframe src="display.html?s=lobby&amp;theme=too-light" style="width:1280px;height:720px;transform:scale(.35);transform-origin:0 0;border:0;position:absolute"></iframe></div>
           <div style="position:relative;width:150px;height:325px;overflow:hidden;border-radius:16px;border:1px solid var(--color-line)"><iframe src="phone.html?s=lobby&amp;theme=too-light" style="width:390px;height:844px;transform:scale(.385);transform-origin:0 0;border:0;position:absolute"></iframe></div>
         </div>
       </div>
@@ -195,7 +195,7 @@
   <nav class="nav"><div class="brand"><svg width="24" height="29" style="color:var(--color-text)"><use href="#mark"/></svg>Lock-In</div><a>Quizzes</a><a>Past nights</a><a class="on">Venue settings</a></nav>
   <div class="main">
     <div class="row between"><h1>Venue settings</h1><div class="seg"><span>Branding</span><span class="on">Holding page</span><span>Prizes</span><span>Host password</span></div></div>
-    <div class="card" style="max-width:640px"><label class="l">Show the holding page from</label><div class="row"><input class="input" value="30" style="width:90px"><span>minutes before the planned start</span></div><div class="s muted" style="margin-top:6px">Before that, the TV shows the plain lobby. Without a planned start time there is no countdown.</div></div>
+    <div class="card" style="max-width:640px"><label class="l">Show the holding page from</label><div class="row"><input class="input" value="30" style="width:90px"><span>minutes before the planned start</span></div><div class="s muted" style="margin-top:6px">Before that, the display shows the plain lobby. Without a planned start time there is no countdown.</div></div>
     <div class="card" style="max-width:640px"><h3 style="margin-bottom:8px">Panels (they take turns, 12 seconds each; joining stays on screen)</h3>
       <div class="row between" style="min-height:48px"><span>Countdown to the start</span><span class="toggle"></span></div>
       <div class="row between" style="min-height:48px"><span>Teams that have joined</span><span class="toggle"></span></div>
