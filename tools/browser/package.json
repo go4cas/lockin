@@ -9,6 +9,6 @@
     "checks": "bun ./checks.ts"
   },
   "devDependencies": {
-    "playwright": "1.63.0"
+    "playwright": "1.65.1"
   }
 }

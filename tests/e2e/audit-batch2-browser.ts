@@ -45,7 +45,16 @@ async function main() {
     page.on("pageerror", (e) => problems.push(`${name}: page error: ${e.message}`));
     page.on("console", (m) => { if (m.type() === "error" && !/WebSocket|401/.test(m.text())) problems.push(`${name}: console error: ${m.text()}`); });
     page.on("request", (r) => urls?.push(r.url()));
-    page.on("requestfailed", (r) => { if (!r.url().includes("/ws")) problems.push(`${name}: request failed: ${r.url()} ${r.failure()?.errorText}`); });
+    page.on("requestfailed", async (r) => {
+      if (r.url().includes("/ws")) return;
+      // Playwright 1.65+ reports a request as aborted when the page navigates away after the
+      // server answered (sign in and sign out read the status, then change page). An answer
+      // that arrived and was not an error is not a failure.
+      const error = r.failure()?.errorText;
+      const res = error === "net::ERR_ABORTED" ? await r.response().catch(() => null) : null;
+      if (res && res.status() < 400) return;
+      problems.push(`${name}: request failed: ${r.url()} ${error}`);
+    });
   };
   const qrIsData = (page: Page) => page.waitForFunction(() => {
     const img = document.querySelector(".qr img") as HTMLImageElement | null;
