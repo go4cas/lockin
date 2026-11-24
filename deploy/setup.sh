@@ -15,7 +15,7 @@
 #   --no-journald       Do not install Lock-In's own log retention file.
 #
 # What it does: installs sqlite3 if missing, makes the lockin system user, installs the
-# binary to /usr/local/bin/lockin (the old one stays as lockin.previous), writes the
+# binary to /opt/lockin/lockin (the old one stays as lockin.previous), writes the
 # settings file, installs the systemd units and the backup scripts (the off-server copy is
 # idle until /etc/lockin/r2.env exists), backs up the data before replacing a binary,
 # starts Lock-In, checks it answers, and prints the setup code if no host password is set
@@ -33,8 +33,12 @@ binary=""
 port=""
 journald=1
 
-BIN=/usr/local/bin/lockin
-LIB=/usr/local/lib/lockin
+OPT=/opt/lockin
+BIN=$OPT/lockin
+LIB=$OPT/scripts
+# Before 1.0.0 the program lived under /usr/local; an install there is moved to /opt/lockin.
+OLD_BIN=/usr/local/bin/lockin
+OLD_LIB=/usr/local/lib/lockin
 ETC=/etc/lockin
 ENV_FILE=$ETC/lockin.env
 DATA=/var/lib/lockin
@@ -85,6 +89,15 @@ if command -v ss >/dev/null; then
 fi
 
 changed=0     # anything that needs Lock-In restarted
+install -d -m 755 "$OPT"
+moved_from_old=0
+if [ ! -x "$BIN" ] && [ -x "$OLD_BIN" ]; then
+  say "moving Lock-In's program from /usr/local to $OPT"
+  cp -p "$OLD_BIN" "$BIN"
+  if [ -f "$OLD_BIN.previous" ]; then cp -p "$OLD_BIN.previous" "$BIN.previous"; fi
+  moved_from_old=1
+  changed=1
+fi
 had_binary=0; [ -x "$BIN" ] && had_binary=1
 
 # 1. Packages the scripts need.
@@ -221,6 +234,11 @@ if [ "$ok" != 1 ]; then
   exit 1
 fi
 say "Lock-In $("$BIN" --version) is running on 127.0.0.1:$port for $public_url"
+if [ "$moved_from_old" = 1 ] || [ -e "$OLD_BIN" ] || [ -d "$OLD_LIB" ]; then
+  rm -f "$OLD_BIN" "$OLD_BIN.previous"
+  rm -rf "$OLD_LIB"
+  say "removed the old program files from /usr/local"
+fi
 
 # 8. The setup code, while no host password is set.
 if [ ! -f "$DATA/auth.json" ]; then
