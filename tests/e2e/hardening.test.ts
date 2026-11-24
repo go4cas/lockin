@@ -101,7 +101,7 @@ describe("roles and input", () => {
     expect(await code(other, "team.rejoin", { code: real.toLowerCase() })).toBe("ok");
   });
 
-  test("REVIEW finding 5: reconnecting does not reset the rejoin limit; it counts per client IP", async () => {
+  test("REVIEW finding 5: reconnecting does not reset the rejoin limit; it counts per client IP (SA-14: right codes pass)", async () => {
     const { night } = await openNight(quiz("rejoin-ip"), 2);
     const ip = { "CF-Connecting-IP": "203.0.113.7" };
     // 10 wrong tries a minute from one address, spread over fresh connections (2 each, below the per-connection 5)
@@ -112,10 +112,13 @@ describe("roles and input", () => {
     }
     const real = night.teamView("Team 1").self!.rejoinCode;
     const again = await night.client("team", "guesser-new", undefined, ip);
-    expect(await code(again, "team.rejoin", { code: real })).toBe("too_many_tries");
+    expect(await code(again, "team.rejoin", { code: "ZZZZZY" })).toBe("too_many_tries");
+    // SA-14: a right code from the same address still works, so a guesser cannot lock the pub out
+    expect(await code(again, "team.rejoin", { code: real })).toBe("ok");
     // another client address is not affected
+    const real2 = night.teamView("Team 2").self!.rejoinCode;
     const elsewhere = await night.client("team", "elsewhere", undefined, { "CF-Connecting-IP": "198.51.100.9" });
-    expect(await code(elsewhere, "team.rejoin", { code: real })).toBe("ok");
+    expect(await code(elsewhere, "team.rejoin", { code: real2 })).toBe("ok");
   });
 
   test("an oversize frame closes only that connection", async () => {

@@ -172,6 +172,8 @@ export interface HubOptions {
   /** Renews a host session from socket activity (SA-12); false if it has ended. */
   touchSession?: (hash: string) => boolean;
   log?: (msg: string) => void;
+  /** Security events (SA-17). */
+  security?: { event(type: "connection_refused", ip: string, detail?: string): void };
 }
 
 export class Hub {
@@ -346,7 +348,10 @@ export class Hub {
     message: (ws: ServerWebSocket<SocketData>, raw: string | Buffer) => {
       const conn = this.conns.get(ws.data.connId);
       if (!conn || conn.closed) return;
-      if (!conn.spend()) return conn.bye("protocol");
+      if (!conn.spend()) {
+        this.opts.security?.event("connection_refused", conn.ip, "too many messages");
+        return conn.bye("protocol");
+      }
       conn.lastMessageAt = this.opts.clock.now();
       // SA-12: a console in use keeps its session alive (pings every 25 s count).
       if (conn.role === "host" && conn.hostSession && this.opts.touchSession && !this.opts.touchSession(conn.hostSession)) {
@@ -386,7 +391,10 @@ export class Hub {
     if (msg.t === "hello") {
       if (conn.role !== null) return conn.bye("protocol");
       if (msg.protocol !== PROTOCOL || !["host", "display", "team"].includes(msg.role)) return conn.bye("protocol");
-      if (msg.role === "host" && !(conn.hostSession && this.opts.sessionAlive(conn.hostSession))) return conn.bye("signed_out");
+      if (msg.role === "host" && !(conn.hostSession && this.opts.sessionAlive(conn.hostSession))) {
+        this.opts.security?.event("connection_refused", conn.ip, "host screen not signed in");
+        return conn.bye("signed_out");
+      }
       if (conn.helloTimer) { clearTimeout(conn.helloTimer); conn.helloTimer = null; }
       conn.role = msg.role;
       if (msg.role === "team" && typeof msg.token === "string" && msg.token.length > 0 && msg.token.length <= 100) {

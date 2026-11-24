@@ -46,12 +46,13 @@ export function fillLine(line: string, vars: CopyVars): string | null {
   let usable = true;
   for (const m of line.matchAll(PLACEHOLDER)) {
     const name = m[1]!;
-    const v = values[name];
+    // Own properties only (SA-21): {constructor} must not find Object's.
+    const v = Object.hasOwn(values, name) ? values[name] : undefined;
     if (v === undefined || v === null || v === "") usable = false;
     if (name === "n" && (typeof v !== "number" || v < 2)) usable = false;
   }
   if (!usable) return null;
-  return line.replace(PLACEHOLDER, (_, name: string) => String(values[name]));
+  return line.replace(PLACEHOLDER, (_, name: string) => String(values[name]));   // every name was checked above
 }
 
 /**

@@ -51,11 +51,20 @@
     return Math.round(base + base * JITTER * (random ? random() : Math.random()));
   }
 
-  /** The /ws address for this page. Passes ?fixture= through for scripts/fixture-server.ts. */
+  /**
+   * True on this machine only (localhost or 127.0.0.1), where scripts/fixture-server.ts runs.
+   * Test plumbing such as ?fixture= is ignored anywhere else (audit SA-21).
+   * @param {any} loc
+   */
+  function isFixtureHost(loc) {
+    return !!loc && (loc.hostname === "localhost" || loc.hostname === "127.0.0.1");
+  }
+
+  /** The /ws address for this page. Passes ?fixture= through for scripts/fixture-server.ts, on localhost only. */
   function defaultUrl() {
     var loc = root.location;
     var url = (loc.protocol === "https:" ? "wss://" : "ws://") + loc.host + "/ws";
-    var m = /[?&]fixture=([^&#]*)/.exec(loc.search || "");
+    var m = isFixtureHost(loc) ? /[?&]fixture=([^&#]*)/.exec(loc.search || "") : null;
     if (m) url += "?fixture=" + m[1];
     return url;
   }
@@ -337,6 +346,7 @@
 
   LockIn.PROTOCOL = PROTOCOL;
   LockIn.backoff = backoff;
+  LockIn.isFixtureHost = isFixtureHost;
   LockIn.Client = Client;
   /** @param {any} opts */
   LockIn.connect = function (opts) { return new Client(opts); };

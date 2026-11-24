@@ -8,13 +8,14 @@ import { isIP } from "node:net";
 import { join } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import type { CopyPicker, Rules } from "../shared/rules-api.ts";
-import { Auth, RateLimiter, SESSION_COOKIE, readCookie, type Clock, type PasswordHasher } from "./auth.ts";
+import { Auth, RateLimiter, type Clock, type PasswordHasher } from "./auth.ts";
 import { registerAuthRoutes } from "./auth-routes.ts";
 import { ensureDataDir, isLocalDevUrl, type Config } from "./config.ts";
 import { openDb } from "./db.ts";
 import { MAX_REQUEST_BODY, Router, errorResponse, json, originAllowed, withSecurityHeaders, type Handler, type Method, type RequestContext, type RouteOptions } from "./http.ts";
 import { diskSource, registerStatic, type FileSource } from "./static.ts";
 import { Hub, safely, type BunServer, type SocketData } from "./ws.ts";
+import { SecurityLog } from "./seclog.ts";
 import { register as registerBranding } from "./branding/index.ts";
 import { register as registerDisplay } from "./display/index.ts";
 import { register as registerNight } from "./night/index.ts";
@@ -58,6 +59,8 @@ export interface App {
   /** Runs when the server stops. */
   onStop(fn: () => void | Promise<void>): void;
   log(message: string): void;
+  /** Security events (SA-17): one line each with the client IP, never a secret, rate-limited. */
+  readonly security: SecurityLog;
   /** The full join/display base address, e.g. "https://quiz.example.com". */
   readonly publicUrl: string;
 }
@@ -85,7 +88,8 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
   const db = openDb(join(config.dataDir, "lockin.db"));
   const auth = new Auth(db, config.dataDir, clock, !isLocalDevUrl(config.publicUrl), opts.hasher);
   const log = opts.log ?? ((m: string) => console.log(`${new Date().toISOString()} ${m}`));
-  const hub = new Hub({ clock, sessionAlive: (h) => auth.sessionAlive(h), touchSession: (h) => auth.touchSession(h), log });
+  const security = new SecurityLog(clock, log);
+  const hub = new Hub({ clock, sessionAlive: (h) => auth.sessionAlive(h), touchSession: (h) => auth.touchSession(h), log, security });
   auth.onSessionsDeleted = (hashes) => hub.signOut(hashes);
   const router = new Router();
 
@@ -107,6 +111,7 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
     onStart: (fn) => { app.startHooks.push(fn); },
     onStop: (fn) => { app.stopHooks.push(fn); },
     log,
+    security,
   };
 
   // Core routes (B0)
@@ -157,6 +162,7 @@ export const SESSION_SWEEP_MS = 60_000;
 export function sweepSessions(app: App): { closed: number; deleted: number } {
   const closed = app.ws.sweepSessions();
   const deleted = app.auth.pruneSessions();
+  app.security.flush();   // SA-17: counts of held-back lines whose 10 s has passed
   return { closed, deleted };
 }
 
@@ -166,25 +172,37 @@ const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 export async function handleRequest(app: InternalApp, req: Request, server: BunServer): Promise<Response | undefined> {
   const url = new URL(req.url);
   const ip = clientIp(req.headers.get("cf-connecting-ip"), server.requestIP(req)?.address);
-  const cookie = readCookie(req.headers.get("cookie"), SESSION_COOKIE);
+  const { token: cookie, legacy } = app.auth.readSessionCookie(req.headers.get("cookie"));
   const session = app.auth.checkSession(cookie);
+  const https = app.publicUrl.startsWith("https:");
+  const api = url.pathname.startsWith("/api/");
+  const secured = (r: Response) => withSecurityHeaders(r, { https, api });
 
   if (url.pathname === "/ws") {
-    if (!originAllowed(req, app.publicUrl)) return withSecurityHeaders(errorResponse(403, "forbidden_origin", "This page is not allowed to connect."));
+    if (!originAllowed(req, app.publicUrl)) {
+      app.security.event("connection_refused", ip, "wrong origin");
+      return secured(errorResponse(403, "forbidden_origin", "This page is not allowed to connect."));
+    }
     // SA-04: caps on open sockets, in total and per client IP, checked before any socket is made.
     const data = app.ws.admit(ip, session?.hash ?? null);
-    if (!data) return withSecurityHeaders(errorResponse(429, "too_many_connections", "Too many screens are connected from here. Try again in a minute."));
+    if (!data) {
+      app.security.event("connection_refused", ip, "too many sockets");
+      return secured(errorResponse(429, "too_many_connections", "Too many screens are connected from here. Try again in a minute."));
+    }
     const ok = server.upgrade(req, { data });
     if (!ok) app.ws.release(data);
-    return ok ? undefined : withSecurityHeaders(errorResponse(400, "bad_upgrade", "This address only takes WebSocket connections."));
+    return ok ? undefined : secured(errorResponse(400, "bad_upgrade", "This address only takes WebSocket connections."));
   }
 
   if (MUTATING.has(req.method) && !originAllowed(req, app.publicUrl)) {
-    return withSecurityHeaders(errorResponse(403, "forbidden_origin", "This request came from another site, so it was refused."));
+    app.security.event("connection_refused", ip, "request from another site");
+    return secured(errorResponse(403, "forbidden_origin", "This request came from another site, so it was refused."));
   }
 
   const ctx: RequestContext = { url, params: {}, ip, hostSession: session?.hash ?? null, setCookies: [] };
-  if (session?.renewCookie && cookie) ctx.setCookies.push(app.auth.sessionCookie(cookie));
+  // SA-13: a session under the old cookie name is moved to the __Host- name.
+  if (session && cookie && (session.renewCookie || legacy)) ctx.setCookies.push(app.auth.sessionCookie(cookie));
+  if (session && legacy) ctx.setCookies.push(app.auth.clearCookie(true));
   let res: Response;
   try {
     res = await app.router.handle(req, ctx);
@@ -192,7 +210,7 @@ export async function handleRequest(app: InternalApp, req: Request, server: BunS
     app.log(`${req.method} ${url.pathname} failed: ${e instanceof Error ? e.stack ?? e.message : String(e)}`);
     res = errorResponse(500, "server_error", "Something went wrong on the server. Try again.");
   }
-  res = withSecurityHeaders(res);
+  res = secured(res);
   for (const c of ctx.setCookies) res.headers.append("Set-Cookie", c);
   return res;
 }
@@ -215,11 +233,13 @@ export async function startServer(config: Config, opts: AppOptions = {}): Promis
     port: config.port,
     // SA-02: Bun's default is 128 MB; nothing Lock-In takes is bigger than a 6 MB upload.
     maxRequestBodySize: MAX_REQUEST_BODY,
+    // SA-13: the default follows NODE_ENV, which the binary does not set; development mode is for Bun's error pages.
+    development: false,
     fetch: (req, srv) => handleRequest(app, req, srv),
     websocket: app.ws.websocket,
     error: (e) => {
       app.log(`Request failed: ${e.stack ?? e.message}`);
-      return withSecurityHeaders(errorResponse(500, "server_error", "Something went wrong on the server. Try again."));
+      return withSecurityHeaders(errorResponse(500, "server_error", "Something went wrong on the server. Try again."), { https: config.publicUrl.startsWith("https:") });
     },
   });
 

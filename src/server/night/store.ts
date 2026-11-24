@@ -196,15 +196,22 @@ export function loadOpenNight(db: Database): Model | null {
 
 // --- History (S-08) ----------------------------------------------------------
 
+/** Nights the history list answers with, newest first (audit SA-21): years of weekly nights. */
+export const HISTORY_LIMIT = 500;
+
+/** The history list in one query (SA-21: it ran two queries per night). */
 export function historyList(db: Database) {
-  const nights = db.query<NightRow, []>("SELECT * FROM nights ORDER BY opened_at DESC").all();
-  return nights.map((r) => {
-    const teams = db.query<{ n: number }, [string]>("SELECT COUNT(*) AS n FROM teams WHERE night_id = ? AND removed_at IS NULL").get(r.id)!.n;
-    const winners = db.query<{ name: string }, [string]>(
-      "SELECT t.name FROM results r JOIN teams t ON t.id = r.team_id WHERE r.night_id = ? AND r.position = 1 ORDER BY t.name",
-    ).all(r.id).map((w) => w.name);
-    return { id: r.id, quizTitle: r.quiz_title, openedAt: r.opened_at, endedAt: r.ended_at, teams, winners };
-  });
+  const rows = db.query<NightRow & { team_count: number; winner_names: string }, [number]>(`
+    SELECT n.*,
+      (SELECT COUNT(*) FROM teams t WHERE t.night_id = n.id AND t.removed_at IS NULL) AS team_count,
+      (SELECT json_group_array(name) FROM (
+        SELECT t.name AS name FROM results r JOIN teams t ON t.id = r.team_id
+        WHERE r.night_id = n.id AND r.position = 1 ORDER BY t.name)) AS winner_names
+    FROM nights n ORDER BY n.opened_at DESC LIMIT ?`).all(HISTORY_LIMIT);
+  return rows.map((r) => ({
+    id: r.id, quizTitle: r.quiz_title, openedAt: r.opened_at, endedAt: r.ended_at,
+    teams: r.team_count, winners: JSON.parse(r.winner_names) as string[],
+  }));
 }
 
 export function historyNight(db: Database, nightId: string) {

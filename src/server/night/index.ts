@@ -5,14 +5,14 @@ import { readFileSync } from "node:fs";
 import type { App } from "../app.ts";
 import { UPLOAD_CSP, errorResponse, json } from "../http.ts";
 import { contentType } from "../static.ts";
-import { safely, type Conn } from "../ws.ts";
+import { safely, type CommandResult, type Conn } from "../ws.ts";
 import { COALESCE_MS, Engine } from "./engine.ts";
 import { answerText as answerTextOf, valueText } from "./quiz.ts";
 import { ClockScheduler } from "./scheduler.ts";
 import { imageVersion } from "./media.ts";
 import { DEFAULT_VENUE_NAME, fileSources, type Sources } from "./sources.ts";
 import { branding as brandingOf, type BrandingStore } from "../branding/index.ts";
-import type { HistoryDetail } from "../../shared/protocol.ts";
+import type { CommandName, HistoryDetail } from "../../shared/protocol.ts";
 
 /** The engine reads the venue through B4's branding store; the store's name is null when unset. */
 function sourcesFor(app: App): { sources: Sources; branding: BrandingStore } {
@@ -109,7 +109,40 @@ export function register(app: App): void {
     }
   };
 
+  /** SA-17: the security log line for a command, if it is one worth a line. Never a code or token. */
+  const logCommand = (conn: Conn, name: string, args: Record<string, unknown>, result: CommandResult, teamBefore: string | null): void => {
+    const ip = conn.ip;
+    const teamName = (id: unknown) => (typeof id === "string" ? engine.m?.teams.get(id)?.name : undefined) ?? "";
+    if (!result.ok) {
+      if (result.error.code === "too_many_tries" && (name === "team.join" || name === "team.rejoin")) {
+        app.security.event("limiter_tripped", ip, name === "team.join" ? "room code" : "rejoin code");
+      }
+      return;
+    }
+    const id = (result.result as { teamId?: string; id?: string } | undefined);
+    switch (name) {
+      case "team.join": app.security.event("team_joined", ip, teamName(id?.teamId)); break;
+      case "team.rejoin": {
+        // Move codes are 8 characters (from the host), rejoin codes 6.
+        const viaMove = typeof args.code === "string" && args.code.trim().length === 8;
+        app.security.event(viaMove ? "team_moved" : "team_rejoined", ip, teamName(id?.teamId));
+        break;
+      }
+      case "team.remove": app.security.event("team_removed", ip, teamBefore ?? ""); break;
+      case "display.pair": app.security.event("display_paired", ip, id?.id ? `display ${id.id}` : undefined); break;
+      case "display.unpair": app.security.event("display_unpaired", ip, typeof args.id === "string" ? `display ${args.id}` : undefined); break;
+      case "display.unpairAll": app.security.event("displays_unpaired_all", ip); break;
+    }
+  };
+
   hub.setCommandHandler((conn, name, args) => {
+    const teamBefore = name === "team.remove" && typeof args.teamId === "string" ? engine.m?.teams.get(args.teamId)?.name ?? null : null;
+    const result = runCommand(conn, name, args);
+    logCommand(conn, name, args, result, teamBefore);
+    return result;
+  });
+
+  const runCommand = (conn: Conn, name: CommandName, args: Record<string, unknown>): CommandResult => {
     if ((DISPLAY_COMMANDS as readonly string[]).includes(name)) return displayCommand(app, name as DisplayCommand, args);
     const actor = conn.role === "team" ? { role: "team" as const, teamId: conn.teamId, connId: conn.id, ip: conn.ip } : { role: "host" as const };
     submitter = conn;
@@ -125,7 +158,7 @@ export function register(app: App): void {
       submitter = null;
     }
     return result;
-  });
+  };
 
   hub.onConnect((conn) => {
     if (conn.role === "team" && conn.teamId) engine.touch();

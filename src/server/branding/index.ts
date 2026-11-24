@@ -32,7 +32,7 @@ export function branding(app: App): BrandingStore {
 }
 
 const CONTENT_TYPES: Record<string, string> = {
-  png: "image/png", jpg: "image/jpeg", webp: "image/webp", svg: "image/svg+xml",
+  png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", svg: "image/svg+xml",
   woff2: "font/woff2", woff: "font/woff", ttf: "font/ttf",
 };
 
@@ -152,7 +152,8 @@ export function register(app: App): void {
     }
     const v = validateTheme(parsed);
     if (!v.ok) {
-      return new Response(`/* This theme is not valid: ${v.problems.map((p) => p.message).join(" ").replace(/\*\//g, "")} */\n`, {
+      // SA-19: nothing from the request is echoed (the branding page validates with PUT /api/theme).
+      return new Response("/* This theme is not valid. */\n", {
         status: 400, headers: { "Content-Type": "text/css; charset=utf-8" },
       });
     }

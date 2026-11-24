@@ -33,8 +33,9 @@ export function logoUrl(theme: ThemeFile | null): string | null {
 /** The display page with the venue logo and a tagline filled in. */
 export function personalise(page: string, logo: string | null, tagline: string | null): string {
   let out = page;
-  if (logo) out = out.replace(LOGO_META, `<meta name="lockin-logo" content="${attr(logo)}">`);
-  if (tagline) out = out.replace(TAGLINE_META, `<meta name="lockin-tagline" content="${attr(tagline)}">`);
+  // Replacements are functions (SA-18): a string would treat $&, $` and $' in the tagline as patterns.
+  if (logo) out = out.replace(LOGO_META, () => `<meta name="lockin-logo" content="${attr(logo)}">`);
+  if (tagline) out = out.replace(TAGLINE_META, () => `<meta name="lockin-tagline" content="${attr(tagline)}">`);
   return out;
 }
 
