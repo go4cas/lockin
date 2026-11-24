@@ -5,7 +5,7 @@
 //   lockin --version       print the version
 
 import { join } from "node:path";
-import { startServer, VERSION } from "./app.ts";
+import { startServer, VERSION, type AppOptions } from "./app.ts";
 import { Auth } from "./auth.ts";
 import { ConfigError, ensureDataDir, parseArgs, resolveConfig, resolveDataDir } from "./config.ts";
 import { openDb } from "./db.ts";
@@ -25,7 +25,11 @@ Options (each also from an environment variable or <data>/config.json):
   --public-url <url>    Public address, e.g. https://quiz.example.com (LOCKIN_PUBLIC_URL, required)
 `;
 
-export async function main(argv: string[], env: Record<string, string | undefined>, cwd: string): Promise<number> {
+/**
+ * Runs one command. `appOptions` is passed to startServer; the compiled binary
+ * uses it to serve the files embedded in it (TECH-SPEC 4.6, added by B8).
+ */
+export async function main(argv: string[], env: Record<string, string | undefined>, cwd: string, appOptions: AppOptions = {}): Promise<number> {
   try {
     const args = parseArgs(argv);
     switch (args.command) {
@@ -59,7 +63,7 @@ export async function main(argv: string[], env: Record<string, string | undefine
       }
       case "serve": {
         const config = resolveConfig(args, env, cwd);
-        const running = await startServer(config);
+        const running = await startServer(config, appOptions);
         const stop = async () => {
           await running.stop();
           process.exit(0);

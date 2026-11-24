@@ -94,11 +94,12 @@ describe("ping and pong (TECH-SPEC 10.6)", () => {
 });
 
 describe("commands (TECH-SPEC 10.5)", () => {
-  test("until B1 lands, every allowed command answers wrong_phase", async () => {
+  test("with no night open, commands that need one answer wrong_phase (B1 engine)", async () => {
     const host = await client({ role: "host", cookie });
     await host.hello();
-    const ack = await host.cmd("night.open", { quizId: "x" });
-    expect(ack).toEqual({ t: "ack", id: 1, ok: false, error: { code: "wrong_phase", message: "No night is running yet." } });
+    const ack = await host.cmd("lock");
+    expect(!ack.ok && ack.error.code).toBe("wrong_phase");
+    expect(!(await host.cmd("night.open", { quizId: "x" })).ok).toBe(true);
     const team = await client({ role: "team" });
     await team.hello();
     expect((await team.cmd("team.join", { roomCode: "BCDF", name: "Quizteama Aguilera" })).ok).toBe(false);

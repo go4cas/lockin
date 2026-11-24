@@ -11,7 +11,7 @@
 
 import type { ServerWebSocket } from "bun";
 import { withSecurityHeaders } from "../src/server/http.ts";
-import { HOST_SECTIONS, contentType, diskSource, serveFile, staticPath } from "../src/server/static.ts";
+import { HOST_SECTIONS, contentType, diskSource, serveFile, staticPath, vendorPath } from "../src/server/static.ts";
 import type { ClientMsg, ServerMsg, View } from "../src/shared/protocol.ts";
 import { NOW } from "../tests/fixtures/views/_data.ts";
 import { loadFixtures } from "../tests/fixtures/views/index.ts";
@@ -62,6 +62,9 @@ export async function startFixtureServer(port = 8081, log: (m: string) => void =
       if (p === "/fixtures") res = indexPage();
       else if (p.startsWith("/static/")) {
         const path = staticPath(p.slice("/static/".length), files);
+        res = (path && (await serveFile(req, files, path))) || new Response("Not found", { status: 404 });
+      } else if (p.startsWith("/vendor/")) {
+        const path = vendorPath(p.slice("/vendor/".length));
         res = (path && (await serveFile(req, files, path))) || new Response("Not found", { status: 404 });
       } else if (p === "/theme.css") res = new Response("/* fixture server: default theme only */\n", { headers: { "Content-Type": contentType("x.css") } });
       else if (p === "/display") res = await page(req, PAGES.display!.file, PAGES.display!.owner);

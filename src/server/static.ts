@@ -89,6 +89,15 @@ export function staticPath(rest: string, files: FileSource): string | null {
   return `public/${rel}`;
 }
 
+/**
+ * Maps a /vendor/... URL path to a repo-relative file in public/vendor/, or null.
+ * Pages import Arrow as "/vendor/arrow/index.mjs" (TECH-SPEC 3.4).
+ */
+export function vendorPath(rest: string): string | null {
+  const rel = safeRelative(rest);
+  return rel ? `public/vendor/${rel}` : null;
+}
+
 function etagOf(bytes: Uint8Array): string {
   return `"${Bun.hash(bytes).toString(16)}"`;
 }
@@ -120,6 +129,13 @@ export function registerStatic(app: App): void {
 
   app.route("GET", "/static/*", async (req, ctx) => {
     const path = staticPath(ctx.params["*"] ?? "", files);
+    if (!path) return notFound();
+    return (await serveFile(req, files, path)) ?? notFound();
+  });
+
+  // Vendored browser code (ArrowJS), imported by pages as /vendor/arrow/index.mjs (TECH-SPEC 3.4).
+  app.route("GET", "/vendor/*", async (req, ctx) => {
+    const path = vendorPath(ctx.params["*"] ?? "");
     if (!path) return notFound();
     return (await serveFile(req, files, path)) ?? notFound();
   });
