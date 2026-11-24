@@ -64,8 +64,8 @@ const add = (name, view, steps, opts) => shots.push({ name, view, steps, opts })
 // Every fixture as it comes
 for (const n of Object.keys(FX.views)) add("fixture-" + n.slice(5), clone(FX.views[n]));
 // Join and its errors (P-01, P-02)
-const joinErr = (code, msg) => async (p) => { await p.fill("#team-name", "Les Quizerables"); await p.click(".ph-foot .btn.primary"); await p.waitForTimeout(150); };
-add("join-filled", V("lobby-join"), async (p) => { await p.fill("#team-name", "Les Quizerables"); await p.locator("#team-name").focus(); }, { path: "/j/BKTW" });
+const joinErr = (code, msg) => async (p) => { await p.fill("#team-name >> visible=true", "Les Quizerables"); await p.click(".ph-foot .btn.primary >> visible=true"); await p.waitForTimeout(150); };
+add("join-filled", V("lobby-join"), async (p) => { await p.fill("#team-name >> visible=true", "Les Quizerables"); await p.locator("#team-name >> visible=true").focus(); }, { path: "/j/BKTW" });
 add("join-taken", V("lobby-join"), joinErr(), { path: "/j/BKTW", onCmd: err("team_has_phone", "This team already has a phone. If it died, ask for your team's rejoin code.") });
 add("join-name-taken", V("lobby-join"), joinErr(), { path: "/j/BKTW", onCmd: err("name_taken", "Another team already has that name. Try another.") });
 add("join-room-code", V("lobby-join"), joinErr(), { path: "/j/BKTX", onCmd: err("room_code", "That room code is not right. Check the TV.") });
@@ -73,23 +73,23 @@ add("join-full", V("lobby-join"), joinErr(), { path: "/j/BKTW", onCmd: err("nigh
 add("join-closed-error", V("lobby-join"), joinErr(), { path: "/j/BKTW", onCmd: err("joining_closed", "The quiz has started, so new teams can't join.") });
 const started = V("reveal"); started.self = null;
 add("join-closed", started);
-add("rejoin", started, async (p) => { await p.click(".ph-foot .btn"); await p.fill("#rejoin-code", "K7PX3"); await p.click(".ph-foot .btn.primary"); });
-add("rejoin-bad-code", started, async (p) => { await p.click(".ph-foot .btn"); await p.fill("#rejoin-code", "K7PX3Q"); await p.click(".ph-foot .btn.primary"); await p.waitForTimeout(150); }, { onCmd: err("bad_code", "That code doesn't match a team. Check it and try again.") });
+add("rejoin", started, async (p) => { await p.click(".ph-foot .btn >> visible=true"); await p.fill("#rejoin-code >> visible=true", "K7PX3"); await p.click(".ph-foot .btn.primary >> visible=true"); });
+add("rejoin-bad-code", started, async (p) => { await p.click(".ph-foot .btn >> visible=true"); await p.fill("#rejoin-code >> visible=true", "K7PX3Q"); await p.click(".ph-foot .btn.primary >> visible=true"); await p.waitForTimeout(150); }, { onCmd: err("bad_code", "That code doesn't match a team. Check it and try again.") });
 add("move-failed", V("lobby-join"), null, { path: "/m/ABCD2345", onCmd: err("bad_code", "That move link has expired.") });
 add("moved", V("asking"), async (p, srv) => { srv.ws.send(JSON.stringify({ t: "bye", reason: "moved" })); });
 add("removed", V("lobby"), async (p, srv) => { srv.ws.send(JSON.stringify({ t: "bye", reason: "removed" })); });
 // Lobby variants
 const noStart = V("lobby"); noStart.night.plannedStart = null; noStart.night.prizes = [];
 add("lobby-no-start", noStart);
-add("lobby-joker-confirm", V("lobby"), async (p) => { await p.click(".joker-card .btn.joker"); });
-add("menu", V("round_intro"), async (p) => { await p.click(".ph-top .icon-btn"); });
-add("guide-iphone", V("lobby"), async (p) => { await p.click(".card .link"); }, { ua: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" });
-add("guide-android", V("lobby"), async (p) => { await p.click(".card .link"); }, { ua: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36" });
+add("lobby-joker-confirm", V("lobby"), async (p) => { await p.click(".joker-card .btn.joker >> visible=true"); });
+add("menu", V("round_intro"), async (p) => { await p.click(".ph-top .icon-btn >> visible=true"); });
+add("guide-iphone", V("lobby"), async (p) => { await p.click(".card .link >> visible=true"); }, { ua: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" });
+add("guide-android", V("lobby"), async (p) => { await p.click(".card .link >> visible=true"); }, { ua: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36" });
 const ri = V("round_intro"); ri.self.jokerRound = null; ri.self.jokerAvailable = true;
 add("round-intro-joker", ri);
 // Answer inputs (P-05)
 const one = (n, over = {}) => { const v = V("asking"); const qs = V("asking-round").questions; v.questions = [Object.assign(qs[n - 1], over)]; v.answers = []; return v; };
-const typed = (text) => async (p) => { const i = p.locator(".ph-body input.input").first(); await i.click(); await i.fill(text); };
+const typed = (text) => async (p) => { const i = p.locator(".ph-body input.input >> visible=true").first(); await i.click(); await i.fill(text); };
 const recv = (n, value) => { const v = one(n); v.answers = [{ questionId: v.questions[0].id, value, receivedAt: FX.NOW - 3000, counted: true }]; return v; };
 add("q-text-received", recv(1, { type: "text", text: "Fleetwood Mac" }));
 add("q-text-typing", one(1), typed("Fleetwood M"));
@@ -98,11 +98,11 @@ add("q-year", one(5), async (p) => { await p.click('[aria-label="Year up"]'); })
 add("q-date", (() => { const v = one(5); v.questions[0].input = { type: "datetime", precision: "date" }; return v; })());
 add("q-time-paused", (() => { const v = one(5); v.questions[0].input = { type: "datetime", precision: "time" }; v.questions[0].timer = { state: "paused", durationMs: 60000, locksAt: null, remainingMs: 25000 }; return v; })());
 add("q-image", one(4), null);
-add("q-image-zoom", one(4), async (p) => { await p.click(".qimg"); });
+add("q-image-zoom", one(4), async (p) => { await p.click(".qimg >> visible=true"); });
 add("q-not-started", one(1, { timer: { state: "idle", durationMs: 60000, locksAt: null, remainingMs: null } }));
-add("q-too-late", one(1), async (p) => { await typed("Fleetwood Mac")(p); await p.click(".ph-foot .btn.primary"); await p.waitForTimeout(150); }, { onCmd: err("too_late", "Too late, answers were locked.") });
+add("q-too-late", one(1), async (p) => { await typed("Fleetwood Mac")(p); await p.click(".ph-foot .btn.primary >> visible=true"); await p.waitForTimeout(150); }, { onCmd: err("too_late", "Too late, answers were locked.") });
 add("q-offline", recv(1, { type: "text", text: "Fleetwod" }), async (p, srv) => { await typed("Fleetwood Mac")(p); srv.refuse = true; srv.drop(); await p.clock.runFor(3500); });
-add("asking-round-q4", V("asking-round"), async (p) => { await p.locator("nav.qnav button").nth(3).click(); });
+add("asking-round-q4", V("asking-round"), async (p) => { await p.locator("nav.qnav button >> visible=true").nth(3).click(); });
 const ar0 = V("asking"); ar0.questions = [];
 add("asking-get-ready", ar0);
 // Locked (P-06)

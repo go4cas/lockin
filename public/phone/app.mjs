@@ -3,13 +3,13 @@
 // Loaded as a module after the shared classic scripts (clock.js, ws-client.js,
 // view.js), which provide window.LockIn (TECH-SPEC 3.4).
 
-import { root } from "./screens.mjs";
+import { mount } from "./screens.mjs";
 import { start } from "./state.mjs";
 
 const app = document.getElementById("app");
 if (app) {
   while (app.firstChild) app.removeChild(app.firstChild);
-  root(app);
+  mount(app);
 }
 start();
 

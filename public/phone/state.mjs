@@ -27,6 +27,9 @@ export const page = reactive({
   /** @type {string | null} */ bye: null,
 });
 
+/** The screen on show. Changed only through show(), so screens swap in two steps. */
+export const nav = reactive({ screen: "connecting" });
+
 export const ui = reactive({
   joinMode: /** @type {"join" | "rejoin"} */ ("join"),
   name: "",
@@ -81,6 +84,7 @@ export function start() {
       if (reason === "moved" || reason === "removed") {
         L.saveTeam(storage(), null);
         page.bye = reason;
+        reroute();
       }
     },
     onState: receive,
@@ -89,9 +93,28 @@ export function start() {
   return client;
 }
 
+function localState() {
+  return { bye: page.bye, joinMode: ui.joinMode, moving: ui.moving };
+}
+
+/**
+ * Puts a view on screen and picks the screen for it.
+ * @param {TeamView | null} view
+ */
+export function show(view) {
+  page.view = view;
+  const next = L.screenOf(view, localState());
+  if (next !== nav.screen) nav.screen = next;
+}
+
+/** Re-checks the screen after the page's own state changed (join form, moved, moving). */
+function reroute() {
+  show(page.view);
+}
+
 /** @param {TeamView} view */
 function receive(view) {
-  page.view = view;
+  show(view);
   if (page.status !== "online") page.status = "online";
   const self = view.self;
   if (self) {
@@ -173,7 +196,7 @@ export function rejoin() {
   ui.rejoining = true;
   ui.rejoinError = null;
   client.cmd("team.rejoin", { code }).then(
-    (/** @type {any} */ r) => { ui.rejoining = false; ui.joinMode = "join"; ui.rejoinCode = ""; remember(r); forgetPath(); },
+    (/** @type {any} */ r) => { ui.rejoining = false; ui.joinMode = "join"; ui.rejoinCode = ""; remember(r); forgetPath(); reroute(); },
     (/** @type {any} */ e) => { ui.rejoining = false; ui.rejoinError = errorOf(e).message; },
   );
 }
@@ -182,12 +205,13 @@ export function rejoin() {
 function moveHere() {
   const code = L.parsePath(W.location.pathname).moveCode;
   client.cmd("team.rejoin", { code }).then(
-    (/** @type {any} */ r) => { remember(r); ui.moving = false; forgetPath(); },
+    (/** @type {any} */ r) => { remember(r); ui.moving = false; forgetPath(); reroute(); },
     (/** @type {any} */ e) => {
       ui.moving = false;
       ui.joinMode = "rejoin";
       ui.rejoinError = `${errorOf(e).message} Ask the quizmaster for a new move link, or type your team's rejoin code.`;
       forgetPath();
+      reroute();
     },
   );
 }
@@ -197,6 +221,7 @@ export function setJoinMode(mode) {
   ui.joinMode = mode;
   ui.joinError = null;
   ui.rejoinError = null;
+  reroute();
 }
 
 /**

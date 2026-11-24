@@ -35,6 +35,9 @@ body.phone { font-size: var(--ph-text-m); overscroll-behavior-y: none; -webkit-t
 .hero { font-size: var(--ph-text-hero); font-weight: var(--weight-bold); line-height: 1; font-variant-numeric: tabular-nums; }
 .hero.big { font-size: 72px; }
 p { margin: 0; }
+/* Wrappers that give an Arrow slot one root element (see NOTES, B3 and B7) without changing the layout. */
+.contents { display: contents; }
+.stack { display: flex; flex-direction: column; gap: var(--ph-space-3); }
 
 .btn { min-height: var(--ph-tap); border-radius: var(--radius-m); border: 0; font: inherit; font-weight: var(--weight-bold); font-size: var(--ph-text-m); display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; width: 100%; cursor: pointer; text-decoration: none; }
 .btn.primary { background: var(--color-action); color: var(--color-on-action); }

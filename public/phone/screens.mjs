@@ -4,9 +4,9 @@
 // Live values are written ${() => …}; text from the view always goes into a
 // ${} slot (a text node or attribute), never into markup (TECH-SPEC 12.4).
 
-import { html, reactive } from "/vendor/arrow/index.mjs";
+import { html, reactive, nextTick, watch } from "/vendor/arrow/index.mjs";
 import * as L from "./logic.mjs";
-import { page, ui, join, rejoin, setJoinMode, send, choose, playJoker, skipJoker, offline } from "./state.mjs";
+import { page as live, ui, nav, join, rejoin, setJoinMode, send, choose, playJoker, skipJoker, offline } from "./state.mjs";
 
 /** @typedef {import("../../src/shared/protocol").TeamView} TeamView */
 /** @typedef {import("../../src/shared/protocol").QuestionPublic} QuestionPublic */
@@ -17,6 +17,15 @@ const countdown = (/** @type {number} */ ms, /** @type {boolean} */ short) => W.
 const joinNames = (/** @type {string[]} */ names) => W.LockIn.view.joinNames(names);
 const colour = (/** @type {number} */ i) => W.LockIn.view.teamColour(i);
 
+// ---------------------------------------------------------------- screens
+
+/**
+ * Builds a fresh set of screens that read the view from `page`. mount() gives each
+ * screen its own `page` and only feeds it views while that screen is on show, so a
+ * hidden screen never re-renders for a view it was not made for (see mount()).
+ * @param {{ view: TeamView | null }} page
+ */
+function makeScreens(page) {
 /** The current view. Screens only run when a view exists, except the few that check. */
 const v = () => /** @type {TeamView} */ (page.view);
 const self = () => v().self;
@@ -30,15 +39,67 @@ const tick = () => html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 
 
 const padlock = () => html`<svg class="lockbig" viewBox="0 0 100 120" aria-hidden="true"><path class="shackle" d="M28 58 V36 A22 22 0 0 1 72 36 V58"/><rect class="body" x="10" y="54" width="80" height="62" rx="13"/><path class="qmark" d="M40 75 A10 10 0 1 1 55.5 83.3 C51.5 86 50 88 50 92"/><circle class="hole" cx="50" cy="104" r="4.6"/></svg>`;
 
+/** @type {Record<string, { key: string; n: number }>} */
+const generations = {};
+
 /**
- * One keyed template as a one-item list. Arrow patches a template into the previous
- * one in place when their markup matches, keeping the old element's attributes; in a
- * keyed list a new key always gets fresh elements. So a slot that can show a different
- * question (or screen) returns one(), and the input for question 3 is never question 2's.
+ * A list whose rows are never removed: row i always shows item i, rows past the end
+ * are hidden, and the list only grows. Arrow 1.0.6 throws ("expressionPool[effect]
+ * is not a function", "setEndAfter … has no parent") when it removes a keyed row
+ * whose own slots still have updates queued, which happened whenever one view's
+ * questions or standings replaced another's (NOTES, B7). Rows read their item
+ * through get(), so a reused row always shows the current item.
+ * @template T
+ * @param {() => T[]} items
+ * @param {(get: () => T | undefined, i: number) => any} render
+ */
+const pool = (items, render) => {
+  let size = 0;
+  return () => {
+    const n = items().length;
+    if (n > size) size = n;
+    return Array.from({ length: size }, (_, i) => render(() => items()[i], i).key(String(i)));
+  };
+};
+
+/**
+ * One keyed template as a one-item list, for a slot that can show different things
+ * (a screen, a question). Two Arrow 1.0.6 behaviours make this necessary (NOTES, B7):
+ * a template with the same markup is patched into the old elements even when its
+ * .key() differs, so question 4 could keep question 1's input; and a slot remembers
+ * a key after its elements are gone, so coming back to that key later reuses detached
+ * nodes and throws. A keyed list always mounts a new key fresh, and a generation
+ * number makes sure a key is never used twice in the same slot.
+ * @param {string} slot
  * @param {any} tpl
  * @param {string} key
  */
-const one = (tpl, key) => [tpl.key(key)];
+const one = (slot, tpl, key) => {
+  const g = generations[slot] ?? (generations[slot] = { key: "", n: 0 });
+  if (g.key !== key) { g.key = key; g.n++; }
+  return [tpl.key(`${key}#${g.n}`)];
+};
+
+/** What each swapping slot has mounted now. */
+const mounted = reactive({ question: "", deadlock: "" });
+
+/**
+ * Shows build() for `key` in a slot that swaps between screens or questions.
+ * On a key change the slot shows nothing for one microtask before the new template
+ * mounts: replacing a mounted template straight away while Arrow still has
+ * updates queued for it throws "expressionPool[effect] is not a function"
+ * (seen going from one question to the next; B3 found the same, see NOTES).
+ * @param {"question" | "deadlock"} slot
+ * @param {string} key
+ * @param {() => any} build
+ */
+const swap = (slot, key, build) => {
+  if (mounted[slot] === key) return one(slot, build(), key);
+  // Not nextTick: outside an update Arrow runs that straight away, inside this
+  // slot's own run, and the slot never runs again (seen on a fresh page load).
+  queueMicrotask(() => nextTick(() => { mounted[slot] = key; }));
+  return "";
+};
 
 const credit = () => html`<div class="credit">Powered by Lock-In</div>`;
 
@@ -54,13 +115,10 @@ const top = (/** @type {() => string} */ status = () => "", menu = true) => html
     ${menu ? html`<button class="icon-btn" type="button" aria-label="Team menu" @click="${() => { ui.menu = true; }}">&#8942;</button>` : ""}
   </header>`;
 
-const prizesCard = (/** @type {string} */ label) => html`${() => {
-  const prizes = night()?.prizes ?? [];
-  if (!prizes.length) return "";
-  return html`<section class="card"><div class="eyebrow" style="margin-bottom:6px">${label}</div>
-    ${() => (night()?.prizes ?? []).map((p) => html`<div class="prize"><b>${L.ordinal(p.place)}</b><span>${p.text}</span></div>`.key(p.place))}
-  </section>`;
-}}`;
+const prizesCard = (/** @type {string} */ label) => html`<section class="card" hidden="${() => !(night()?.prizes ?? []).length}">
+  <div class="eyebrow" style="margin-bottom:6px">${label}</div>
+  ${pool(() => night()?.prizes ?? [], (p) => html`<div class="prize" hidden="${() => !p()}"><b>${() => L.ordinal(p()?.place ?? 1)}</b><span>${() => p()?.text ?? ""}</span></div>`)}
+</section>`;
 
 const homeCard = () => html`
   <section class="card row" style="gap:14px">
@@ -69,25 +127,35 @@ const homeCard = () => html`
     <button class="link small" type="button" @click="${() => { ui.guide = true; }}">Show me</button>
   </section>`;
 
-/** The joker offer (P-04): before a round, once per night, confirm before it counts. */
-const jokerCard = () => html`${() => {
+/** The round the joker card offers now, or null when it is hidden. */
+const jokerOffer = () => {
   const r = L.jokerRoundNow(page.view);
-  if (r === null || ui.jokerSkip[String(r)]) {
-    return ui.jokerError ? html`<div class="err" role="alert">${() => ui.jokerError ?? ""}</div>` : "";
-  }
+  return r === null || ui.jokerSkip[String(r)] ? null : r;
+};
+const jokerTitle = () => {
+  const r = jokerOffer();
+  if (r === null) return "";
   const nr = night()?.round;
-  const title = v().phase === "round_intro" && nr && nr.index === r && nr.title ? nr.title : `round ${r + 1}`;
-  return one(html`<section class="joker-card">
+  return v().phase === "round_intro" && nr && nr.index === r && nr.title ? nr.title : `round ${r + 1}`;
+};
+
+/**
+ * The joker offer (P-04): before a round, once per night, confirm before it counts.
+ * Always mounted and shown or hidden by attribute, because Arrow 1.0.6 can throw when
+ * a slot removes a template (NOTES, B7).
+ */
+const jokerCard = () => html`<div class="contents">
+  <div class="err" role="alert" hidden="${() => !ui.jokerError}">${() => ui.jokerError ?? ""}</div>
+  <section class="joker-card" hidden="${() => jokerOffer() === null}">
     <span class="joker-tag">JOKER</span>
-    <p class="qtext">${() => (ui.jokerConfirm === r ? `Sure? Joker on ${title}?` : `Play your joker on ${title}?`)}</p>
-    <p class="small muted">${() => (ui.jokerConfirm === r
+    <p class="qtext">${() => (ui.jokerConfirm !== null && ui.jokerConfirm === jokerOffer() ? `Sure? Joker on ${jokerTitle()}?` : `Play your joker on ${jokerTitle()}?`)}</p>
+    <p class="small muted">${() => (ui.jokerConfirm !== null && ui.jokerConfirm === jokerOffer()
       ? "You can't take it back or move it once you confirm."
       : "Your points this round count double. One joker per night, and you can't change it once the round starts.")}</p>
-    ${() => (ui.jokerError ? html`<div class="err" role="alert">${() => ui.jokerError ?? ""}</div>` : "")}
-    <button class="btn joker" type="button" disabled="${() => ui.jokerBusy || offline()}" @click="${() => playJoker(r)}">${() => (ui.jokerConfirm === r ? "Yes, play the joker" : `Play joker on ${title}`)}</button>
-    <button class="btn ghost" type="button" @click="${() => skipJoker(r)}">${() => (ui.jokerConfirm === r ? "Cancel" : "Not this round")}</button>
-  </section>`, `joker-${r}`);
-}}`;
+    <button class="btn joker" type="button" disabled="${() => ui.jokerBusy || offline()}" @click="${() => { const r = jokerOffer(); if (r !== null) playJoker(r); }}">${() => (ui.jokerConfirm !== null && ui.jokerConfirm === jokerOffer() ? "Yes, play the joker" : `Play joker on ${jokerTitle()}`)}</button>
+    <button class="btn ghost" type="button" @click="${() => { const r = jokerOffer(); if (r !== null) skipJoker(r); }}">${() => (ui.jokerConfirm !== null && ui.jokerConfirm === jokerOffer() ? "Cancel" : "Not this round")}</button>
+  </section>
+</div>`;
 
 // ---------------------------------------------------------------- join
 
@@ -116,8 +184,8 @@ const joinScreen = () => html`
         const e = ui.joinError;
         if (!e) return "";
         if (e.code === "team_has_phone") {
-          return html`<div class="err" role="alert"><b>${() => `${ui.name.trim()} already has a phone.`}</b>Only one phone per team. If your team's phone died, ask it for the rejoin code, or ask the quizmaster to move your team here.</div>
-            <button class="link" type="button" @click="${() => setJoinMode("rejoin")}">I have a rejoin code</button>`;
+          return html`<div class="stack"><div class="err" role="alert"><b>${() => `${ui.name.trim()} already has a phone.`}</b>Only one phone per team. If your team's phone died, ask it for the rejoin code, or ask the quizmaster to move your team here.</div>
+            <button class="link" type="button" @click="${() => setJoinMode("rejoin")}">I have a rejoin code</button></div>`;
         }
         return html`<div class="err" role="alert">${() => ui.joinError?.message ?? ""}</div>`;
       }}
@@ -184,8 +252,8 @@ const connectingScreen = () => html`
   <div class="ph">
     <main class="ph-center">
       ${mark(64)}
-      <h1 class="title">${() => (page.status === "offline" ? "Can't reach the quiz" : "Connecting…")}</h1>
-      <p class="muted small">${() => (page.status === "offline" ? "Check the pub's Wi-Fi or your mobile data. This page keeps trying on its own." : "")}</p>
+      <h1 class="title">${() => (live.status === "offline" ? "Can't reach the quiz" : "Connecting…")}</h1>
+      <p class="muted small">${() => (live.status === "offline" ? "Check the pub's Wi-Fi or your mobile data. This page keeps trying on its own." : "")}</p>
     </main>
   </div>`;
 
@@ -274,8 +342,8 @@ const scoreScreen = () => html`
     </main>
   </div>`;
 
-const standingsList = () => html`<ol class="list" aria-label="Standings">${() => (v().standings?.rows ?? []).map((r) => html`
-  <li class="${() => (r.teamId === self()?.id ? "me" : "")}"><span class="p pos">${r.shared ? `=${r.position}` : String(r.position)}</span><i class="dot" style="${`background:${colour(r.colour)}`}"></i><span class="n">${r.name}</span>${r.jokerThisRound ? html`<span class="joker-tag">JOKER</span>` : ""}<span class="p">${String(r.total)}</span></li>`.key(r.teamId))}</ol>`;
+const standingsList = () => html`<ol class="list" aria-label="Standings">${pool(() => v().standings?.rows ?? [], (r) => html`
+  <li class="${() => (r() && r()?.teamId === self()?.id ? "me" : "")}" hidden="${() => !r()}"><span class="p pos">${() => { const x = r(); return x ? (x.shared ? `=${x.position}` : String(x.position)) : ""; }}</span><i class="dot" style="${() => `background:${colour(r()?.colour ?? 0)}`}"></i><span class="n">${() => r()?.name ?? ""}</span><span class="joker-tag" hidden="${() => !r()?.jokerThisRound}">JOKER</span><span class="p">${() => String(r()?.total ?? 0)}</span></li>`)}</ol>`;
 
 const halftimeScreen = () => html`
   <div class="ph">
@@ -364,7 +432,11 @@ const sentStrip = (/** @type {string} */ id) => html`${() => {
       return qq.input.type === "choice" ? `Sent: ${text}. Tap another to change.` : `The quizmaster has "${text}". Change it any time before the lock.`;
     }}</span></div>`;
   }
-  if (offline() && draft.trim()) return html`<div class="sent bad" role="status"><span><b>Not sent.</b> You're offline, so this answer has not reached the quizmaster. Tap Send once you're back.</span></div>`;
+  if (offline()) {
+    return html`<div class="sent bad" role="status"><span>${() => ((ui.drafts[id] ?? "").trim() && !L.draftMatches(q.input, ui.drafts[id] ?? "", L.answerFor(page.view, id))
+      ? "Not sent. You're offline, so this answer has not reached the quizmaster. Answering opens again as soon as the phone reconnects."
+      : "You're offline. Answering is paused until the phone reconnects.")}</span></div>`;
+  }
   if (held) return html`<div class="sent wait" role="status"><span>${() => { const h = L.answerFor(page.view, id); return h ? `Changed, not sent yet. The quizmaster still has "${L.formatValue(h.value, qById(id)?.input)}".` : ""; }}</span></div>`;
   return html`<div class="sent wait" role="status"><span>${() => (q.input.type === "choice" ? "Tap an answer to send it." : (ui.drafts[id] ?? "").trim() ? "Not sent yet. Tap Send." : "Nothing sent yet.")}</span></div>`;
 }}`;
@@ -389,7 +461,7 @@ const answerInput = (/** @type {QuestionPublic} */ q) => {
   if (input.type === "number") {
     return html`<div class="field"><label for="${`a-${id}`}">Your number</label>
       <input id="${`a-${id}`}" class="input big" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" enterkeyhint="send"
-        value="${() => ui.drafts[id] ?? ""}" @input="${setDraft(id)}" @keydown="${onEnter(id)}"></div>`;
+        value="${() => ui.drafts[id] ?? ""}" disabled="${() => offline()}" @input="${setDraft(id)}" @keydown="${onEnter(id)}"></div>`;
   }
   if (input.type === "datetime" && input.precision === "year") {
     const step = (/** @type {number} */ d) => () => {
@@ -398,20 +470,20 @@ const answerInput = (/** @type {QuestionPublic} */ q) => {
       ui.sendError[id] = "";
     };
     return html`<div class="field"><label for="${`a-${id}`}">Year</label><div class="stepper">
-      <button class="btn secondary" type="button" aria-label="Year down" @click="${step(-1)}">&minus;</button>
+      <button class="btn secondary" type="button" aria-label="Year down" disabled="${() => offline()}" @click="${step(-1)}">&minus;</button>
       <input id="${`a-${id}`}" class="input big" type="text" inputmode="numeric" maxlength="5" autocomplete="off" enterkeyhint="send"
-        value="${() => ui.drafts[id] ?? ""}" @input="${setDraft(id)}" @keydown="${onEnter(id)}">
-      <button class="btn secondary" type="button" aria-label="Year up" @click="${step(1)}">+</button></div></div>`;
+        value="${() => ui.drafts[id] ?? ""}" disabled="${() => offline()}" @input="${setDraft(id)}" @keydown="${onEnter(id)}">
+      <button class="btn secondary" type="button" aria-label="Year up" disabled="${() => offline()}" @click="${step(1)}">+</button></div></div>`;
   }
   if (input.type === "datetime") {
     const kind = input.precision === "date" ? "date" : "time";
     return html`<div class="field"><label for="${`a-${id}`}">${kind === "date" ? "Date" : "Time"}</label>
-      <input id="${`a-${id}`}" class="input big" type="${kind}" value="${() => ui.drafts[id] ?? ""}" @input="${setDraft(id)}" @change="${setDraft(id)}"></div>`;
+      <input id="${`a-${id}`}" class="input big" type="${kind}" value="${() => ui.drafts[id] ?? ""}" disabled="${() => offline()}" @input="${setDraft(id)}" @change="${setDraft(id)}"></div>`;
   }
   // Free text: autocorrect off so phones don't "fix" a band name (Design).
   return html`<div class="field"><label for="${`a-${id}`}">Your answer</label>
     <input id="${`a-${id}`}" class="input" type="text" maxlength="${L.TEXT_MAX}" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="send"
-      value="${() => ui.drafts[id] ?? ""}" @input="${setDraft(id)}" @keydown="${onEnter(id)}"></div>`;
+      value="${() => ui.drafts[id] ?? ""}" disabled="${() => offline()}" @input="${setDraft(id)}" @keydown="${onEnter(id)}"></div>`;
 };
 
 const eyebrowFor = (/** @type {QuestionPublic} */ q) => {
@@ -422,7 +494,7 @@ const eyebrowFor = (/** @type {QuestionPublic} */ q) => {
 };
 
 /** An open question: timer, picture, text, input, what the server holds, Send. Keyed by question id. */
-const openQuestion = (/** @type {QuestionPublic} */ q) => html`
+const openQuestion = (/** @type {QuestionPublic} */ q) => html`<div class="contents">
   <div class="ph-body">
     ${timerBar(q.id)}
     ${eyebrowFor(q) ? html`<div class="eyebrow">${eyebrowFor(q)}</div>` : ""}
@@ -437,7 +509,7 @@ const openQuestion = (/** @type {QuestionPublic} */ q) => html`
       const draft = ui.drafts[q.id] ?? "";
       const held = L.answerFor(page.view, q.id);
       return !draft.trim() || L.draftMatches(q.input, draft, held);
-    }}" @click="${() => { const qq = qById(q.id); if (qq) send(qq); }}">Send answer</button></footer>`}`;
+    }}" @click="${() => { const qq = qById(q.id); if (qq) send(qq); }}">Send answer</button></footer>`}</div>`;
 
 /** A locked question (P-06): the locked-in answer, nothing sent, or a late answer that did not count. */
 const lockedQuestion = (/** @type {QuestionPublic} */ q) => html`
@@ -451,7 +523,7 @@ const lockedQuestion = (/** @type {QuestionPublic} */ q) => html`
         return html`<section class="card" style="min-width:260px"><div class="xs muted">You locked in</div><div class="qtext">${() => { const h = L.answerFor(page.view, q.id); return h ? L.formatValue(h.value, qq.input) : ""; }}</div></section>`;
       }
       const late = held && !held.counted ? `"${L.formatValue(held.value, qq.input)}" did not count. It reached the quizmaster after the lock.` : ui.sendError[q.id] ? ui.sendError[q.id] : "";
-      return html`${late ? html`<div class="sent bad" style="text-align:left"><span><b>${late}</b></span></div>` : ""}<p class="small muted">No answer was sent before the lock, so this one scores 0.</p>`;
+      return html`<div class="stack">${late ? html`<div class="sent bad" style="text-align:left"><span><b>${late}</b></span></div>` : ""}<p class="small muted">No answer was sent before the lock, so this one scores 0.</p></div>`;
     }}
     ${voice(() => (v().phase === "sudden_death" ? null : v().lines.locked))}
   </div>`;
@@ -462,23 +534,24 @@ const askingScreen = () => html`
       const qs = v().questions;
       return L.progressLabel(page.view, L.pickQuestion(qs, ui.picked));
     })}
-    ${() => (night()?.lockMode === "round" && v().questions.length > 1 ? html`
-      <div class="ph-body" style="flex:0;padding-bottom:0">
+      <div class="ph-body" style="flex:0;padding-bottom:0" hidden="${() => !(night()?.lockMode === "round" && v().questions.length > 1)}">
         <p class="small muted">Answers stay open until the round locks. Dot = sent.</p>
-        <nav class="qnav" aria-label="Questions">${() => v().questions.map((q) => html`<button type="button"
+        <nav class="qnav" aria-label="Questions">${pool(() => v().questions, (q) => html`<button type="button" hidden="${() => !q()}"
           class="${() => {
+            const it = q();
+            if (!it) return "";
             const cur = L.pickQuestion(v().questions, ui.picked);
-            return [L.answerFor(page.view, q.id) ? "done" : "", cur && cur.id === q.id ? "on" : "", q.status === "locked" ? "locked" : ""].join(" ").trim();
-          }}" aria-label="${`Question ${q.number}`}" @click="${() => { ui.picked = q.id; }}">${String(q.number)}</button>`.key(q.id))}</nav>
-      </div>` : "")}
+            return [L.answerFor(page.view, it.id) ? "done" : "", cur && cur.id === it.id ? "on" : "", it.status === "locked" ? "locked" : ""].join(" ").trim();
+          }}" aria-label="${() => `Question ${q()?.number ?? ""}`}" @click="${() => { const it = q(); if (it) ui.picked = it.id; }}">${() => String(q()?.number ?? "")}</button>`)}</nav>
+      </div>
     ${() => {
       const qs = v().questions;
       if (!qs.length) {
-        return html`<div class="ph-center"><div class="eyebrow">${() => { const r = night()?.round; return r ? `Round ${r.index + 1}` : ""; }}</div><h1 class="title">Get ready</h1><p class="small muted">The first question is coming up.</p>${voice(() => v().lines.question)}</div>`;
+        return swap("question", "ready", () => html`<div class="ph-center"><div class="eyebrow">${() => { const r = night()?.round; return r ? `Round ${r.index + 1}` : ""; }}</div><h1 class="title">Get ready</h1><p class="small muted">The first question is coming up.</p>${voice(() => v().lines.question)}</div>`);
       }
       const q = L.pickQuestion(qs, ui.picked);
       if (!q) return "";
-      return q.status === "open" ? one(openQuestion(q), `open-${q.id}`) : one(lockedQuestion(q), `locked-${q.id}`);
+      return q.status === "open" ? swap("question", `open-${q.id}`, () => openQuestion(q)) : swap("question", `locked-${q.id}`, () => lockedQuestion(q));
     }}
   </div>`;
 
@@ -500,20 +573,20 @@ const deadlockInScreen = () => html`
       const q = sd?.question ?? null;
       const intro = html`<div class="ph-body" style="flex:0;padding-bottom:0">${deadlockHead()}<p class="small muted">${() => `You vs ${joinNames(opponents())} for ${L.ordinal(v().suddenDeath?.position ?? 1)} place.`}</p>${voice(() => v().lines.suddenDeath)}</div>`;
       if (!sd || !q || sd.status === "waiting") {
-        return html`${intro}<div class="ph-center"><h1 class="title">Next question coming</h1><p class="small muted">Only the tied teams answer. Get ready.</p></div>`;
+        return swap("deadlock", "waiting", () => html`<div class="contents">${intro}<div class="ph-center"><h1 class="title">Next question coming</h1><p class="small muted">Only the tied teams answer. Get ready.</p></div></div>`);
       }
       if (sd.status === "revealed") {
         const right = (sd.rightIds ?? []).includes(self()?.id ?? "");
-        return html`${intro}<div class="ph-center"><h1 class="title">${right ? "You got it right" : "Not this time"}</h1>
+        return swap("deadlock", `revealed-${q.id}-${right}`, () => html`<div class="contents">${intro}<div class="ph-center"><h1 class="title">${right ? "You got it right" : "Not this time"}</h1>
           <p class="small muted">${() => {
             const o = v().suddenDeath?.outcome;
             if (!o) return "Still level. Another question is coming.";
             const won = o.teamIds.includes(self()?.id ?? "");
             if (o.result === "shared") return `Still tied after the last question, so ${L.ordinal(o.position)} place is shared.`;
             return won ? `You take ${L.ordinal(o.position)} place.` : `${L.ordinal(o.position)} place goes to the other team.`;
-          }}</p></div>`;
+          }}</p></div></div>`);
       }
-      return q.status === "open" ? one(html`${intro}${openQuestion(q)}`, `sd-open-${q.id}`) : one(html`${intro}${lockedQuestion(q)}`, `sd-locked-${q.id}`);
+      return q.status === "open" ? swap("deadlock", `open-${q.id}`, () => html`<div class="contents">${intro}${openQuestion(q)}</div>`) : swap("deadlock", `locked-${q.id}`, () => html`<div class="contents">${intro}${lockedQuestion(q)}</div>`);
     }}
   </div>`;
 
@@ -532,6 +605,30 @@ const deadlockWatchScreen = () => html`
     </main>
   </div>`;
 
+return {
+  connecting: connectingScreen,
+  moving: movingScreen,
+  moved: plainScreen("Your team is on another phone now", "Someone used your team's rejoin code, or the quizmaster moved your team. If that wasn't you, tell the quizmaster.", "Back to the start"),
+  removed: plainScreen("Your team was removed", "The quizmaster removed your team from tonight's quiz. Ask them if you think it's a mistake.", "Back to the start"),
+  "no-night": noNightScreen,
+  join: joinScreen,
+  rejoin: rejoinScreen,
+  "join-closed": joinClosedScreen,
+  lobby: lobbyScreen,
+  "round-intro": roundIntroScreen,
+  asking: askingScreen,
+  waiting: waitingScreen,
+  score: scoreScreen,
+  halftime: halftimeScreen,
+  "deadlock-in": deadlockInScreen,
+  "deadlock-watch": deadlockWatchScreen,
+  end: endScreen,
+};
+}
+
+/** The live view, for the sheets and overlays that sit above every screen. */
+const self = () => live.view?.self ?? null;
+
 // ---------------------------------------------------------------- sheets and overlays
 
 const menuSheet = () => html`
@@ -543,7 +640,7 @@ const menuSheet = () => html`
         <div class="rejoin">${() => self()?.rejoinCode ?? ""}</div>
         <div class="hint">Phone dying? Open the quiz on another phone, tap "Use a rejoin code" and type this. Your team keeps its answers and score.</div>
       </div>
-      ${() => { const s = L.jokerStatus(page.view); return s ? html`<div class="row between small"><span>Joker</span><span class="muted">${() => L.jokerStatus(page.view) ?? ""}</span></div>` : ""; }}
+      ${() => { const s = L.jokerStatus(live.view); return s ? html`<div class="row between small"><span>Joker</span><span class="muted">${() => L.jokerStatus(live.view) ?? ""}</span></div>` : ""; }}
       <button class="link small" type="button" @click="${() => { ui.menu = false; ui.guide = true; }}">Add to home screen</button>
       <button class="btn secondary" type="button" @click="${() => { ui.menu = false; }}">Close</button>
     </div>
@@ -590,35 +687,62 @@ const toastView = () => html`<div class="toast" role="status">${() => ui.toast?.
 
 // ---------------------------------------------------------------- root
 
-/** @type {Record<string, () => any>} */
-const SCREENS = {
-  connecting: connectingScreen,
-  moving: movingScreen,
-  moved: plainScreen("Your team is on another phone now", "Someone used your team's rejoin code, or the quizmaster moved your team. If that wasn't you, tell the quizmaster.", "Back to the start"),
-  removed: plainScreen("Your team was removed", "The quizmaster removed your team from tonight's quiz. Ask them if you think it's a mistake.", "Back to the start"),
-  "no-night": noNightScreen,
-  join: joinScreen,
-  rejoin: rejoinScreen,
-  "join-closed": joinClosedScreen,
-  lobby: lobbyScreen,
-  "round-intro": roundIntroScreen,
-  asking: askingScreen,
-  waiting: waitingScreen,
-  score: scoreScreen,
-  halftime: halftimeScreen,
-  "deadlock-in": deadlockInScreen,
-  "deadlock-watch": deadlockWatchScreen,
-  end: endScreen,
-};
 
-/** The screen name, recomputed from the view and the page's own state. */
-export const screen = reactive(() => L.screenOf(page.view, { bye: page.bye, joinMode: ui.joinMode, moving: ui.moving }));
 
-export const root = html`
+const root = html`
   ${() => (offline() ? html`<div class="banner" role="status"><i></i>Offline. Reconnecting…</div>` : "")}
-  ${() => { const name = screen.value; return one((SCREENS[name] ?? connectingScreen)(), name); }}
-  ${() => (ui.menu && page.view?.self ? menuSheet() : "")}
+  <div class="screens"></div>
+  ${() => (ui.menu && live.view?.self ? menuSheet() : "")}
   ${() => (ui.guide ? guideSheet() : "")}
   ${() => (ui.zoom ? zoomView() : "")}
   ${() => (ui.toast ? toastView() : "")}
 `;
+
+/** @param {Record<string, () => any>} screens */
+const connectingScreenOf = (screens) => /** @type {() => any} */ (screens.connecting);
+
+/**
+ * Mounts the page. Each screen is built the first time it is needed and then stays
+ * mounted, hidden while another screen shows. Arrow 1.0.6 does not reliably stop the
+ * slots inside a template it has removed: when a new view removed a screen, its
+ * lists still re-rendered into detached nodes and threw ("setEndAfter … has no
+ * parent", "expressionPool[effect] is not a function"), seen in a stress test of
+ * 400 random fixture views. Screens that are never removed cannot hit that (NOTES, B7).
+ * Each screen also gets its own copy of the view, fed only while it is on show, so a
+ * hidden screen keeps its last view and never re-renders for one it was not made for.
+ * @param {HTMLElement} app
+ */
+export function mount(app) {
+  root(app);
+  const holder = /** @type {HTMLElement} */ (app.querySelector(".screens"));
+  /** @type {Record<string, { box: HTMLElement; page: { view: TeamView | null } }>} */
+  const built = {};
+  /** @type {string | null} */
+  let showing = null;
+  const feed = () => {
+    const name = nav.screen;
+    const view = live.view;
+    if (!name) return;
+    let s = built[name];
+    if (!s) {
+      const box = document.createElement("div");
+      box.className = "screen";
+      box.hidden = true;
+      holder.appendChild(box);
+      const page = reactive({ view });
+      const screens = /** @type {Record<string, () => any>} */ (makeScreens(page));
+      const build = screens[name] ?? connectingScreenOf(screens);
+      build()(box);
+      s = built[name] = { box, page };
+    } else if (s.page.view !== view) {
+      s.page.view = view;
+    }
+    if (showing !== name) {
+      const old = showing ? built[showing] : undefined;
+      if (old) old.box.hidden = true;
+      s.box.hidden = false;
+      showing = name;
+    }
+  };
+  watch(() => [nav.screen, live.view], feed);
+}
