@@ -165,15 +165,6 @@ Every page follows the same pattern, so the console, display and phone code read
 - **Text is data, never markup** (12.4). Arrow puts every `${}` value into a text node or an attribute value. Templates are always tagged template literals written in the source; data is never concatenated into a template or passed to an HTML sink. URLs in `href`/`src` come from the server's own routes, never from team input.
 - **No business logic in the browser.** Pages never compute scores, marks, positions or the lock; they send commands and render views.
 
----|---|---|
-| **Display** (`public/display/`, and `public/shared/` which the display loads) | Chromium 56 and Safari 11 class engines (Samsung Tizen 2018+, LG webOS 4+) | **JS:** ES2017 in classic `<script>` tags (no `type="module"`), `async`/`await`, arrow functions, classes without fields, `const`/`let`, template strings, array spread. **Not:** `?.`, `??`, object spread `{...x}`, class fields or `#private`, `import`/`export`, top-level `await`. **CSS:** flexbox, custom properties, `vw`/`vh`, transforms, transitions, `@keyframes`, `@font-face` (WOFF2). **Not:** grid, flexbox `gap`, `clamp()`/`min()`/`max()`, `aspect-ratio`, `:is()`/`:where()`, `backdrop-filter`, `color-mix()`. |
-| **Phone** | Current and previous major Safari on iOS and Chrome on Android (P-01) | Modern JS (ES2022, modules) and CSS. Shared files from `public/shared/` must still follow the display rules. |
-| **Host console** | Current Chrome, Edge, Firefox and Safari on laptops; Safari and Chrome on tablets | Modern JS and CSS. |
-
-A test (`tests/browser-baseline.test.ts`, B0) scans `public/display/` and `public/shared/` for the banned JS syntax and CSS features above and fails the build if it finds any.
-
-Browser files may use JSDoc types with `// @ts-check` and `import('../../src/shared/protocol').DisplayView` style typedefs; they are type-checked by `bun run typecheck` but served unchanged.
-
 ---
 
 ## 4. Runtime: one binary, hosted

@@ -8,6 +8,7 @@ auth.json
 config.json
 setup-code
 dist/
+src/server/embedded.ts
 
 # Tooling
 node_modules/
