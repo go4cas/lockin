@@ -1,7 +1,7 @@
 // @ts-check
 // Quiz REST calls for the library and builder (TECH-SPEC 9.2).
 
-/** @typedef {import("../../../src/shared/formats").QuizFile} QuizFile */
+/** @typedef {import("../../../src/shared/formats").QuizDraft} QuizDraft */
 /** @typedef {import("../../../src/shared/formats").Problem} Problem */
 /**
  * @typedef {{ id: string, title: string, rounds: number, questions: number, updatedAt: string,
@@ -66,13 +66,13 @@ export async function call(method, url, body) {
 
 /** @returns {Promise<QuizSummary[]>} */
 export const listQuizzes = async () => (await call("GET", "/api/quizzes")).quizzes;
-/** @param {string} title @returns {Promise<QuizFile>} */
+/** @param {string} title @returns {Promise<QuizDraft>} */
 export const createQuiz = async (title) => (await call("POST", "/api/quizzes", { title })).quiz;
-/** @param {string} id @returns {Promise<{ quiz: QuizFile, ready: boolean, problems: Problem[] }>} */
+/** @param {string} id @returns {Promise<{ quiz: QuizDraft, ready: boolean, problems: Problem[] }>} */
 export const getQuiz = (id) => call("GET", `/api/quizzes/${encodeURIComponent(id)}`);
-/** @param {QuizFile} quiz @param {string} baseUpdatedAt @returns {Promise<{ quiz: QuizFile, ready: boolean, problems: Problem[] }>} */
+/** @param {QuizDraft} quiz @param {string} baseUpdatedAt @returns {Promise<{ quiz: QuizDraft, ready: boolean, problems: Problem[] }>} */
 export const saveQuiz = (quiz, baseUpdatedAt) => call("PUT", `/api/quizzes/${encodeURIComponent(quiz.id)}`, { quiz, baseUpdatedAt });
-/** @param {string} id @param {string} title @returns {Promise<QuizFile>} */
+/** @param {string} id @param {string} title @returns {Promise<QuizDraft>} */
 export const duplicateQuiz = async (id, title) => (await call("POST", `/api/quizzes/${encodeURIComponent(id)}/duplicate`, { title })).quiz;
 /** @param {string} id */
 export const deleteQuiz = (id) => call("DELETE", `/api/quizzes/${encodeURIComponent(id)}`);

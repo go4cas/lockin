@@ -7,7 +7,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { QUIZ_LIMITS, validateQuiz, type Problem, type QuizFile } from "../../shared/formats.ts";
+import { QUIZ_LIMITS, validateQuiz, type Problem, type QuizDraft } from "../../shared/formats.ts";
 import { writeJsonAtomic } from "../files.ts";
 import { MEDIA_FILE, QUESTION_ID, QUIZ_ID, checkDraft, newQuiz } from "./draft.ts";
 
@@ -21,8 +21,9 @@ export interface QuizSummary {
   problems: Problem[];
 }
 
+/** A quiz for the builder: the draft (possibly unfinished) and whether it is ready to play (LI-009). */
 export interface LoadedQuiz {
-  quiz: QuizFile;
+  quiz: QuizDraft;
   ready: boolean;
   problems: Problem[];
 }
@@ -142,7 +143,7 @@ export class QuizStore {
     if (!draft.ok) {
       throw new QuizError(422, "quiz_unreadable", `The builder can't open this quiz file: ${draft.problems[0]!.message}`, draft.problems);
     }
-    const quiz = { ...draft.quiz, id, updatedAt } as unknown as QuizFile;
+    const quiz: QuizDraft = { ...draft.quiz, id, updatedAt };
     return { quiz, ...this.readiness(id, raw) };
   }
 
@@ -165,8 +166,9 @@ export class QuizStore {
     return new Date(t).toISOString();
   }
 
-  private write(quiz: Obj): void {
-    writeJsonAtomic(join(this.folder(quiz.id as string), "quiz.json"), quiz);
+  /** Writes quiz.json: a checked draft, or (saveAcceptedAnswer) the file as read with one change. */
+  private write(id: string, file: QuizDraft | Obj): void {
+    writeJsonAtomic(join(this.folder(id), "quiz.json"), file);
   }
 
   private checkTitle(title: unknown): string {
@@ -176,11 +178,11 @@ export class QuizStore {
     return t;
   }
 
-  create(title: unknown): QuizFile {
+  create(title: unknown): QuizDraft {
     const t = this.checkTitle(title);
     const quiz = newQuiz(this.freeId(t), t, this.stamp());
     mkdirSync(join(this.folder(quiz.id), "media"), { recursive: true });
-    this.write(quiz as unknown as Obj);
+    this.write(quiz.id, quiz);
     return quiz;
   }
 
@@ -193,13 +195,13 @@ export class QuizStore {
     }
     const draft = checkDraft(draftJson);
     if (!draft.ok) throw new QuizError(400, "invalid_quiz", draft.problems[0]!.message, draft.problems);
-    const quiz = { ...draft.quiz, id, updatedAt: this.stamp(current.updatedAt) };
-    this.write(quiz);
+    const quiz: QuizDraft = { ...draft.quiz, id, updatedAt: this.stamp(current.updatedAt) };
+    this.write(id, quiz);
     this.sweepMedia(id, quiz);
-    return { quiz: quiz as unknown as QuizFile, ...this.readiness(id, quiz) };
+    return { quiz, ...this.readiness(id, quiz) };
   }
 
-  duplicate(id: string, title: unknown): QuizFile {
+  duplicate(id: string, title: unknown): QuizDraft {
     const { quiz } = this.get(id);
     const t = title === undefined ? `${quiz.title.slice(0, 73)} (copy)` : this.checkTitle(title);
     const newId = this.freeId(t);
@@ -207,9 +209,9 @@ export class QuizStore {
     mkdirSync(join(this.folder(newId), "media"), { recursive: true });
     if (existsSync(media)) cpSync(media, join(this.folder(newId), "media"), { recursive: true });
     // Round and question ids stay as they are: media files are named after them, and a night keeps its own snapshot.
-    const copy = { ...(quiz as unknown as Obj), id: newId, title: t, updatedAt: this.stamp() };
-    this.write(copy);
-    return copy as unknown as QuizFile;
+    const copy: QuizDraft = { ...quiz, id: newId, title: t, updatedAt: this.stamp() };
+    this.write(newId, copy);
+    return copy;
   }
 
   /** Moves the folder to quizzes/.trash/ (TECH-SPEC 9.2); 423 while in use. */
@@ -257,18 +259,12 @@ export class QuizStore {
    * builder-made names (`q-xxxxxxxx-<hex>.<ext>`) are touched, and only when older than
    * MEDIA_SWEEP_AFTER_MS, so an upload whose draft save is still on its way is kept.
    */
-  private sweepMedia(id: string, quiz: Obj): void {
+  private sweepMedia(id: string, quiz: QuizDraft): void {
     const dir = join(this.folder(id), "media");
     if (!existsSync(dir)) return;
     const used = new Set<string>();
-    const rounds = Array.isArray(quiz.rounds) ? quiz.rounds : [];
-    const questions = [
-      ...rounds.flatMap((r) => (r && Array.isArray((r as Obj).questions) ? (r as Obj).questions as unknown[] : [])),
-      ...(Array.isArray(quiz.suddenDeath) ? quiz.suddenDeath : []),
-    ];
-    for (const q of questions) {
-      const m = (q as Obj | null)?.media as Obj | undefined;
-      if (m && typeof m.file === "string") used.add(m.file);
+    for (const q of [...quiz.rounds.flatMap((r) => r.questions), ...quiz.suddenDeath]) {
+      if (q.media) used.add(q.media.file);
     }
     const cutoff = Date.now() - MEDIA_SWEEP_AFTER_MS;
     for (const file of readdirSync(dir)) {
@@ -312,7 +308,7 @@ export class QuizStore {
       if (q.answer.accepted.length >= QUIZ_LIMITS.accepted) return;   // the file stays openable in the builder (LI-009)
       q.answer.accepted.push(answer);
       raw.updatedAt = this.stamp(updatedAt);
-      this.write(raw);
+      this.write(quizId, raw);
     } catch (e) {
       this.opts.log?.(`Accepted answer not saved to quiz "${quizId}": ${e instanceof Error ? e.message : String(e)}`);
     }

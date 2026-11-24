@@ -56,6 +56,51 @@ export type AnswerSpec =
       value: string;                                 // "1969" | "1969-07-20" | "20:17"
       scoring: "exact" | "closest"; range?: number }; // range in years, days or minutes by precision
 
+/**
+ * A quiz as the builder edits and saves it (code review LI-009). The file format is the same
+ * as QuizFile, but anything a QM fills in later may still be empty: question text "", an
+ * accepted answer "", no number yet (null), no choice picked (correct -1), no rounds or
+ * questions. An answer type from a newer Lock-In is kept as it is (FutureAnswer), so saving
+ * never loses it. Only `validateQuiz` turns a draft into a QuizFile the engine may use.
+ */
+export interface QuizDraft {
+  format: "lockin.quiz/1";
+  id: string;
+  title: string;
+  updatedAt: string;
+  settings: QuizSettings;
+  rounds: DraftRound[];
+  suddenDeath: DraftQuestion[];
+}
+
+export interface DraftRound {
+  id: string;
+  title: string;
+  questions: DraftQuestion[];
+}
+
+export interface DraftQuestion {
+  id: string;
+  text: string;                    // may be ""
+  note?: string;
+  timerSeconds?: number;
+  media?: DraftMedia;
+  answer: DraftAnswer | FutureAnswer;
+}
+
+/** `kind` may be one a newer Lock-In added; readiness accepts only "image". */
+export interface DraftMedia { kind: string; file: string; alt?: string }
+
+export type DraftAnswer =
+  | { type: "text"; accepted: string[] }                       // may be [] or [""]
+  | { type: "choice"; options: string[]; correct: number }     // -1: no option picked yet
+  | { type: "number"; value: number | null }                   // null: no number yet
+  | { type: "closest"; value: number | null; range?: number }
+  | { type: "datetime"; precision: "year" | "date" | "time"; value: string; scoring: "exact" | "closest"; range?: number };   // value may be ""
+
+/** An answer of a type this version does not know, kept unchanged in drafts (S-09). Never ready. */
+export interface FutureAnswer { type: string; [field: string]: unknown }
+
 // ---------------------------------------------------------------------------
 // 5.3 Theme file: theme/theme.json
 // ---------------------------------------------------------------------------

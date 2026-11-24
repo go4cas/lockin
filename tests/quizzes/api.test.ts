@@ -245,7 +245,7 @@ describe("GET and PUT /api/quizzes/:id (H-02)", () => {
       { id: "q-aaaaaaaa", text: "Hum it", media: { kind: "audio", file: "q-aaaaaaaa.mp3" }, answer: { type: "hum", tune: "x" } }] }] });
     expect(draft.ok).toBe(true);
     if (draft.ok) {
-      const q = (draft.quiz.rounds as { questions: Record<string, unknown>[] }[])[0]!.questions[0]!;
+      const q = draft.quiz.rounds[0]!.questions[0]!;
       expect(q.answer).toEqual({ type: "hum", tune: "x" });
       expect(q.media).toEqual({ kind: "audio", file: "q-aaaaaaaa.mp3" });
     }
