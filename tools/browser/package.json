@@ -1,0 +1,14 @@
+{
+  "name": "lockin-browser-tools",
+  "private": true,
+  "type": "module",
+  "description": "Browser checks for Lock-In (code review LI-018). Development tooling only: nothing here is shipped or imported by the app.",
+  "scripts": {
+    "install-browser": "playwright install chromium",
+    "typecheck": "../../node_modules/.bin/tsc --noEmit -p .",
+    "checks": "bun ./checks.ts"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

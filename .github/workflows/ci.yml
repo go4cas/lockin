@@ -16,3 +16,28 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun test
+
+  # Code review LI-018: the real pages in a real browser, with the Playwright (and so the
+  # Chromium build) pinned in tools/browser. Nothing in tools/browser is shipped.
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.5
+      - run: bun install --frozen-lockfile
+      - run: bun install --cwd tools/browser --frozen-lockfile
+      - name: Install Chromium for the pinned Playwright
+        working-directory: tools/browser
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - run: bun run --cwd tools/browser typecheck
+      - run: bun run --cwd tools/browser checks dist/browser-checks
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-checks
+          path: dist/browser-checks
+          if-no-files-found: ignore

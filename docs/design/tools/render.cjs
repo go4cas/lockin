@@ -1,7 +1,7 @@
 // Renders every wireframe frame to PNG with Playwright (docs tooling, not app code).
-// Usage: node docs/design/tools/render.js [outDir]
-// Needs Playwright with Chromium installed on the machine running it.
-const { chromium } = require("playwright");
+// Usage: node docs/design/tools/render.cjs [outDir]   (.cjs: the package is "type": "module"; code review LI-022)
+// Needs the pinned Playwright in tools/browser (see tools/browser/README.md).
+const { chromium } = require("../../../tools/browser/playwright.cjs");
 const path = require("path");
 const fs = require("fs");
 const root = path.resolve(__dirname, "..", "wireframes");

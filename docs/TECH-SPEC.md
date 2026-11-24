@@ -99,6 +99,7 @@ A full web-app install needs a secure context (HTTPS). Hosted mode has HTTPS thr
 - **Runtime dependencies: none.** `package.json` has no `dependencies`. `devDependencies` are limited to `typescript` and `@types/bun`, used only for `bun run typecheck`. The vendored Arrow files (above) are the one agreed exception in the browser; adding or updating any third-party code is a contract change that needs Cas.
 - **Browser:** [ArrowJS](https://arrow-js.com) core, `@arrow-js/core` 1.0.6 (MIT), for reactive templates on every page: host console, display and phones (agreed with Cas 2026-11-24). It is **vendored unchanged** in `public/vendor/arrow/` (version, source and checksums in its `vendor.json`), served from our own server and embedded in the binary: no CDN, no npm package, no import map. It is the only third-party browser code. Quiver and other Arrow add-ons are not used. CSS is vanilla CSS. **No bundler or transpiler for browser code**, so what is in `public/` is what runs.
 - **Tests:** `bun test`. CI runs `bun run typecheck` and `bun test` on every PR.
+- **Browser check tooling (agreed with Cas 2026-11-24, code review LI-018):** Playwright is pinned in its own package, `tools/browser/` (`package.json` and `bun.lock`), not in the root `package.json`. Nothing in it is shipped or imported by the app. CI's `browser` job installs it and runs the browser checks (13.3).
 
 ### 3.2 Repository layout and ownership
 
@@ -303,7 +304,7 @@ export type Media =
   // Launch adds { kind: "audio" | "video"; file: string } (H-24, H-25)
 
 export type AnswerSpec =
-  | { type: "text"; accepted: string[] }             // 1+; accepted[0] is the answer shown at reveal
+  | { type: "text"; accepted: string[] }             // 1..50; accepted[0] is the answer shown at reveal
   | { type: "choice"; options: string[]; correct: number }   // 2..6 options; correct is a 0-based index
   | { type: "number"; value: number }
   | { type: "closest"; value: number; range?: number }      // range used when closestScoring = "range"
@@ -317,7 +318,8 @@ Rules:
 - **Readiness (H-01).** A quiz is ready when it validates, has at least one round, every round has at least one question, every question has text and a complete answer, and every media file exists. `validateQuiz(json)` returns `{ ok: true, quiz } | { ok: false, problems: { path: string; message: string }[] }`; messages are plain English ("Round 2, question 4 has no answer").
 - **Forward compatibility.** An unknown `media.kind` or `answer.type` makes the quiz "not ready" with a message naming it; it never crashes the server. A breaking change bumps `format` to `lockin.quiz/2` and the server reads both.
 - **Images (H-03).** The builder resizes images **in the browser** (canvas) to at most 1920×1080 and re-encodes them as JPEG (quality 0.85) or keeps PNG when the image has transparency, so the server needs no image library. The server checks the file's first bytes (JPEG, PNG or WebP), caps uploads at 5 MB, and names the file after the question id plus 16 hex characters of the content's SHA-256 (`q-ab12cd34-9f3a07c2d1e4b5a6.jpg`). An existing file at that name is reused only when its bytes are identical; otherwise a numbered name (`…-2.jpg`) is used. Older 4-character names stay valid. Each draft save removes builder-made pictures (`q-…-<hex>.<ext>`) that no question refers to and that are over an hour old, so an upload whose save is still on its way is kept; a quiz in use by a night cannot be saved, so a running night never loses a picture (code review LI-004, audit SA-20).
-- **Accepted answers added while marking (H-10)** are appended to `accepted` in the quiz file and in the running night's snapshot.
+- **Accepted answers added while marking (H-10)** are appended to `accepted` in the quiz file and in the running night's snapshot. The file stops growing at 50 (the snapshot keeps any further ones for that night's marking).
+- **One set of limits (code review LI-009).** `QUIZ_LIMITS`, the id patterns and `validateSettings` in `formats.ts` are used by both readiness and the builder's draft check (`src/server/quizzes/draft.ts`), so a ready quiz always opens and saves in the builder. A draft may be incomplete (empty text, no correct option, unknown kinds), but never beyond a limit. A hand-made file with more than 50 accepted answers is not ready, with a message saying so (before, it played but the builder refused it).
 
 ### 5.3 Theme file: `theme/theme.json`
 
@@ -1120,7 +1122,9 @@ B0 writes sample views for every role and phase in `tests/fixtures/views/{host,d
 
 ### 13.3 Browser checks
 
-UI threads include screenshots (Playwright is available in the build environment; it is a tool, not a dependency) of each screen at the sizes in REQUIREMENTS (display 1920×1080 and 1280×720, phone 390×844, console 1280×800 and 768×1024) in their PRs. These are evidence for Review, not automated pass/fail tests.
+UI threads include screenshots of each screen at the sizes in REQUIREMENTS (display 1920×1080 and 1280×720, phone 390×844, console 1280×800 and 768×1024) in their PRs. These are evidence for Review, not automated pass/fail tests.
+
+The real-browser checks are pass/fail and run in CI's `browser` job (code review LI-018): `tests/e2e/browser-night.ts` in both lock modes (login page, display pairing, joining from the QR link, answering through the phone UI, a kill -9 mid-question, marking, reveal, sudden death, winner, history), `tests/e2e/review-fixes-browser.ts` (silent network, a picture changed between two nights, drafts across nights, branding save race) and `tests/display/stress.cjs`. They fail on page errors, console errors, failed requests or a stuck screen. One command runs them all: `bun run --cwd tools/browser checks` (setup in `tools/browser/README.md`). Every Playwright script loads the version pinned in `tools/browser/`; screenshot harnesses that mock the server stay presentation evidence, and physical phone and TV checks stay a release sign-off.
 
 ### 13.4 Load and end-to-end (B9)
 

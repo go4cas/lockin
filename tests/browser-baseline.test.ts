@@ -117,4 +117,31 @@ describe("the scanner itself", () => {
     expect(scanHtmlSinks(bad).length).toBe(5);
     expect(scanHtmlSinks('// never innerHTML\nvar s = "innerHTML"; el.textContent = s;')).toEqual([]);
   });
+
+  // Code review LI-010: Arrow pages put logic inside template slots, which the old
+  // hand-written lexer blanked together with the template text.
+  test("sees code inside template slots, also nested", () => {
+    expect(scanHtmlSinks("html`<p>${() => el.innerHTML = untrusted}</p>`").length).toBe(1);
+    expect(rules("html`<ul>${() => list.at(-1)}</ul>`")).toEqual([".at() (Chromium 92, Safari 15.4)"]);
+    expect(rules("html`<a>${() => html`<b>${x.at(0)}</b>`}</a>`")).toEqual([".at() (Chromium 92, Safari 15.4)"]);
+    expect(rules("var t = `a ${b} c ${d?.at(1)} e`;")).toEqual([".at() (Chromium 92, Safari 15.4)"]);
+    expect(rules("var u = o?.[k]?.at?.(0);")).toEqual([]);   // optional call `?.(` is not `.at(`
+    expect(rules("var v = o?.at(0);")).toEqual([".at() (Chromium 92, Safari 15.4)"]);
+    expect(rules("html`<i>${() => structuredClone(v)}</i>`")).toEqual(["structuredClone() (Chromium 98, Safari 15.4)"]);
+  });
+
+  test("still ignores mentions in template text, comments and regexes", () => {
+    expect(scanHtmlSinks("html`<p>set innerHTML or .at(1) here</p>`")).toEqual([]);
+    expect(rules("html`<p>list.at(1) and structuredClone(x)</p>`")).toEqual([]);
+    expect(rules("/* x.at(1) */ var a = 1; // y.at(2)\n/** @param z z.at(3) */ function f(z) {}")).toEqual([]);
+    expect(rules("var re = /\\.at\\(/g; var d = a / b / c; var s = '${x.at(1)}';")).toEqual([]);
+    expect(rules("html`<p>${/* list.at(0) */ 1}</p>`")).toEqual([]);
+    expect(rules("var a = 1; // trailing x.at(1)")).toEqual([]);
+    expect(scanHtmlSinks("var re = /innerHTML/; var t = `${'innerHTML'}`;")).toEqual([]);
+  });
+
+  test("keeps line numbers and brackets right around templates", () => {
+    const code = "var t = html`\n  <p>\n  ${() => {\n    return x.at(0);\n  }}\n`;\nclass A { m() { return `${1}`; } }";
+    expect(scanJs(code).map((f) => `${f.line} ${f.rule}`)).toEqual(["4 .at() (Chromium 92, Safari 15.4)"]);
+  });
 });
