@@ -71,7 +71,7 @@ export interface ThemeFile {
     accent2: Hex | null;
   };
   fonts: { display: FontRef | null; body: FontRef | null };
-  tvBackground: { colour: Hex } | { image: string } | null;   // image: "assets/<file>", JPEG/PNG/WebP <= 5 MB
+  displayBackground: { colour: Hex } | { image: string } | null;   // image: "assets/<file>", JPEG/PNG/WebP <= 5 MB
   copy: Record<string, { mode: "replace" | "add"; lines: string[] }>;  // key = copy pool key
 }
 export type Hex = string;                      // "#rrggbb", sRGB
@@ -127,7 +127,7 @@ export function defaultTheme(): ThemeFile {
     logo: null,
     colours: { background: null, text: null, accent: null, accent2: null },
     fonts: { display: null, body: null },
-    tvBackground: null,
+    displayBackground: null,
     copy: {},
   };
 }
@@ -511,15 +511,15 @@ export function validateTheme(json: unknown): Validated<ThemeFile> {
     }
   }
 
-  if (json.tvBackground !== undefined && json.tvBackground !== null) {
-    const bg = json.tvBackground;
+  if (json.displayBackground !== undefined && json.displayBackground !== null) {
+    const bg = json.displayBackground;
     if (isObj(bg) && bg.colour !== undefined) {
-      if (typeof bg.colour === "string" && HEX.test(bg.colour)) t.tvBackground = { colour: bg.colour.toLowerCase() };
-      else add("tvBackground.colour", "The TV background colour must be a colour code like #1a2b3c.");
+      if (typeof bg.colour === "string" && HEX.test(bg.colour)) t.displayBackground = { colour: bg.colour.toLowerCase() };
+      else add("displayBackground.colour", "The display background colour must be a colour code like #1a2b3c.");
     } else if (isObj(bg) && bg.image !== undefined) {
-      if (assetPath(bg.image, ["jpg", "jpeg", "png", "webp"])) t.tvBackground = { image: bg.image as string };
-      else add("tvBackground.image", "The TV background picture must be a JPEG, PNG or WebP file in the theme's assets folder.");
-    } else add("tvBackground", "The TV background must be a colour or a picture.");
+      if (assetPath(bg.image, ["jpg", "jpeg", "png", "webp"])) t.displayBackground = { image: bg.image as string };
+      else add("displayBackground.image", "The display background picture must be a JPEG, PNG or WebP file in the theme's assets folder.");
+    } else add("displayBackground", "The display background must be a colour or a picture.");
   }
 
   if (json.copy !== undefined && json.copy !== null) {

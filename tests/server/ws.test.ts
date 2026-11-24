@@ -21,8 +21,8 @@ afterAll(async () => {
 });
 
 describe("hello (TECH-SPEC 10.2)", () => {
-  test("tv, team and host each get welcome then state", async () => {
-    for (const role of ["tv", "team", "host"] as const) {
+  test("display, team and host each get welcome then state", async () => {
+    for (const role of ["display", "team", "host"] as const) {
       const c = await client({ role, cookie: role === "host" ? cookie : undefined });
       const before = Date.now();
       const { welcome, state } = await c.hello();
@@ -43,7 +43,7 @@ describe("hello (TECH-SPEC 10.2)", () => {
 
   test("an unknown protocol version is closed", async () => {
     const c = await client();
-    c.send({ t: "hello", protocol: 2, role: "tv" });
+    c.send({ t: "hello", protocol: 2, role: "display" });
     expect((await c.next("bye")).reason).toBe("protocol");
     await c.closed;
   });
@@ -57,7 +57,7 @@ describe("hello (TECH-SPEC 10.2)", () => {
     expect((await b.next("bye")).reason).toBe("protocol");
     const c = await client();
     await c.hello();
-    c.send({ t: "hello", protocol: 1, role: "tv" });
+    c.send({ t: "hello", protocol: 1, role: "display" });
     expect((await c.next("bye")).reason).toBe("protocol");
   });
 
@@ -105,9 +105,9 @@ describe("commands (TECH-SPEC 10.5)", () => {
   });
 
   test("roles are enforced before the handler runs", async () => {
-    const tv = await client();
-    await tv.hello();
-    const a = await tv.cmd("lock");
+    const display = await client();
+    await display.hello();
+    const a = await display.cmd("lock");
     expect(!a.ok && a.error.code).toBe("not_allowed");
     const team = await client({ role: "team" });
     await team.hello();
@@ -185,7 +185,7 @@ describe("plug-in points for the engine", () => {
       expect((await team.next("state")).seq).toBe(8);
     } finally {
       s.app.ws.setTeamTokenResolver(() => null);
-      s.app.ws.setViewProvider((conn) => ({ seq: 0, view: idle(conn.role ?? "tv") }));
+      s.app.ws.setViewProvider((conn) => ({ seq: 0, view: idle(conn.role ?? "display") }));
     }
   });
 
@@ -193,12 +193,12 @@ describe("plug-in points for the engine", () => {
     const events: string[] = [];
     s.app.ws.onConnect((c) => events.push(`in:${c.role}`));
     s.app.ws.onDisconnect((c) => events.push(`out:${c.role}`));
-    const tv = await client();
-    await tv.hello();
-    tv.close();
-    await tv.closed;
+    const display = await client();
+    await display.hello();
+    display.close();
+    await display.closed;
     await Bun.sleep(50);
-    expect(events).toEqual(["in:tv", "out:tv"]);
+    expect(events).toEqual(["in:display", "out:display"]);
   });
 });
 

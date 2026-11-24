@@ -15,7 +15,7 @@ This is the feature list for Lock-In. It turns the candidate features in [BRIEF.
 
 ### IDs and sources
 
-Features are grouped by screen and numbered: `S` shared and server, `H` host console, `T` TV display, `P` team phone. IDs are stable: a cut feature keeps its number and moves rank instead of being renumbered. Each feature names its source: `B` for the brief, `N3` for topic 3 of the interview notes, `R` for features proposed in the Requirements thread and agreed by Cas, and `C` for features Cas added during the Requirements thread (2026-11-23).
+Features are grouped by screen and numbered: `S` shared and server, `H` host console, `T` display, `P` team phone. IDs are stable: a cut feature keeps its number and moves rank instead of being renumbered. Each feature names its source: `B` for the brief, `N3` for topic 3 of the interview notes, `R` for features proposed in the Requirements thread and agreed by Cas, and `C` for features Cas added during the Requirements thread (2026-11-23).
 
 Every MVP feature has a user story and "Done when" criteria. Each criterion is meant to be checkable by Review, by a test or by a short manual run-through.
 
@@ -85,7 +85,7 @@ Fixed in `v1.0.0` (no setting): 1 point per question, no negative marking, speed
 | H-15 | Prizes | MVP |
 | H-16 | Venue branding | MVP |
 | H-17 | Pre-quiz holding page settings | MVP |
-| T-01 | Open the TV display | MVP |
+| T-01 | Open the display | MVP |
 | T-02 | Lobby | MVP |
 | T-03 | Question | MVP |
 | T-04 | Answers locked | MVP |
@@ -121,7 +121,7 @@ As a venue, I want to run Lock-In from a single file on a server, so that there 
 Done when:
 - One build produces one executable for Linux x64, with no runtime dependencies to install.
 - It runs on a VPS behind a Cloudflare tunnel (the pilot setup).
-- Phones, TV and host console are served by that one process and talk only to it; no device talks to another device directly.
+- Phones, display and host console are served by that one process and talk only to it; no device talks to another device directly.
 - The repo and the executable contain no secrets and no venue-specific data.
 
 (Local mode on the host's laptop, with a double-click start, is Later: S-02, decided by Cas on 2026-11-23.)
@@ -132,7 +132,7 @@ As a host, I want the host console to need a password, so that nobody in the pub
 
 Done when:
 - On first run, the host console asks the host to set a password before anything else.
-- Every host console page and host action needs a signed-in session; the TV and phone pages never grant host actions.
+- Every host console page and host action needs a signed-in session; the display and phone pages never grant host actions.
 - A signed-in host stays signed in on that device for the night (at least 24 hours) without re-entering the password.
 - The password is never stored in plain text and never written to the repo.
 - A host who forgets the password can reset it from the machine running Lock-In, with steps written in the release run sheet.
@@ -149,13 +149,13 @@ Done when:
 
 ### S-05 Reconnect and rejoin (MVP · B, N3, N4, N8)
 
-As a team, host or TV, I want a dropped connection to resume where it left off, so that a Wi-Fi hiccup never costs a team its score or stops the night.
+As a team, host or display, I want a dropped connection to resume where it left off, so that a Wi-Fi hiccup never costs a team its score or stops the night.
 
 Done when:
 - A phone that reconnects (same browser, same night) comes back as the same team with its name, answers, joker and score, with no input from the team.
 - A team on a new phone can rejoin with its short rejoin code (P-08) or by the host moving it (H-06), keeping its name, answers and score.
 - Rejoining an existing team works after Quiz Start; only new teams are blocked.
-- The TV and host console reconnect on their own and show the current state of the night (current question, timer, leaderboard) without a reload by hand.
+- The display and host console reconnect on their own and show the current state of the night (current question, timer, leaderboard) without a reload by hand.
 - While disconnected, each screen shows a clear "reconnecting" state (P-08, T-11, and on the host console).
 - A restart of the server process during a night loses no answer the server had already accepted, and no mark or score.
 
@@ -222,7 +222,7 @@ Done when:
 As a venue, I want the app to handle a busy night, so that it never slows down when the room is full.
 
 Done when:
-- A load test with 30 teams (one phone each), one TV and one host console runs a full 6×5 quiz with no dropped answers.
+- A load test with 30 teams (one phone each), one display and one host console runs a full 6×5 quiz with no dropped answers.
 - At 30 teams, answers show as received on the host console within 1 second on the test server.
 - Layouts are designed for up to 20 teams and still work at 30 (see T-06).
 
@@ -243,7 +243,7 @@ Done when:
 
 ## Host console
 
-The host console runs on a laptop or tablet. Whether the host's laptop also drives the TV or the host uses a separate device is analysed by Architecture before Design commits to a layout (N3); both must work.
+The host console runs on a laptop or tablet. Whether the host's laptop also drives the display or the host uses a separate device is analysed by Architecture before Design commits to a layout (N3); both must work.
 
 ### Building quizzes
 
@@ -275,7 +275,7 @@ A question is its text plus optional media, and one answer type. Any media can g
 
 Done when the builder supports this question media:
 - **Text only.**
-- **Image**: an uploaded image (JPEG, PNG or WebP, resized for the TV) shown with the question.
+- **Image**: an uploaded image (JPEG, PNG or WebP, resized for the display) shown with the question.
 - (Sound and video clips are Launch, H-24 and H-25.)
 
 And these answer types:
@@ -305,8 +305,8 @@ Done when:
 As a host, I want to open a night from a ready quiz and see teams arrive, so that I know when to start.
 
 Done when:
-- The host picks a ready quiz and opens a night; the TV and phones go to the lobby.
-- The host console shows the room code, the join QR code, the TV address, and each team as it joins (name, colour, number of phones).
+- The host picks a ready quiz and opens a night; the display and phones go to the lobby.
+- The host console shows the room code, the join QR code, the display address, and each team as it joins (name, colour, number of phones).
 - Only one night runs at a time on one Lock-In.
 - Prizes for the night can be set or changed here (H-15).
 - The host can set the night's planned start time, which drives the holding page countdown (H-17). It is optional; without it, the holding page shows no countdown.
@@ -316,7 +316,7 @@ Done when:
 As a host, I want to fix team problems from the console, so that a rude name, a duplicate team or a dead phone never holds up the night.
 
 Done when:
-- The host can rename any team at any time; the new name shows on the TV and the team's phone.
+- The host can rename any team at any time; the new name shows on the display and the team's phone.
 - The host can remove a team before Quiz Start, after confirming.
 - The host can move a team to a new phone: the console shows a one-time code or QR that the new phone opens, and the team keeps its name, answers and score. The old phone is disconnected.
 - The host can see which teams are disconnected right now.
@@ -327,7 +327,7 @@ As a host, I want clear start and end points, so that late teams cannot join and
 
 Done when:
 - Quiz Start closes joining for new teams (rejoining still works) and starts round 1. It needs at least one team.
-- Quiz End is available after the last round (and sudden death, if any). It shows the winner screen on the TV, saves the night to history (S-08) and closes the night.
+- Quiz End is available after the last round (and sudden death, if any). It shows the winner screen on the display, saves the night to history (S-08) and closes the night.
 - Ending a night early asks for confirmation and still saves what happened.
 
 #### H-08 Run questions and the timer (MVP · B, N1, N2, R)
@@ -336,9 +336,9 @@ As a host who reads each question aloud, I want the question and its answer in f
 
 Done when:
 - Before a round starts, the console shows which teams played their joker on it, and the host starts the round.
-- The host shows the next question on the TV and phones. The console shows the question text, its answer, any host note, the timer and how many teams have answered (not what they answered, until marking).
+- The host shows the next question on the display and phones. The console shows the question text, its answer, any host note, the timer and how many teams have answered (not what they answered, until marking).
 - In per-question lock mode, the host starts the timer when ready; when it ends, that question locks (S-04). The host can also lock early.
-- The host can pause and resume the timer and add 15 seconds, and the TV and phones follow within 1 second (plus TV lag).
+- The host can pause and resume the timer and add 15 seconds, and the display and phones follow within 1 second (plus display lag).
 - When every team has answered, the console says so; the timer keeps running until it ends or the host locks.
 
 #### H-09 Run a per-round lock (MVP · N2)
@@ -369,8 +369,8 @@ Done when:
 As a host, I want to reveal each round's answers and then the leaderboard, so that the room gets its moment after every round.
 
 Done when:
-- After marking, the host reveals the round's answers on the TV, one question at a time, and moves on when ready.
-- After the reveal, the host shows the leaderboard on the TV; phones show each team its score and position.
+- After marking, the host reveals the round's answers on the display, one question at a time, and moves on when ready.
+- After the reveal, the host shows the leaderboard on the display; phones show each team its score and position.
 - The host can skip the answer reveal and go straight to the leaderboard.
 
 #### H-12 Halftime (MVP · B, N2)
@@ -378,7 +378,7 @@ Done when:
 As a host, I want a break after the set round, so that people can get to the bar.
 
 Done when:
-- After the halftime round's leaderboard, the TV shows halftime standings until the host starts the next round.
+- After the halftime round's leaderboard, the display shows halftime standings until the host starts the next round.
 - A quiz with halftime set to "none" has no break.
 
 #### H-13 Change a mark (disputes) (MVP · B)
@@ -387,7 +387,7 @@ As a host, I want to change a mark after the reveal, so that I can settle a disp
 
 Done when:
 - The host can change any team's mark on any question until Quiz End.
-- Scores, positions and the leaderboard update straight away, joker doubling included, and the TV shows the corrected leaderboard the next time it is shown.
+- Scores, positions and the leaderboard update straight away, joker doubling included, and the display shows the corrected leaderboard the next time it is shown.
 - Each change is kept in the night's history.
 
 #### H-14 Sudden death (MVP · N7)
@@ -397,16 +397,16 @@ As a host, I want a tie settled by sudden death, so that there is one winner whe
 Done when:
 - After the last round, if teams are still tied after the tie breaker (S-07) for a position that sudden death applies to (first place by default), the console offers sudden death for those teams.
 - Sudden-death questions are written in the builder in a separate sudden-death list per quiz, as typed-answer, multiple-choice or closest-number questions.
-- Each sudden-death question goes only to the tied teams; other phones and the TV show that sudden death is on. If exactly one tied team is right, it takes the position; otherwise the next question is asked.
+- Each sudden-death question goes only to the tied teams; other phones and the display show that sudden death is on. If exactly one tied team is right, it takes the position; otherwise the next question is asked.
 - After the maximum number of sudden-death questions (default 3), or if the sudden-death list runs out, the teams share the position.
 - With more than two teams tied, a right answer from more than one team removes only the teams that were wrong, and sudden death goes on among the rest.
 
 #### H-17 Pre-quiz holding page settings (MVP · C)
 
-As a venue, I want the TV and phones to show a holding page before the quiz starts, so that the room knows when it starts and teams are ready on time.
+As a venue, I want the display and phones to show a holding page before the quiz starts, so that the room knows when it starts and teams are ready on time.
 
 Done when:
-- The holding page shows from a set number of minutes before the planned start (venue setting, default 30) until Quiz Start; before that the TV shows the plain lobby (T-02).
+- The holding page shows from a set number of minutes before the planned start (venue setting, default 30) until Quiz Start; before that the display shows the plain lobby (T-02).
 - The venue chooses which panels it shows: countdown to the planned start, registered teams, how to join, how to add Lock-In to the phone's home screen (an animated guide, P-10), a brand animation, and prizes. All are on by default; panels with nothing to show (no prizes, no start time) are skipped.
 - The panel set is open to more panels later without a new setting screen design.
 - A night opened less than the set minutes before its start goes straight to the holding page.
@@ -417,7 +417,7 @@ As a host, I want to show the night's prizes, so that teams know what they are p
 
 Done when:
 - The host can enter optional prize text for one or more places (for example "1st: a bar tab"), set per venue and editable per night.
-- The TV shows them in the lobby, on the holding page, at halftime and at the winner moment. Team phones show them in the lobby, at halftime and at the end of the night. With no prizes set, nothing about prizes shows.
+- The display shows them in the lobby, on the holding page, at halftime and at the winner moment. Team phones show them in the lobby, at halftime and at the end of the night. With no prizes set, nothing about prizes shows.
 - The app does not award or track prizes.
 
 #### H-16 Venue branding (MVP · B, N9)
@@ -425,9 +425,9 @@ Done when:
 As a non-technical venue owner, I want to brand the quiz with my pub's name, logo and colours on a settings screen, so that it looks like our night, without editing a file.
 
 Done when:
-- A branding screen sets the venue name, logo (PNG, SVG or JPEG), main colours, display and body fonts (from a bundled set, or an uploaded font file), and TV background image or colour.
-- A live preview shows the TV and phone with the changes before saving.
-- Saving writes the theme file (S-09); the TV and phones use it from the next screen they show.
+- A branding screen sets the venue name, logo (PNG, SVG or JPEG), main colours, display and body fonts (from a bundled set, or an uploaded font file), and display background image or colour.
+- A live preview shows the display and phone with the changes before saving.
+- Saving writes the theme file (S-09); the display and phones use it from the next screen they show.
 - The venue name fills `{pub}` in copy lines.
 - Without venue branding, Lock-In's default theme is used.
 - Theme choices that fail the readability rules in Design (contrast, size) show a warning, but are allowed.
@@ -456,16 +456,16 @@ Done when:
 
 ---
 
-## TV display
+## Display
 
-The TV is shared with the pub's normal use: the quiz takes it over for the night and hands it back. It may be an old smart-TV browser, a cast tab with a second or two of lag, or a laptop over HDMI.
+The display is shared with the pub's normal use: the quiz takes it over for the night and hands it back. It may be an old smart-TV browser, a cast tab with a second or two of lag, or a laptop over HDMI.
 
-### T-01 Open the TV display (MVP · N3)
+### T-01 Open the display (MVP · N3)
 
-As a host, I want to put the quiz on the TV by opening one address, so that nobody needs to use a TV remote during the night.
+As a host, I want to put the quiz on the display by opening one address, so that nobody needs to use a TV remote during the night.
 
 Done when:
-- Opening the TV address (typed, or opened by casting from a laptop) shows the display for the current venue, with no sign-in.
+- Opening the display address (typed, or opened by casting from a laptop) shows the display for the current venue, with no sign-in.
 - After it opens, it needs no interaction at all: every change is driven by the host console.
 - It fills the screen at 1920×1080 and 1280×720 with no scrolling.
 - It works on the smart-TV and casting setups listed by Architecture as supported, using basic CSS only, and is checked on at least one real smart-TV browser before `v1.0.0`.
@@ -473,28 +473,28 @@ Done when:
 
 ### T-02 Lobby (MVP · B, N5)
 
-As a team arriving at the pub, I want the TV to show me how to join, so that I can be playing in under a minute.
+As a team arriving at the pub, I want the display to show me how to join, so that I can be playing in under a minute.
 
 Done when:
-- The TV shows a QR code and the room code, large enough to scan and read from across the room, plus the joined teams in their colours.
+- The display shows a QR code and the room code, large enough to scan and read from across the room, plus the joined teams in their colours.
 - It shows `lobby` and `team_joined` lines, and prizes when set.
 
 ### T-12 Pre-quiz holding page (MVP · C)
 
-As a team arriving early, I want the TV to show when the quiz starts and how to get ready, so that we are set up before the first question.
+As a team arriving early, I want the display to show when the quiz starts and how to get ready, so that we are set up before the first question.
 
 Done when:
-- From the set time before the planned start (H-17) until Quiz Start, the TV shows the holding page with the panels the venue chose, rotating or side by side as Design sets, while the join QR code and room code stay on screen.
-- The countdown matches the server's clock to within 1 second (plus TV lag), and shows "starting soon" once it passes zero until the host presses Quiz Start.
+- From the set time before the planned start (H-17) until Quiz Start, the display shows the holding page with the panels the venue chose, rotating or side by side as Design sets, while the join QR code and room code stay on screen.
+- The countdown matches the server's clock to within 1 second (plus display lag), and shows "starting soon" once it passes zero until the host presses Quiz Start.
 - The home-screen guide is a short looping animation (GIF or CSS) for iPhone and Android, bundled with Lock-In, so it loads from Lock-In itself with no outside service.
-- It needs no interaction and uses only basic CSS, like every TV screen (T-01).
+- It needs no interaction and uses only basic CSS, like every display screen (T-01).
 
 ### T-03 Question (MVP · B)
 
-As a team, I want to see the question on the TV while the host reads it, so that the whole table can follow.
+As a team, I want to see the question on the display while the host reads it, so that the whole table can follow.
 
 Done when:
-- The TV shows the round, question number, question text, picture (if any), multiple-choice options (if any) and the timer.
+- The display shows the round, question number, question text, picture (if any), multiple-choice options (if any) and the timer.
 - It shows how many teams have answered, but never what they answered.
 - In the last 10 seconds it shows a `last_seconds` line.
 - Question text up to 200 characters stays readable from the back of the room (size rules set by Design).
@@ -504,16 +504,16 @@ Done when:
 As a room, I want a big "answers locked" moment when time is up, so that the lock feels like the signature of the night.
 
 Done when:
-- When a question (or round) locks, a padlock snaps shut on the TV with a `locked` line, or an `all_locked` line if every team answered.
-- The moment still makes sense if the TV shows it up to 2 seconds late; it never shows "locked" before the server has locked.
-- It works on the supported TV browsers without relying on audio.
+- When a question (or round) locks, a padlock snaps shut on the display with a `locked` line, or an `all_locked` line if every team answered.
+- The moment still makes sense if the display shows it up to 2 seconds late; it never shows "locked" before the server has locked.
+- It works on the supported display browsers without relying on audio.
 
 ### T-05 Reveal (MVP · B)
 
 As a room, I want the answers revealed one by one, so that every table gets its cheer or groan.
 
 Done when:
-- For each question in the round, the TV shows the question, then the correct answer when the host moves on, with a `reveal` line at the start of the reveal.
+- For each question in the round, the display shows the question, then the correct answer when the host moves on, with a `reveal` line at the start of the reveal.
 - It shows how many teams got each question right.
 
 ### T-06 Leaderboard (MVP · B, N2)
@@ -521,7 +521,7 @@ Done when:
 As a room, I want the standings after every round, so that the race stays exciting.
 
 Done when:
-- The TV shows every team's position, name, colour, total and that round's score, with a joker mark on teams whose joker was this round.
+- The display shows every team's position, name, colour, total and that round's score, with a joker mark on teams whose joker was this round.
 - Positions are revealed from the bottom up.
 - It shows a `lead_change`, `big_climb` or `close_race` line when that applies (one line per leaderboard).
 - Up to 20 teams fit on one screen and are readable from the back of the room; 21 to 30 teams still show, by paging or a smaller size.
@@ -531,7 +531,7 @@ Done when:
 As a room, I want a halftime screen, so that the break has the standings up while people get drinks.
 
 Done when:
-- At halftime the TV shows the standings, a `halftime` line and prizes (when set) until the host starts the next round.
+- At halftime the display shows the standings, a `halftime` line and prizes (when set) until the host starts the next round.
 
 ### T-08 Sudden death (MVP · N7)
 
@@ -547,32 +547,32 @@ Done when:
 As a room, I want the winner crowned on screen, so that the night ends on a high.
 
 Done when:
-- At Quiz End the TV shows the winner with a `winner` line, then the final standings, the last-place team with a `last_place` line, prizes (when set), and a `goodbye` line.
+- At Quiz End the display shows the winner with a `winner` line, then the final standings, the last-place team with a `last_place` line, prizes (when set), and a `goodbye` line.
 - A shared first place names every winning team.
 
 ### T-10 Venue theme and credit (MVP · B, N9)
 
-As a venue, I want the TV in my branding, so that the quiz feels like ours.
+As a venue, I want the display in my branding, so that the quiz feels like ours.
 
 Done when:
-- Every TV screen uses the venue theme (H-16) and shows a small "Powered by Lock-In" credit.
+- Every display screen uses the venue theme (H-16) and shows a small "Powered by Lock-In" credit.
 - With no venue theme, the default Lock-In theme is used.
 
 ### T-11 Reconnecting (MVP · N3, N4)
 
-As a host, I want the TV to recover on its own, so that nobody has to touch it if the connection drops.
+As a host, I want the display to recover on its own, so that nobody has to touch it if the connection drops.
 
 Done when:
-- When the TV loses the server it shows a discreet "reconnecting" state over the last screen, keeps trying, and returns to the current screen on its own.
+- When the display loses the server it shows a discreet "reconnecting" state over the last screen, keeps trying, and returns to the current screen on its own.
 - It never needs a reload by hand after a drop or a server restart.
 
-### TV: Launch, Later and Won't
+### Display: Launch, Later and Won't
 
 | ID | Feature | Rank | Source |
 |---|---|---|---|
 | T-20 | League table and hall of fame screens | Launch | B, N5 |
-| T-21 | Sound and video playback on the TV (with H-24, H-25) | Launch | B, N3, C |
-| T-22 | Interaction on the TV (remote control input) | Won't | N3 |
+| T-21 | Sound and video playback on the display (with H-24, H-25) | Launch | B, N3, C |
+| T-22 | Interaction on the display (remote control input) | Won't | N3 |
 
 ---
 
@@ -615,7 +615,7 @@ Done when:
 - Before each round starts, a team that has not played its joker can play it on that round, and must confirm.
 - Once the round starts the joker cannot be played or changed for it.
 - The phone shows whether the joker is still available, and on which round it was played.
-- The TV shows a `joker_played` line when a team plays it.
+- The display shows a `joker_played` line when a team plays it.
 
 ### P-05 Answer a question (MVP · B, N2)
 
@@ -637,7 +637,7 @@ Done when:
 
 ### P-07 Score and position (MVP · B)
 
-As a team, I want to see our own score and place, so that we know where we stand without squinting at the TV.
+As a team, I want to see our own score and place, so that we know where we stand without squinting at the display.
 
 Done when:
 - When the leaderboard is shown, the phone shows the team's position, total, the round's score and whether the joker was played on it.
@@ -689,7 +689,7 @@ Done when:
 These apply to all MVP features and are checked by Review on any PR that touches a screen.
 
 - Bun and TypeScript on the server; vanilla JS and vanilla CSS in the browser; no frameworks and no runtime dependencies.
-- The TV is readable from the back of a busy room, and does not rely on sound.
+- The display is readable from the back of a busy room, and does not rely on sound.
 - Phones are dark by default with tap targets of at least 44 px.
 - Every host-facing word is plain English that non-technical staff understand: no error codes or stack traces on screen.
 - Every copy line comes from the copy pools (S-10).
@@ -702,4 +702,4 @@ These apply to all MVP features and are checked by Review on any PR that touches
 - **Private pilot repo.** Recommendation stands: drop it, or keep it for venue data only, never a code fork. Cas to confirm.
 - **Host on the TV laptop or a separate device.** Settled by Architecture: both work, laptop on HDMI is the pilot default (TECH-SPEC 1.1).
 - **Server restart mid-night.** S-05 reads "teams rejoin without losing their score" as also covering a server restart, so accepted answers, marks and scores are saved as they happen. Architecture to confirm the cost.
-- **Smart-TV support list.** T-01 leaves the list of supported TV browsers and casting setups to Architecture, checked on real hardware before `v1.0.0`.
+- **Smart-TV support list.** T-01 leaves the list of supported display browsers and casting setups to Architecture, checked on real hardware before `v1.0.0`.

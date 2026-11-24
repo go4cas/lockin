@@ -16,7 +16,7 @@ function keys(v: unknown, out = new Set<string>()): Set<string> {
 
 describe("view fixtures", () => {
   test("every role has a fixture for every phase", () => {
-    for (const role of ["host", "tv", "team"]) {
+    for (const role of ["host", "display", "team"]) {
       for (const phase of PHASES) expect(fixtures.has(`${role}/${phase}`)).toBe(true);
     }
   });
@@ -33,14 +33,14 @@ describe("view fixtures", () => {
 
   test("there are 20-team and 30-team leaderboards", () => {
     const rows = (n: string) => (fixtures.get(n) as { standings: { rows: unknown[] } }).standings.rows.length;
-    expect(rows("tv/leaderboard-20")).toBe(20);
-    expect(rows("tv/leaderboard-30")).toBe(30);
+    expect(rows("display/leaderboard-20")).toBe(20);
+    expect(rows("display/leaderboard-30")).toBe(30);
     expect(rows("team/leaderboard-30")).toBe(30);
     expect(rows("host/leaderboard-30")).toBe(30);
   });
 
   test("standings use competition ranking with shared places and a tie breaker", () => {
-    const rows = (fixtures.get("tv/leaderboard-20") as { standings: { rows: { position: number; shared: boolean; decidedBy: string }[] } }).standings.rows;
+    const rows = (fixtures.get("display/leaderboard-20") as { standings: { rows: { position: number; shared: boolean; decidedBy: string }[] } }).standings.rows;
     expect(rows.map((r) => r.position)).toEqual([...rows.map((r) => r.position)].sort((a, b) => a - b));
     expect(rows.some((r) => r.decidedBy === "tie_breaker")).toBe(true);
     const shared = rows.filter((r) => r.shared);
@@ -50,9 +50,9 @@ describe("view fixtures", () => {
     expect(after.position).toBe(shared[0]!.position + 2);
   });
 
-  test("TV fixtures never carry answers, host notes or rejoin codes (TECH-SPEC 10.3)", () => {
+  test("Display fixtures never carry answers, host notes or rejoin codes (TECH-SPEC 10.3)", () => {
     for (const [name, view] of fixtures) {
-      if (view.role !== "tv") continue;
+      if (view.role !== "display") continue;
       const k = keys(view);
       for (const banned of ["answer", "accepted", "note", "groups", "rejoinCode", "answers", "marking"]) {
         expect(`${name} has ${banned}: ${k.has(banned)}`).toBe(`${name} has ${banned}: false`);

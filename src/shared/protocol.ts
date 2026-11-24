@@ -6,7 +6,7 @@ import type { AnswerGroup, AnswerValue, StandingRow } from "./rules-api.ts";
 
 // 7.1 Phases
 export type Phase =
-  | "idle"          // no night open (TV shows the venue's waiting screen)
+  | "idle"          // no night open (the display shows the venue's waiting screen)
   | "lobby"         // night open, before Quiz Start; holding page is a lobby sub-state (7.4)
   | "round_intro"   // round N is next; jokers can be played on it
   | "asking"        // round N's questions are being shown, answered and locked
@@ -23,7 +23,7 @@ export const PHASES: readonly Phase[] = [
 
 // 10.1 Envelope
 export const PROTOCOL = 1;
-export type Role = "host" | "tv" | "team";
+export type Role = "host" | "display" | "team";
 
 export type ClientMsg =
   | { t: "hello"; protocol: 1; role: Role; token?: string }    // token: team device token, if any
@@ -32,7 +32,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: "welcome"; protocol: 1; role: Role; serverNow: number; teamId: string | null }
-  | { t: "state"; seq: number; serverNow: number; view: HostView | TvView | TeamView }
+  | { t: "state"; seq: number; serverNow: number; view: HostView | DisplayView | TeamView }
   | { t: "ack"; id: number; ok: true; result?: unknown }
   | { t: "ack"; id: number; ok: false; error: { code: ErrorCode; message: string } }
   | { t: "pong"; c: number; s: number }                        // s: server time
@@ -152,8 +152,8 @@ export interface Lines {           // copy lines per screen slot (10.4); null = 
   lastPlace: string | null; goodbye: string | null;
 }
 
-export interface TvView extends Common {
-  role: "tv";
+export interface DisplayView extends Common {
+  role: "display";
   teams: TeamChip[];                         // joined teams, in join order
   question: QuestionPublic | null;           // asking: current question
   lockedMoment: { at: number; all: boolean } | null; // set when the current question or round locks
@@ -214,10 +214,10 @@ export interface HostView extends Common {
   suddenDeath: (SuddenDeathPublic & { questionHost: QuestionHost | null; marking: MarkingQuestion | null }) | null;
   suddenDeathNeeded: { position: number; teamIds: string[] } | null;
   can: Partial<Record<CommandName, boolean>>; // which commands are allowed now, to enable buttons
-  lines: Lines;                              // what the TV is showing, for the host's reference
+  lines: Lines;                              // what the display is showing, for the host's reference
 }
 
-export type View = HostView | TvView | TeamView;
+export type View = HostView | DisplayView | TeamView;
 
 // 10.4 Flashes
 export interface Flash {

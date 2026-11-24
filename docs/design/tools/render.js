@@ -7,11 +7,11 @@ const fs = require("fs");
 const root = path.resolve(__dirname, "..", "wireframes");
 const out = path.resolve(process.argv[2] || path.join(__dirname, "..", "img"));
 const sets = [
-  { page: "tv.html", w: 1280, h: 720, prefix: "tv" },
+  { page: "display.html", w: 1280, h: 720, prefix: "display" },
   { page: "phone.html", w: 390, h: 844, prefix: "phone", dsf: 2 },
   { page: "host.html", w: 1366, h: 768, prefix: "host" },
 ];
-const extra = (process.env.EXTRA || "").split(";").filter(Boolean); // e.g. "tv.html|lobby|brass-and-oak|1280|720"
+const extra = (process.env.EXTRA || "").split(";").filter(Boolean); // e.g. "display.html|lobby|brass-and-oak|1280|720"
 (async () => {
   fs.mkdirSync(out, { recursive: true });
   const b = await chromium.launch();

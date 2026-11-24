@@ -150,6 +150,13 @@ Built against TECH-SPEC as changed by PR 5 (hosted only). None of these change a
 - **`ws-client.js` behaviour the spec did not fix:** reconnecting stops after `bye` with `moved`, `removed`, `signed_out` or `protocol`, and carries on after `night_closed`. A new `welcome` resets `seq` ordering, so a restarted server's first state always renders. When the page URL has `?fixture=`, it is passed on to `/ws` for the fixture server.
 - **Design files served by B0:** `/static/shared/tokens.css` is `docs/design/tokens.css`; `/static/fonts/<id>.woff2` is `docs/design/fonts/<id>-400.woff2` (Design's files carry a weight, the spec names fonts by id), and other files in `docs/design/fonts/` by their own names; `/static/logo/<file>` is `docs/design/logo/`. The theme validator follows `branding.md`: any bundled font can be the display font, only `atkinson-hyperlegible` the body font. Host pages link `/theme.css`, which answers 404 until B4, so browsers log a harmless stylesheet warning until then.
 
+## Rename: "TV" is now "Display" (2026-11-24)
+
+- **Cas approved renaming the TV screen to "Display"** in docs and code, merged B0 contracts included. The screen may be a smart TV, a cast tab, a projector or a laptop's second screen, so "Display" names the role, not the hardware.
+- **Contract changes:** WebSocket role `"tv"` is now `"display"`; `TvView` is `DisplayView`; the theme field `tvBackground` is `displayBackground`; the page is `GET /display` from `public/display/`, and its QR code is `/qr/display.svg`. Tokens `--tv-*` are `--display-*` and `--brand-tv-*` are `--brand-display-*`. Fixtures live in `tests/fixtures/views/display/`, and the wireframe is `docs/design/wireframes/display.html`. Version numbers (`protocol: 1`, `lockin.theme/1`) are unchanged, since nothing has shipped.
+- **Kept as they are:** requirement IDs (`T-01` and so on), so references don't break. "TV" stays where it means the hardware (smart-TV browsers, old TVs, "55-inch TV", Fire TV) and in copy that teams read ("Eyes on the TV", "Watch the TV.", "On the TV if you need it."), because that is what people in a pub call it. The brief and the dated notes above are records, so they still say "TV".
+- **Watch for:** "display" is also the typography word for the headline font (`--font-display`, `fonts.display`, the `.display` class). The two don't clash in code, but prose that says "the display font" means the headline font.
+
 ## Open questions
 
 - **Licence.** Cas chose to decide later. Recommendation is AGPL-3.0 (see topic 9). Until a licence is added, the public repo is "all rights reserved" by default, so outsiders cannot legally reuse or contribute; settle it before inviting contributors and before `v1.0.0`.

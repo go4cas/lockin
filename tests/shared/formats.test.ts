@@ -166,7 +166,7 @@ describe("validateTheme", () => {
       logo: "assets/logo-1a2b.svg",
       colours: { background: "#101820", text: "#F2F2F2", accent: "#ff7a5c", accent2: null },
       fonts: { display: { bundled: "bebas-neue" }, body: { file: "assets/body-9c.woff2" } },
-      tvBackground: { image: "assets/tv-1.webp" },
+      displayBackground: { image: "assets/display-1.webp" },
       copy: { winner: { mode: "add", lines: ["{team} take the crown at {pub}!"] } },
     };
     const r = validateTheme(theme);
@@ -182,14 +182,14 @@ describe("validateTheme", () => {
       logo: "../logo.png",
       colours: { accent: "red" },
       fonts: { display: { bundled: "comic-sans" }, body: { file: "assets/x.otf" } },
-      tvBackground: { colour: "#12345" },
+      displayBackground: { colour: "#12345" },
       copy: { winner: { mode: "swap", lines: [] }, "Bad Key": { mode: "add", lines: ["x"] } },
     });
     expect(messages(r).sort()).toEqual([
       '"Bad Key" is not a copy pool name.',
       'The "winner" lines must say whether they replace or add to the default lines.',
       'The display font "comic-sans" is not one of Lock-In\'s bundled fonts.',
-      "The TV background colour must be a colour code like #1a2b3c.",
+      "The display background colour must be a colour code like #1a2b3c.",
       "The body font file must be a WOFF2, WOFF or TTF file in the theme's assets folder.",
       "The logo must be a PNG, SVG or JPEG file in the theme's assets folder.",
       "The main colour must be a colour code like #1a2b3c.",

@@ -1,4 +1,4 @@
-// Checks the design tokens and TV wireframe CSS against the rules in docs/design.
+// Checks the design tokens and display wireframe CSS against the rules in docs/design.
 // Run: bun test docs/design
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
@@ -7,7 +7,7 @@ import { contrast, deriveBrandTokens, checkReadability, DEFAULT_INPUTS } from ".
 
 const dir = join(import.meta.dir, "..");
 const tokensCss = readFileSync(join(dir, "tokens.css"), "utf8");
-const tvCss = readFileSync(join(dir, "wireframes", "tv.css"), "utf8");
+const displayCss = readFileSync(join(dir, "wireframes", "display.css"), "utf8");
 
 function rootVars(css: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -43,7 +43,7 @@ describe("tokens.css", () => {
     for (const c of checkReadability(DEFAULT_INPUTS)) expect(`${c.pair}: ${c.level}`).toBe(`${c.pair}: ok`);
   });
 
-  test("uses nothing outside the TV baseline (resolved values only)", () => {
+  test("uses nothing outside the display baseline (resolved values only)", () => {
     expect(stripComments(tokensCss)).not.toMatch(/color-mix\(|clamp\(|\bmin\(|\bmax\(|oklch\(|lab\(/i);
   });
 });
@@ -70,8 +70,8 @@ describe("readability warnings", () => {
   });
 });
 
-describe("TV CSS baseline (Chromium 56 / Safari 11)", () => {
-  const css = stripComments(tvCss);
+describe("Display CSS baseline (Chromium 56 / Safari 11)", () => {
+  const css = stripComments(displayCss);
   const banned: [string, RegExp][] = [
     ["grid", /display\s*:\s*(inline-)?grid|grid-template|grid-area|place-items/i],
     ["flex gap", /(^|[;{\s])(row-|column-)?gap\s*:/i],
@@ -85,9 +85,9 @@ describe("TV CSS baseline (Chromium 56 / Safari 11)", () => {
   ];
   for (const [name, re] of banned) test(`no ${name}`, () => expect(css).not.toMatch(re));
 
-  test("every TV font size uses a --tv-text-* token or em", () => {
+  test("every display font size uses a --display-text-* token or em", () => {
     const sizes = [...css.matchAll(/font-size\s*:\s*([^;]+);/g)].map((m) => m[1].trim());
-    for (const s of sizes) expect(s).toMatch(/^var\(--tv-text-[a-z]+\)$|^[0-9.]+em$/);
+    for (const s of sizes) expect(s).toMatch(/^var\(--display-text-[a-z]+\)$|^[0-9.]+em$/);
   });
 });
 

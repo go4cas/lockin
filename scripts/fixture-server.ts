@@ -19,7 +19,7 @@ import { loadFixtures } from "../tests/fixtures/views/index.ts";
 interface Data { fixture: string; startedAt: number }
 
 const PAGES: Record<string, { file: string; owner: string }> = {
-  tv: { file: "public/tv/index.html", owner: "B6" },
+  display: { file: "public/display/index.html", owner: "B6" },
   team: { file: "public/phone/index.html", owner: "B7" },
   host: { file: "public/host/run/index.html", owner: "B5" },
 };
@@ -38,10 +38,10 @@ export async function startFixtureServer(port = 8081, log: (m: string) => void =
   function indexPage(): Response {
     const link = (name: string) => {
       const role = name.split("/")[0]!;
-      const path = role === "tv" ? "/tv" : role === "team" ? "/" : "/host/run";
+      const path = role === "display" ? "/display" : role === "team" ? "/" : "/host/run";
       return `<li><a href="${path}?fixture=${encodeURIComponent(name)}">${name}</a></li>`;
     };
-    const groups = ["tv", "team", "host"].map((role) =>
+    const groups = ["display", "team", "host"].map((role) =>
       `<h2>${role}</h2><ul>${[...fixtures.keys()].filter((n) => n.startsWith(`${role}/`)).map(link).join("")}</ul>`).join("");
     return new Response(`<!doctype html><meta charset="utf-8"><title>Lock-In fixtures</title><h1>Lock-In view fixtures</h1>${groups}`,
       { headers: { "Content-Type": "text/html; charset=utf-8" } });
@@ -64,7 +64,7 @@ export async function startFixtureServer(port = 8081, log: (m: string) => void =
         const path = staticPath(p.slice("/static/".length), files);
         res = (path && (await serveFile(req, files, path))) || new Response("Not found", { status: 404 });
       } else if (p === "/theme.css") res = new Response("/* fixture server: default theme only */\n", { headers: { "Content-Type": contentType("x.css") } });
-      else if (p === "/tv") res = await page(req, PAGES.tv!.file, PAGES.tv!.owner);
+      else if (p === "/display") res = await page(req, PAGES.display!.file, PAGES.display!.owner);
       else if (p === "/" || /^\/[jm]\/[^/]+$/.test(p)) res = await page(req, PAGES.team!.file, PAGES.team!.owner);
       else if (p === "/host") res = await page(req, "public/host/index.html", "B0");
       else if (p === "/host/login" || p === "/host/setup") res = await page(req, `public/host/${p.slice(6)}.html`, "B0");

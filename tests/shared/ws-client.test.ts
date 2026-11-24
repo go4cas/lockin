@@ -51,10 +51,10 @@ async function until(fn: () => boolean, ms = 4000) {
 describe("ws-client.js against the server", () => {
   test("says hello, renders the state and goes online", async () => {
     const s = await server();
-    const { c, events } = connect(s, { role: "tv" });
+    const { c, events } = connect(s, { role: "display" });
     await until(() => c.status === "online");
     expect(events.map((e) => e.t)).toEqual(["welcome", "status", "state"]);
-    expect(c.view.role).toBe("tv");
+    expect(c.view.role).toBe("display");
   });
 
   test("sends the team token from getToken in hello", async () => {
@@ -77,13 +77,13 @@ describe("ws-client.js against the server", () => {
 
   test("cmd rejects at once while disconnected", async () => {
     const s = await server();
-    const { c } = connect(s, { role: "tv" });
+    const { c } = connect(s, { role: "display" });
     await expect(c.cmd("lock")).rejects.toMatchObject({ code: "disconnected" });
   });
 
   test("reconnects after the server restarts, shows offline meanwhile, and gets the current state", async () => {
     const s1 = await startTestServer({ keepData: true });
-    const { c, events } = connect(s1, { role: "tv", offlineAfterMs: 100, random: () => 0 });
+    const { c, events } = connect(s1, { role: "display", offlineAfterMs: 100, random: () => 0 });
     await until(() => c.status === "online");
     const port = s1.port;
     await s1.stop();
@@ -106,7 +106,7 @@ describe("ws-client.js against the server", () => {
 
   test("keeps the clock offset from pongs", async () => {
     const s = await server();
-    const { c } = connect(s, { role: "tv" });
+    const { c } = connect(s, { role: "display" });
     await until(() => c.status === "online");
     await Bun.sleep(100);   // first ping went out on open
     expect(Math.abs(c.clock.offset())).toBeLessThan(1000);
@@ -116,15 +116,15 @@ describe("ws-client.js against the server", () => {
 describe("ws-client.js state ordering", () => {
   test("ignores a state older than the last one rendered; a new welcome resets", () => {
     const states: number[] = [];
-    const c = LockIn.connect({ role: "tv", url: "ws://unused", createSocket: () => ({ readyState: 0, send() {}, close() {} }), onState: (_v: unknown, m: { seq: number }) => states.push(m.seq) });
+    const c = LockIn.connect({ role: "display", url: "ws://unused", createSocket: () => ({ readyState: 0, send() {}, close() {} }), onState: (_v: unknown, m: { seq: number }) => states.push(m.seq) });
     clients.push(c);
     const state = (seq: number) => ({ t: "state", seq, serverNow: 0, view: { phase: "idle" } });
-    c.receive({ t: "welcome", protocol: 1, role: "tv", serverNow: Date.now(), teamId: null });
+    c.receive({ t: "welcome", protocol: 1, role: "display", serverNow: Date.now(), teamId: null });
     c.receive(state(5));
     c.receive(state(4));
     c.receive(state(5));
     c.receive(state(6));
-    c.receive({ t: "welcome", protocol: 1, role: "tv", serverNow: Date.now(), teamId: null });
+    c.receive({ t: "welcome", protocol: 1, role: "display", serverNow: Date.now(), teamId: null });
     c.receive(state(1));
     expect(states).toEqual([5, 5, 6, 1]);
   });

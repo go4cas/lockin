@@ -11,8 +11,8 @@ export interface BrandInputs {
   text: string;
   accent: string;
   accent2: string;
-  tvBackgroundColour?: string | null;
-  tvBackgroundImage?: string | null; // a URL, or null for none
+  displayBackgroundColour?: string | null;
+  displayBackgroundImage?: string | null; // a URL, or null for none
 }
 
 export const DEFAULT_INPUTS: BrandInputs = {
@@ -80,7 +80,7 @@ export function deriveBrandTokens(inp: BrandInputs): Record<string, string> {
 
   // D7: scrim only when an image is set.
   const [r, g, b] = parseHex(bg);
-  const scrim = inp.tvBackgroundImage ? `rgba(${r}, ${g}, ${b}, 0.78)` : "rgba(0, 0, 0, 0)";
+  const scrim = inp.displayBackgroundImage ? `rgba(${r}, ${g}, ${b}, 0.78)` : "rgba(0, 0, 0, 0)";
 
   return {
     "brand-bg": bg,
@@ -95,9 +95,9 @@ export function deriveBrandTokens(inp: BrandInputs): Record<string, string> {
     "brand-on-accent-2": on(accent2),
     "brand-accent-soft": mix(bg, accent, 0.18), // D6
     "brand-accent-2-soft": mix(bg, accent2, 0.18), // D6
-    "brand-tv-bg": (inp.tvBackgroundColour ?? bg).toLowerCase(),
-    "brand-tv-bg-image": inp.tvBackgroundImage ? `url("${inp.tvBackgroundImage}")` : "none",
-    "brand-tv-scrim": scrim,
+    "brand-display-bg": (inp.displayBackgroundColour ?? bg).toLowerCase(),
+    "brand-display-bg-image": inp.displayBackgroundImage ? `url("${inp.displayBackgroundImage}")` : "none",
+    "brand-display-scrim": scrim,
   };
 }
 
@@ -130,8 +130,8 @@ export function checkReadability(inp: BrandInputs): ContrastCheck[] {
     const level: Level = ratio >= ok ? "ok" : ratio >= poor ? "warn" : "poor";
     return { pair, ratio, level, message };
   });
-  // Phones and TV are dark by default (brief); a light background is allowed
-  // but warned, because a bright TV glares in a dim pub.
+  // Phones and display are dark by default (brief); a light background is allowed
+  // but warned, because a bright display glares in a dim pub.
   const bgL = luminance(t["brand-bg"]);
   checks.push({
     pair: "Background brightness",

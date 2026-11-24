@@ -1,4 +1,4 @@
-// Scanner for the TV browser baseline (TECH-SPEC 3.3): Chromium 56 / Safari 11.
+// Scanner for the display browser baseline (TECH-SPEC 3.3): Chromium 56 / Safari 11.
 // Not a parser: it strips comments, strings and regex literals, then looks for
 // syntax and CSS features those engines do not have.
 
@@ -77,7 +77,7 @@ function lineOf(code: string, index: number): number {
   return n;
 }
 
-/** Banned JS syntax for TV pages and public/shared. */
+/** Banned JS syntax for display pages and public/shared. */
 export function scanJs(code: string, file = "<js>", lineOffset = 0): Finding[] {
   const s = stripJs(code);
   const found: Finding[] = [];
@@ -123,7 +123,7 @@ export function scanJs(code: string, file = "<js>", lineOffset = 0): Finding[] {
   return found;
 }
 
-/** Banned CSS features for TV pages and public/shared. */
+/** Banned CSS features for display pages and public/shared. */
 export function scanCss(code: string, file = "<css>", lineOffset = 0): Finding[] {
   const s = code.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "));
   const rules: [RegExp, string][] = [
