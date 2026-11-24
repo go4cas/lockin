@@ -727,7 +727,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `GET /theme/assets/:file` | B4 | Theme assets |
 | `GET /manifest.webmanifest` | B7 | Web app manifest with venue name and logo |
 | `GET /sw.js` | B7 | Service worker (caches the app shell, never answers) |
-| `GET /media/q/:questionId` | B1 | A question's image for the open night: served to anyone only once the question has been shown; to host sessions always (so images cannot leak answers early) |
+| `GET /media/q/:questionId` | B1 | A question's image for the open night: served to anyone only once the question has been shown; to host sessions always (so images cannot leak answers early). The view's address carries `?v=`, a hash of the night id and the image file name; a different `v` is a 404, and only a versioned address of a shown question may be cached (`private, max-age=3600`); anything else is `no-store` (code review LI-003) |
 | `GET /media/quiz/:quizId/:file` | B3 | Quiz media for the builder; host only |
 | `GET /qr/join.svg` | B8 | QR code for the join URL with the room code. Host session, or a paired display's token as `?d=<token>` (12.6); anyone else gets 404 |
 | `GET /qr/display.svg` | B8 | QR code for the display address (host only) |
@@ -857,7 +857,7 @@ export interface QuestionPublic {
   roundIndex: number;              // -1 for sudden death
   number: number;                  // 1-based within the round, or the sudden-death question number
   text: string;
-  image: string | null;            // "/media/q/<id>"
+  image: string | null;            // "/media/q/<id>?v=<night and image version>" (LI-003)
   input:
     | { type: "text" }
     | { type: "choice"; options: string[] }

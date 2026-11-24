@@ -9,6 +9,7 @@ import type { Conn } from "../ws.ts";
 import { COALESCE_MS, Engine } from "./engine.ts";
 import { answerText as answerTextOf, valueText } from "./quiz.ts";
 import { ClockScheduler } from "./scheduler.ts";
+import { imageVersion } from "./media.ts";
 import { DEFAULT_VENUE_NAME, fileSources, type Sources } from "./sources.ts";
 import { branding as brandingOf, type BrandingStore } from "../branding/index.ts";
 import type { HistoryDetail } from "../../shared/protocol.ts";
@@ -156,13 +157,18 @@ export function register(app: App): void {
     const status = m.state.questions[qid]?.status;
     const shown = status === "open" || status === "locked";
     if (!shown && !ctx.hostSession) return notFound();
+    // ?v= names the night and the image (LI-003). A different version is another night's
+    // or another image's address: never answer it with this night's bytes.
+    const v = ctx.url.searchParams.get("v");
+    if (v !== null && v !== imageVersion(m.night.id, ref.q.media.file)) return notFound();
     const path = fileSourcesFor(app).mediaPath(m.night.quizId, ref.q.media.file);
     if (!path) return notFound();
     const body = req.method === "HEAD" ? null : readFileSync(path);
     return new Response(body, {
       headers: {
         "Content-Type": contentType(path), "Content-Security-Policy": UPLOAD_CSP,
-        "Cache-Control": ctx.hostSession && !shown ? "private, no-store" : "private, max-age=3600",
+        // Only a versioned address of a shown question may be cached.
+        "Cache-Control": shown && v !== null ? "private, max-age=3600" : "private, no-store",
       },
     });
   });

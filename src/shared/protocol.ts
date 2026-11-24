@@ -106,7 +106,7 @@ export interface QuestionPublic {
   roundIndex: number;              // -1 for sudden death
   number: number;                  // 1-based within the round, or the sudden-death question number
   text: string;
-  image: string | null;            // "/media/q/<id>"
+  image: string | null;            // "/media/q/<id>?v=<night and image version>" (LI-003)
   input:
     | { type: "text" }
     | { type: "choice"; options: string[] }
