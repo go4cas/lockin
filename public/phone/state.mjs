@@ -241,7 +241,9 @@ export function send(q) {
       const err = errorOf(e);
       ui.sendError[q.id] = err.code === "disconnected"
         ? "Not sent. You're offline, so this answer has not reached the quizmaster. Tap Send again once you're back."
-        : err.message;
+        : err.code === "timeout"
+          ? "No reply yet, so this answer may not have reached the quizmaster. Tap Send again once you're back online."
+          : err.message;
     },
   );
 }

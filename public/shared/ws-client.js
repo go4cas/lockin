@@ -28,6 +28,14 @@
   var FAST_PING_FOR_MS = 10000;
   var SLOW_PING_MS = 25000;
   var OFFLINE_AFTER_MS = 2000;
+  // Dead-connection detection (code review LI-001). A socket can stay OPEN while the network
+  // silently drops everything (Wi-Fi handover, a phone's radio asleep), and the browser only
+  // fires close much later, if ever. So the client keeps its own deadlines:
+  var HANDSHAKE_TIMEOUT_MS = 10000;   // from creating the socket to the server's welcome
+  var SILENCE_MS = SLOW_PING_MS + 10000;   // no message at all for this long: the socket is dead (35 s)
+  var WATCHDOG_MS = 5000;             // how often the client checks
+  var WAKE_PROBE_MS = 10000;          // after a suspension, the server gets this long to answer a ping
+  var COMMAND_TIMEOUT_MS = 10000;     // an unanswered command settles as "timeout"
   /** @type {Object<string, boolean>} */
   var STOP_ON_BYE = { moved: true, removed: true, signed_out: true, protocol: true };
 
@@ -68,13 +76,19 @@
       this.offlineAfterMs = typeof opts.offlineAfterMs === "number" ? opts.offlineAfterMs : OFFLINE_AFTER_MS;
       this.random = opts.random || Math.random;
       this.clock = opts.clock || LockIn.createClock();
+      // Timer functions; tests pass a virtual clock here.
+      var timers = opts.timers || {};
+      this.now = timers.now || function () { return Date.now(); };
+      this.setTimer = timers.setTimeout || function (/** @type {function(): void} */ fn, /** @type {number} */ ms) { return setTimeout(fn, ms); };
+      this.clearTimer = timers.clearTimeout || function (/** @type {any} */ t) { clearTimeout(t); };
+      this.commandTimeoutMs = typeof opts.commandTimeoutMs === "number" ? opts.commandTimeoutMs : COMMAND_TIMEOUT_MS;
 
       /** @type {any} */
       this.socket = null;
       this.status = "connecting";
       this.attempt = 0;
       this.nextId = 1;
-      /** @type {Object<string, {resolve: function(any): void, reject: function(any): void}>} */
+      /** @type {Object<string, {resolve: function(any): void, reject: function(any): void, timer: any}>} */
       this.pending = {};
       this.lastSeq = -1;
       /** @type {any} */
@@ -86,6 +100,10 @@
       /** @type {any} */ this.pingTimer = null;
       /** @type {any} */ this.retryTimer = null;
       /** @type {any} */ this.offlineTimer = null;
+      /** @type {any} */ this.watchTimer = null;
+      this.lastInbound = 0;    // when the current socket last delivered a message
+      this.lastWatch = 0;      // when the watchdog last ran (a big gap means the page was suspended)
+      this.deadline = 0;       // the current socket is abandoned if nothing arrives by then
 
       this.open();
     }
@@ -110,9 +128,12 @@
         return;
       }
       this.socket = socket;
+      this.lastInbound = this.now();
+      this.deadline = this.now() + HANDSHAKE_TIMEOUT_MS;
+      this.watch();
       socket.onopen = function () {
         if (self.socket !== socket) return;
-        self.connectedAt = Date.now();
+        self.connectedAt = self.now();
         /** @type {any} */
         var hello = { t: "hello", protocol: PROTOCOL, role: self.role };
         var token = self.getToken();
@@ -124,6 +145,7 @@
         if (self.socket !== socket) return;
         var msg;
         try { msg = JSON.parse(event.data); } catch (e) { return; }
+        self.heard();
         self.receive(msg);
       };
       socket.onclose = function () {
@@ -139,6 +161,7 @@
       if (msg.t === "welcome") {
         this.welcomed = true;
         this.attempt = 0;
+        this.deadline = this.now() + SILENCE_MS;
         this.lastSeq = -1;           // a new connection's first state is always current
         this.teamId = msg.teamId;
         this.clock.seed(msg.serverNow);
@@ -147,13 +170,14 @@
         if (msg.seq < this.lastSeq) return;   // older than what is on screen
         this.lastSeq = msg.seq;
         this.view = msg.view;
-        if (this.offlineTimer) { clearTimeout(this.offlineTimer); this.offlineTimer = null; }
+        if (this.offlineTimer) { this.clearTimer(this.offlineTimer); this.offlineTimer = null; }
         this.setStatus("online");
         this.onState(msg.view, msg);
       } else if (msg.t === "ack") {
         var p = this.pending[msg.id];
-        if (!p) return;
+        if (!p) return;      // unknown, or already settled by a timeout: ids are never reused
         delete this.pending[msg.id];
+        if (p.timer) this.clearTimer(p.timer);
         if (msg.ok) p.resolve(msg.result);
         else p.reject(msg.error);
       } else if (msg.t === "pong") {
@@ -168,24 +192,75 @@
 
     ping() {
       var self = this;
-      if (this.pingTimer) clearTimeout(this.pingTimer);
+      if (this.pingTimer) this.clearTimer(this.pingTimer);
+      this.pingTimer = null;
       if (!this.socket) return;
       this.sendRaw({ t: "ping", c: Date.now() });
-      var every = Date.now() - this.connectedAt < FAST_PING_FOR_MS ? FAST_PING_MS : SLOW_PING_MS;
-      this.pingTimer = setTimeout(function () { self.ping(); }, every);
+      var every = this.now() - this.connectedAt < FAST_PING_FOR_MS ? FAST_PING_MS : SLOW_PING_MS;
+      this.pingTimer = this.setTimer(function () { self.ping(); }, every);
+    }
+
+    /** The current socket delivered a message: it is alive. */
+    heard() {
+      this.lastInbound = this.now();
+      if (this.welcomed) this.deadline = this.lastInbound + SILENCE_MS;
+    }
+
+    /** Checks the current socket's deadline every few seconds (LI-001). */
+    watch() {
+      var self = this;
+      if (this.watchTimer) this.clearTimer(this.watchTimer);
+      this.lastWatch = this.now();
+      this.watchTimer = this.setTimer(function () {
+        self.watchTimer = null;
+        if (!self.socket || self.stopped) return;
+        var now = self.now();
+        if (now - self.lastWatch > WATCHDOG_MS * 3 && self.welcomed) {
+          // The page was suspended (a phone asleep, a background tab): our own timers did not
+          // run, so silence says nothing yet. Ask the server and give it a short while to answer.
+          self.deadline = Math.max(self.deadline, now + WAKE_PROBE_MS);
+          self.ping();
+        } else if (now >= self.deadline) {
+          self.abandon();
+          return;
+        }
+        self.watch();
+      }, WATCHDOG_MS);
+    }
+
+    /** Gives up on the current socket without waiting for the browser to notice, and reconnects. */
+    abandon() {
+      var socket = this.socket;
+      if (!socket) return;
+      this.socket = null;     // its late events are ignored from now on
+      try { socket.close(); } catch (e) { /* already closed */ }
+      this.dropped();
+    }
+
+    /**
+     * Settles every pending command with an error and clears their timers.
+     * @param {{code: string, message: string}} error
+     */
+    rejectPending(error) {
+      var pending = this.pending;
+      this.pending = {};
+      var ids = Object.keys(pending);
+      for (var i = 0; i < ids.length; i++) {
+        var p = pending[String(ids[i])];
+        if (!p) continue;
+        if (p.timer) this.clearTimer(p.timer);
+        p.reject(error);
+      }
     }
 
     dropped() {
       var self = this;
-      if (this.pingTimer) { clearTimeout(this.pingTimer); this.pingTimer = null; }
-      var ids = Object.keys(this.pending);
-      for (var i = 0; i < ids.length; i++) {
-        var p = this.pending[String(ids[i])];
-        if (p) p.reject({ code: "disconnected", message: "Not connected. Trying again…" });
-      }
-      this.pending = {};
+      if (this.pingTimer) { this.clearTimer(this.pingTimer); this.pingTimer = null; }
+      if (this.watchTimer) { this.clearTimer(this.watchTimer); this.watchTimer = null; }
+      this.welcomed = false;
+      this.rejectPending({ code: "disconnected", message: "Not connected. Trying again…" });
       if (!this.offlineTimer && this.status !== "offline") {
-        this.offlineTimer = setTimeout(function () {
+        this.offlineTimer = this.setTimer(function () {
           self.offlineTimer = null;
           self.setStatus("offline");
         }, this.offlineAfterMs);
@@ -198,7 +273,7 @@
       if (this.stopped || this.retryTimer) return;
       var delay = backoff(this.attempt, this.random);
       this.attempt++;
-      this.retryTimer = setTimeout(function () {
+      this.retryTimer = this.setTimer(function () {
         self.retryTimer = null;
         self.open();
       }, delay);
@@ -211,7 +286,10 @@
 
     /**
      * Sends a command. Resolves with the ack's result, or rejects with { code, message }.
-     * Rejects at once with code "disconnected" when there is no connection.
+     * Rejects at once with code "disconnected" when there is no connection, with "disconnected"
+     * when the connection drops before the ack, and with "timeout" when no ack arrives in time.
+     * After "disconnected" (once sent) or "timeout" the command may or may not have been applied:
+     * nothing is resent; the next state from the server shows what happened (LI-001).
      * @param {string} name
      * @param {object} [args]
      * @returns {Promise<any>}
@@ -223,7 +301,15 @@
       }
       var id = this.nextId++;
       return new Promise(function (resolve, reject) {
-        self.pending[id] = { resolve: resolve, reject: reject };
+        var timer = self.setTimer(function () {
+          if (!self.pending[id]) return;
+          delete self.pending[id];
+          reject({ code: "timeout", message: "No reply from Lock-In, so this may or may not have worked. Reconnecting to check…" });
+          // No ack in time: the connection is most likely dead. Reconnect and resume from the
+          // server's state rather than guessing.
+          self.abandon();
+        }, self.commandTimeoutMs);
+        self.pending[id] = { resolve: resolve, reject: reject, timer: timer };
         self.sendRaw({ t: "cmd", id: id, name: name, args: args || {} });
       });
     }
@@ -231,27 +317,21 @@
     /** Closes the connection for good. */
     close() {
       this.stopped = true;
-      if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
-      if (this.offlineTimer) { clearTimeout(this.offlineTimer); this.offlineTimer = null; }
-      if (this.pingTimer) { clearTimeout(this.pingTimer); this.pingTimer = null; }
+      if (this.retryTimer) { this.clearTimer(this.retryTimer); this.retryTimer = null; }
+      if (this.offlineTimer) { this.clearTimer(this.offlineTimer); this.offlineTimer = null; }
+      if (this.pingTimer) { this.clearTimer(this.pingTimer); this.pingTimer = null; }
+      if (this.watchTimer) { this.clearTimer(this.watchTimer); this.watchTimer = null; }
       var socket = this.socket;
       this.socket = null;
       if (socket) {
         try { socket.close(); } catch (e) { /* already closed */ }
       }
-      var ids = Object.keys(this.pending);
-      for (var i = 0; i < ids.length; i++) {
-        var p = this.pending[String(ids[i])];
-        if (p) p.reject({ code: "disconnected", message: "Closed." });
-      }
-      this.pending = {};
+      this.rejectPending({ code: "disconnected", message: "Closed." });
     }
 
     /** Drops the current socket and reconnects (for tests and a manual "retry" button). */
     reconnect() {
-      if (this.socket) {
-        try { this.socket.close(); } catch (e) { /* ignore */ }
-      }
+      this.abandon();
     }
   }
 

@@ -992,7 +992,7 @@ Every `cmd` gets exactly one `ack` with the same `id`. A client keeps at most on
 
 ### 10.6 Clock sync and keepalive
 
-Clients send `ping` every 2 s for the first 10 s after connecting, then every 25 s. Offset = `s - (c + rtt / 2)`; the client uses the median of the last 5 offsets. All countdowns are drawn from `locksAt - (Date.now() + offset)`. The server closes a connection with no message for 60 s. B0 provides this in `public/shared/ws-client.js` and `clock.js`, so the display, phone and console all share one implementation.
+Clients send `ping` every 2 s for the first 10 s after connecting, then every 25 s. Offset = `s - (c + rtt / 2)`; the client uses the median of the last 5 offsets. All countdowns are drawn from `locksAt - (Date.now() + offset)`. The server closes a connection with no message for 60 s. The client keeps its own deadlines too (code review LI-001): no welcome 10 s after creating the socket, or no message of any kind for 35 s, and it abandons the socket and reconnects without waiting for the browser's close; after a suspension (timers that ran late) it first pings and allows 10 s for an answer. A command with no ack after 10 s settles as `timeout`. Neither `timeout` nor `disconnected` is retried automatically: the command may have been applied, so the client resumes from the next state. B0 provides this in `public/shared/ws-client.js` and `clock.js`, so the display, phone and console all share one implementation.
 
 ### 10.7 Sending views
 
