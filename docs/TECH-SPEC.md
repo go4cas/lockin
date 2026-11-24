@@ -523,7 +523,7 @@ any phase after lobby ─quiz.end {early:true}─▶ ended
 
 ### 7.2 Commands
 
-All commands go over the WebSocket as `{ t: "cmd", id, name, args }` (section 10). The engine rejects a command that is not allowed in the current phase with `wrong_phase`. "Host" commands need a host connection.
+All commands go over the WebSocket as `{ t: "cmd", id, name, args }` (section 10). The engine rejects a command that is not allowed in the current phase with `wrong_phase`. "Host" commands need a host connection. Who may send each command is in one registry, `COMMANDS` in `src/shared/protocol.ts`; `CommandArgs` and `CommandResults` there type every command's arguments and ack result, and `LockInClient.cmd` (`src/shared/client-api.ts`, the browser's `window.LockIn`) uses them, so page code that sends a wrong argument or reads a wrong result field fails `bun run typecheck` (code review LI-019). The server still parses every argument at run time.
 
 | Command | Args | Allowed in | Effect |
 |---|---|---|---|

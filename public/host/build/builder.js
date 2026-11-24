@@ -2,7 +2,7 @@
 // Quiz builder (H-02, H-03, H-04). The open quiz is a local reactive() draft;
 // a watch() on it drives the debounced autosave (TECH-SPEC 3.4, B3).
 import { html, nextTick, reactive, watch } from "/vendor/arrow/index.mjs";
-import { ApiError, getQuiz, groupProblems, readinessLabel, saveQuiz, uploadImage } from "./api.js";
+import { ApiError, getQuiz, isOffline, groupProblems, readinessLabel, saveQuiz, uploadImage } from "./api.js";
 import { prepareImage } from "./image.js";
 
 /** @typedef {import("./api.js").QuizFile} QuizFile */
@@ -83,6 +83,8 @@ export function mountBuilder(root, quizId) {
   /** @type {ReturnType<typeof setTimeout> | undefined} */
   let timer;
   let inFlight = false;
+  /** The last save failed because the server could not be reached (ApiError code "offline"): retry on a timer. */
+  let offline = false;
 
   const draftJson = () => (ui.draft ? JSON.stringify(ui.draft) : "");
 
@@ -106,10 +108,12 @@ export function mountBuilder(root, quizId) {
       ui.ready = res.ready;
       ui.problems = res.problems;
       ui.message = "";
+      offline = false;
       ui.status = draftJson() === json ? "saved" : "pending";
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError(0, "error", String(e));
       ui.message = err.message;
+      offline = isOffline(err);
       if (err.code === "edited_elsewhere") ui.status = "conflict";
       else if (err.code === "quiz_in_use") ui.status = "locked";
       else ui.status = "error";
@@ -117,7 +121,7 @@ export function mountBuilder(root, quizId) {
       inFlight = false;
     }
     if (ui.status === "pending") schedule();
-    else if (ui.status === "error" && /** @type {any} */ (ui.message) && ui.message.startsWith("Can't reach")) schedule(5000);
+    else if (ui.status === "error" && offline) schedule(5000);
   }
 
   // Any change to the draft (re)starts the debounce.

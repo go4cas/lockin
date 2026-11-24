@@ -44,7 +44,7 @@ if (!W.LockInDisplayUnsupported) start();
  */
 function start() {
   const root = /** @type {HTMLElement} */ (document.getElementById("display"));
-  /** @type {any} */ let client = null;
+  /** @type {import("../../src/shared/client-api").LockInClient | null} */ let client = null;
   /** @type {DisplayView | null} */ let lastView = null;
   let status = "connecting";
   let connections = 0;

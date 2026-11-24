@@ -135,9 +135,7 @@ mountParts(/** @type {HTMLElement} */ (document.querySelector("#app .dialogs")),
   if (f) f.focus();
 });
 
-/** @type {any} */
-const LockIn = /** @type {any} */ (window).LockIn;
-const client = LockIn.connect({
+const client = window.LockIn.connect({
   role: "host",
   onState(/** @type {HostView} */ view) {
     page.view = view;

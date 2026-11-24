@@ -7,6 +7,10 @@ import { can, HIDE_ANSWERS_KEY } from "./logic.js";
 
 /** @typedef {import("../../../src/shared/protocol").HostView} HostView */
 /** @typedef {import("../../../src/shared/protocol").CommandName} CommandName */
+/** @typedef {import("../../../src/shared/protocol").CommandArgs} CommandArgs */
+/** @typedef {import("../../../src/shared/protocol").CommandResults} CommandResults */
+/** @typedef {import("../../../src/shared/protocol").CommandError} CommandError */
+/** @typedef {import("../../../src/shared/client-api").LockInClient} LockInClient */
 
 export const page = reactive({
   /** @type {HostView | null} */ view: /** @type {any} */ (null),
@@ -56,10 +60,10 @@ export function toggleHideAnswers() {
   }
 }
 
-/** @type {any} */
+/** @type {LockInClient | null} */
 let client = null;
 
-/** @param {any} c */
+/** @param {LockInClient} c */
 export function setClient(c) {
   client = c;
 }
@@ -80,18 +84,20 @@ export function enabled(name) {
 /**
  * Sends a host command. At most one pending command per name (10.5). Resolves with
  * { ok: true, result } or, after showing the server's plain-English message, { ok: false }.
- * @param {CommandName} name
- * @param {object} [args]
- * @returns {Promise<{ ok: boolean, result?: any }>}
+ * Arguments and the result are typed per command (CommandArgs, CommandResults; LI-019).
+ * @template {CommandName} N
+ * @param {N} name
+ * @param {CommandArgs[N]} args
+ * @returns {Promise<{ ok: true, result: CommandResults[N] } | { ok: false, result?: undefined }>}
  */
 export async function send(name, args) {
   if (!client || ui.busy[name]) return { ok: false };
   ui.busy[name] = true;
   ui.error = "";
   try {
-    return { ok: true, result: await client.cmd(name, args || {}) };
+    return { ok: true, result: await client.cmd(name, args) };
   } catch (e) {
-    const err = /** @type {any} */ (e);
+    const err = /** @type {CommandError | undefined} */ (e);
     ui.error = (err && err.message) || "That did not work. Try again.";
     return { ok: false };
   } finally {

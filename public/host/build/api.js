@@ -19,6 +19,15 @@ export class ApiError extends Error {
 }
 
 /**
+ * True when a save failed because the server could not be reached, so the builder retries on a
+ * timer. Decided by the stable code, never by the English message (code review LI-019).
+ * @param {unknown} e
+ */
+export function isOffline(e) {
+  return e instanceof ApiError && e.code === "offline";
+}
+
+/**
  * @param {string} method
  * @param {string} url
  * @param {unknown} [body] a JSON body, or FormData

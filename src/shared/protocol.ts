@@ -49,19 +49,122 @@ export type CommandName =
   | "display.pair" | "display.unpair" | "display.unpairAll"
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
-export const COMMAND_NAMES: readonly CommandName[] = [
-  "night.open", "night.update", "night.close", "quiz.start", "quiz.end",
-  "round.start", "round.finish", "round.next", "question.next",
-  "timer.start", "timer.pause", "timer.resume", "timer.add", "lock",
-  "mark.group", "mark.team", "reveal.start", "reveal.next", "leaderboard.show",
-  "sd.start", "sd.ask", "sd.reveal", "final.show",
-  "team.rename", "team.remove", "team.moveCode", "night.newRoomCode",
-  "display.pair", "display.unpair", "display.unpairAll",
-  "team.join", "team.rejoin", "joker.play", "answer.submit",
-];
+/**
+ * The one command registry (code review LI-016, LI-019): who may send each command (7.2).
+ * Keyed by every CommandName, so a new command that is left out fails typecheck.
+ * `host`: needs a signed-in console; `team`: a phone. Displays send no commands.
+ */
+export const COMMANDS = {
+  "night.open": { by: "host" }, "night.update": { by: "host" }, "night.close": { by: "host" },
+  "quiz.start": { by: "host" }, "quiz.end": { by: "host" },
+  "round.start": { by: "host" }, "round.finish": { by: "host" }, "round.next": { by: "host" }, "question.next": { by: "host" },
+  "timer.start": { by: "host" }, "timer.pause": { by: "host" }, "timer.resume": { by: "host" }, "timer.add": { by: "host" }, "lock": { by: "host" },
+  "mark.group": { by: "host" }, "mark.team": { by: "host" },
+  "reveal.start": { by: "host" }, "reveal.next": { by: "host" }, "leaderboard.show": { by: "host" },
+  "sd.start": { by: "host" }, "sd.ask": { by: "host" }, "sd.reveal": { by: "host" }, "final.show": { by: "host" },
+  "team.rename": { by: "host" }, "team.remove": { by: "host" }, "team.moveCode": { by: "host" }, "night.newRoomCode": { by: "host" },
+  "display.pair": { by: "host" }, "display.unpair": { by: "host" }, "display.unpairAll": { by: "host" },
+  "team.join": { by: "team" }, "team.rejoin": { by: "team" }, "joker.play": { by: "team" }, "answer.submit": { by: "team" },
+} as const satisfies Record<CommandName, { by: "host" | "team" }>;
+
+export const COMMAND_NAMES: readonly CommandName[] = Object.keys(COMMANDS) as CommandName[];
 
 /** Commands a team connection may send (7.2); every other command needs a host connection. */
-export const TEAM_COMMANDS: readonly CommandName[] = ["team.join", "team.rejoin", "joker.play", "answer.submit"];
+export const TEAM_COMMANDS: readonly CommandName[] = COMMAND_NAMES.filter((n) => COMMANDS[n].by === "team");
+
+/** Empty args. */
+type None = Record<string, never>;
+
+/**
+ * Arguments of each command (7.2), as page code sends them (LI-019). The server still parses
+ * every argument at run time: these types describe the wire, they do not validate it.
+ */
+export interface CommandArgs {
+  "night.open": { quizId: string; plannedStart?: number | null; prizes?: Prize[] };
+  "night.update": { plannedStart?: number | null; prizes?: Prize[] };
+  "night.close": None;
+  "quiz.start": None;
+  "quiz.end": { early?: boolean };
+  "round.start": None;
+  "round.finish": None;
+  "round.next": None;
+  "question.next": None;
+  "timer.start": None;
+  "timer.pause": None;
+  "timer.resume": None;
+  "timer.add": { seconds: 15 };
+  "lock": None;
+  "mark.group": { questionId: string; key: string; mark: "correct" | "wrong" };
+  "mark.team": { questionId: string; teamId: string; mark: "correct" | "wrong" };
+  "reveal.start": None;
+  "reveal.next": None;
+  "leaderboard.show": None;
+  "sd.start": None;
+  "sd.ask": None;
+  "sd.reveal": None;
+  "final.show": None;
+  "team.rename": { teamId: string; name: string };
+  "team.remove": { teamId: string };
+  "team.moveCode": { teamId: string };
+  "night.newRoomCode": None;
+  "display.pair": { code: string };
+  "display.unpair": { id: string };
+  "display.unpairAll": None;
+  "team.join": { roomCode: string; name: string; joinKey?: string };
+  "team.rejoin": { code: string };
+  "joker.play": { round: number };
+  "answer.submit": { questionId: string; value: AnswerValue };
+}
+
+/** What a successful ack carries for each command (`undefined`: nothing). */
+export interface CommandResults {
+  "night.open": { nightId: string; roomCode: string };
+  "night.update": undefined;
+  "night.close": undefined;
+  "quiz.start": undefined;
+  "quiz.end": undefined;
+  "round.start": undefined;
+  "round.finish": undefined;
+  "round.next": undefined;
+  "question.next": undefined;
+  "timer.start": undefined;
+  "timer.pause": undefined;
+  "timer.resume": undefined;
+  "timer.add": undefined;
+  "lock": undefined;
+  "mark.group": undefined;
+  "mark.team": undefined;
+  "reveal.start": undefined;
+  "reveal.next": undefined;
+  "leaderboard.show": undefined;
+  "sd.start": undefined;
+  "sd.ask": undefined;
+  "sd.reveal": undefined;
+  "final.show": undefined;
+  "team.rename": undefined;
+  "team.remove": undefined;
+  "team.moveCode": { code: string; url: string };
+  "night.newRoomCode": { roomCode: string };
+  "display.pair": { paired: number; ip: string; connectedFor: number; id: string };
+  "display.unpair": { paired: number };
+  "display.unpairAll": { unpaired: number };
+  "team.join": { teamId: string; token: string; nightId: string };
+  "team.rejoin": { teamId: string; token: string; nightId: string };
+  "joker.play": undefined;
+  "answer.submit": { receivedAt: number | null };
+}
+
+// Both maps cover exactly the command names (a compile-time check, LI-019).
+type Exactly<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+export const COMMAND_MAPS_COMPLETE: Exactly<keyof CommandArgs, CommandName> & Exactly<keyof CommandResults, CommandName> = true;
+
+/** A command's outcome on the server: the typed result, or a refusal with a plain-English message. */
+export type CommandOutcome<N extends CommandName = CommandName> =
+  | { ok: true; result?: CommandResults[N] }
+  | { ok: false; error: { code: ErrorCode; message: string } };
+
+/** How a command fails in the browser: a server refusal, or the client's own `disconnected` / `timeout` (10.5, LI-001). */
+export interface CommandError { code: ErrorCode | "disconnected" | "timeout"; message: string }
 
 export type ErrorCode =
   | "not_allowed"      // wrong role

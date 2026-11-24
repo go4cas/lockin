@@ -154,7 +154,7 @@ export function pairCard() {
     const res = await send("display.pair", { code });
     if (res.ok) {
       pair.code = "";
-      pair.note = pairedNote(/** @type {any} */ (res).result);
+      pair.note = pairedNote(res.result);
     }
   };
   const unpair = async () => {

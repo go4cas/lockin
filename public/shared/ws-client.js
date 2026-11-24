@@ -299,7 +299,8 @@
      * when the connection drops before the ack, and with "timeout" when no ack arrives in time.
      * After "disconnected" (once sent) or "timeout" the command may or may not have been applied:
      * nothing is resent; the next state from the server shows what happened (LI-001).
-     * @param {string} name
+     * Page code sees this as LockInClient.cmd (src/shared/client-api.ts), typed per command (LI-019).
+     * @param {import("../../src/shared/protocol").CommandName} name
      * @param {object} [args]
      * @returns {Promise<any>}
      */
@@ -348,6 +349,6 @@
   LockIn.backoff = backoff;
   LockIn.isFixtureHost = isFixtureHost;
   LockIn.Client = Client;
-  /** @param {any} opts */
+  /** @type {import("../../src/shared/client-api").LockInGlobal["connect"]} */
   LockIn.connect = function (opts) { return new Client(opts); };
 })(typeof window !== "undefined" ? window : globalThis);
