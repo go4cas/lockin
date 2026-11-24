@@ -200,8 +200,12 @@ export function register(app: App): void {
         index: -1, title: "Deadlock",
         questions: sdQuestions.map((q, i) => ({ id: q.id, number: i + 1, text: q.text, answerText: answerTextOf(q.answer) })),
       }]),
-      answers: h.answers.filter((a) => a.value !== null && specs.has(a.questionId))
-        .map((a) => ({ teamId: a.teamId, questionId: a.questionId, display: valueText(a.value!, specs.get(a.questionId)!), mark: a.mark })),
+      // A record with no value is kept with its mark and flagged noAnswer (LI-006): the host may
+      // mark a team right that sent nothing (a dead phone, an answer told in person).
+      answers: h.answers.filter((a) => specs.has(a.questionId))
+        .map((a) => a.value === null
+          ? { teamId: a.teamId, questionId: a.questionId, display: "", mark: a.mark, noAnswer: true as const }
+          : { teamId: a.teamId, questionId: a.questionId, display: valueText(a.value, specs.get(a.questionId)!), mark: a.mark }),
     };
     return json(detail);
   }, { host: true });

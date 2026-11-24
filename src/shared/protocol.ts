@@ -262,5 +262,5 @@ export interface HistoryDetail {
   night: { id: string; quizTitle: string; openedAt: number; endedAt: number | null; status: "open" | "ended" };
   standings: (StandingRow & { name: string })[];
   rounds: { index: number; title: string; questions: { id: string; number: number; text: string; answerText: string }[] }[]; // index -1, title "Deadlock": sudden-death questions asked, numbered 1.. in the order asked (agreed with B1)
-  answers: { teamId: string; questionId: string; display: string; mark: "correct" | "wrong" | "pending" }[]; // no row = no answer
+  answers: { teamId: string; questionId: string; display: string; mark: "correct" | "wrong" | "pending"; noAnswer?: true }[]; // no row = no record; noAnswer = a record with no answer sent, display "" (LI-006)
 }

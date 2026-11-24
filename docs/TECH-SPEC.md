@@ -756,7 +756,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `GET /api/venue` / `PUT /api/venue` | B4 | `VenueFile` |
 | `GET /api/theme/preview.css` | B4 | `?theme=<url-encoded ThemeFile JSON>` → CSS, for the live preview (H-16) |
 | `GET /api/history` | B1 | → `HistoryList`: `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` (saved nights, newest first) |
-| `GET /api/history/:nightId` | B1 | → `HistoryDetail` (`src/shared/protocol.ts`): `{ night, standings, rounds, answers }`. Also answers for the night that is open now, so the console can change marks on earlier rounds (H-13; agreed with Cas 2026-11-24). `answers` has one row per team per question answered, with its display text and mark. |
+| `GET /api/history/:nightId` | B1 | → `HistoryDetail` (`src/shared/protocol.ts`): `{ night, standings, rounds, answers }`. Also answers for the night that is open now, so the console can change marks on earlier rounds (H-13; agreed with Cas 2026-11-24). `answers` has one row per team per question answered, with its display text and mark, plus a row with `noAnswer: true` and `display: ""` for each team that sent nothing but has a mark record (the lock's automatic Wrong, or the host's Right for an answer given in person; code review LI-006, Cas 2026-11-24). |
 
 Upload limits: images 5 MB, logo 2 MB, fonts 2 MB. Files are checked by their first bytes, stored under generated names, and served with `X-Content-Type-Options: nosniff`.
 

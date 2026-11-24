@@ -337,7 +337,8 @@ for (const lockMode of ["question", "round"] as const) {
             for (const t of TEAMS) {
               const p = plan(quiz, r, i, t);
               const row = h.answers.find((a) => a.teamId === id(t) && a.questionId === qq.id);
-              if (!p) { expect(row).toBeUndefined(); continue; }
+              // no answer sent: no row, or the lock's automatic Wrong flagged noAnswer (LI-006)
+              if (!p) { if (row) expect(row).toMatchObject({ noAnswer: true, display: "", mark: "wrong" }); continue; }
               const disputed = t === "Charlie" && r === 0 && i === 0;
               expect({ t, q: qq.id, mark: row?.mark }).toEqual({ t, q: qq.id, mark: p.right || disputed ? "correct" : "wrong" });
             }

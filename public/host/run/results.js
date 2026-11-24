@@ -48,6 +48,17 @@ function answerOf(teamId, questionId) {
 }
 
 /**
+ * What a team sent, for the answers tables. A row flagged noAnswer (LI-006) or no row at all
+ * reads "no answer"; its mark is shown by the buttons either way. "0" is a real answer.
+ * @param {{ display: string, noAnswer?: true } | undefined} a
+ * @param {boolean} loaded
+ */
+function answerText(a, loaded) {
+  if (a && !a.noAnswer) return a.display;
+  return loaded ? "— no answer —" : "";
+}
+
+/**
  * Sets one team's mark on one question (mark.team), then reloads the marks.
  * @param {string} teamId
  * @param {string} questionId
@@ -90,7 +101,7 @@ export function revealScreen() {
       <thead><tr><th>Team</th><th>Answer</th><th>Mark</th></tr></thead>
       <tbody>${pool(teams, (t) => html`<tr hidden="${() => !t()}">
         <td><span class="tname">${dot(() => t()?.colour || 1)}${() => t()?.name || ""}</span></td>
-        <td>${() => answerOf(t()?.id || "", qid())?.display || "— no answer —"}</td>
+        <td>${() => answerText(answerOf(t()?.id || "", qid()), true)}</td>
         <td>${markButtons(() => t()?.id || "", qid)}</td></tr>`)}</tbody>
     </table>
     <p class="muted s">Disputes: change any mark until Quiz End. Scores update straight away; every change is kept in the night's history.</p>
@@ -192,7 +203,7 @@ export function disputeDialog() {
       <thead><tr><th>Question</th><th>Their answer</th><th>Mark</th></tr></thead>
       <tbody>${pool(() => pickRound()?.questions || [], (q) => html`<tr hidden="${() => !q()}">
         <td><span class="muted s">${() => `Q${q()?.number ?? ""} · ${q()?.answerText || ""}`}</span><br>${() => q()?.text || ""}</td>
-        <td>${() => answerOf(teamId(), q()?.id || "")?.display || (hist.detail ? "— no answer —" : "")}</td>
+        <td>${() => answerText(answerOf(teamId(), q()?.id || ""), !!hist.detail)}</td>
         <td>${markButtons(teamId, () => q()?.id || "")}</td></tr>`)}</tbody>
     </table>
     <p class="muted s">${() => `Changes are allowed until Quiz End and are kept in the night's history. ${page.view?.standings ? plural(page.view.standings.rows.length, "team") + " in the standings." : ""}`}</p>`);
