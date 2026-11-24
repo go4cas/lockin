@@ -718,7 +718,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `POST /api/auth/setup` | B0 | `{ password, setupCode? }` → `{ ok: true }` and the session cookie |
 | `POST /api/auth/login` | B0 | `{ password }` → `{ ok: true }` and the cookie (public, rate-limited) |
 | `POST /api/auth/logout` | B0 | → `{ ok: true }` |
-| `GET /api/server` | B8 | → `{ version, dataDir, publicUrl, tvUrl, joinUrl }` |
+| `GET /api/server` | B8 | → `{ version, dataDir, publicUrl, displayUrl, joinUrl }` |
 | `GET /api/quizzes` | B3 | → `{ quizzes: { id, title, rounds, questions, updatedAt, ready, problems }[] }` |
 | `POST /api/quizzes` | B3 | `{ title }` → `{ quiz: QuizFile }` (default shape: 6 rounds of 5 empty questions, default settings) |
 | `GET /api/quizzes/:id` | B3 | → `{ quiz: QuizFile, ready, problems }` |
