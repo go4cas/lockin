@@ -38,11 +38,13 @@ function svg(text: string, title: string): Response {
 }
 
 export function register(app: App): void {
-  // Shown on the console (host session) and on a paired display, which sends its pairing token as
-  // ?d=<token> (REVIEW finding 4: it carries the room code, so it is not public).
-  app.route("GET", "/qr/join.svg", (_req, ctx) => {
+  // Shown on the console (host session) and on a paired display, which sends its pairing token in
+  // an `Authorization: Bearer` header (REVIEW finding 4: it carries the room code, so it is not
+  // public). SA-11: never in the URL, where it would land in access logs and browser history.
+  app.route("GET", "/qr/join.svg", (req, ctx) => {
     const pairing = app.services.displayPairing;
-    const allowed = !!ctx.hostSession || !pairing || pairing.isPaired(ctx.url.searchParams.get("d"));
+    const auth = /^Bearer (\S{1,100})$/.exec(req.headers.get("authorization") ?? "");
+    const allowed = !!ctx.hostSession || !pairing || pairing.isPaired(auth?.[1] ?? null);
     if (!allowed) return errorResponse(404, "not_found", "There is nothing at this address.");
     return svg(joinUrl(app), "QR code to join the quiz");
   });

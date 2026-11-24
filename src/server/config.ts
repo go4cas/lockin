@@ -2,7 +2,7 @@
 // Precedence: command-line flag, then environment variable, then config.json
 // in the data folder, then the default.
 
-import { existsSync, mkdirSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { readJsonFile } from "./files.ts";
 
@@ -127,12 +127,20 @@ export function resolveConfig(args: ParsedArgs, env: Record<string, string | und
   };
 }
 
-/** Creates the data folder and its subfolders if they are missing (TECH-SPEC 4.4 step 1). */
+/**
+ * Creates the data folder and its subfolders if they are missing (TECH-SPEC 4.4 step 1), for this
+ * user only (SA-10): the database holds rejoin codes and the quizzes hold the answers. A data
+ * folder this process owns is set to 0700 at every start; one owned by someone else is left alone.
+ */
 export function ensureDataDir(dataDir: string): void {
   for (const sub of ["", ...DATA_SUBFOLDERS]) {
     const p = join(dataDir, sub);
-    if (!existsSync(p)) mkdirSync(p, { recursive: true });
+    if (!existsSync(p)) mkdirSync(p, { recursive: true, mode: 0o700 });
   }
+  const uid = process.getuid?.();
+  try {
+    if (uid === undefined || statSync(dataDir).uid === uid) chmodSync(dataDir, 0o700);
+  } catch { /* a file system without modes: nothing to tighten */ }
 }
 
 /** True when the public URL is a development address on this machine (no HTTPS, so no Secure cookie). */

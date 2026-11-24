@@ -1,6 +1,7 @@
 // SQLite database (TECH-SPEC section 6): opening, pragmas and migrations.
 
 import { Database } from "bun:sqlite";
+import { chmodSync, existsSync } from "node:fs";
 import init001 from "./migrations/001_init.sql" with { type: "text" };
 
 export interface Migration { version: number; name: string; sql: string }
@@ -18,7 +19,21 @@ export function openDb(path: string, migrations: readonly Migration[] = MIGRATIO
   db.exec("PRAGMA foreign_keys = ON");
   db.exec("PRAGMA busy_timeout = 5000");
   migrate(db, migrations);
+  privateFiles(path);
   return db;
+}
+
+/**
+ * SA-10: the database and its -wal and -shm files are for this user only. SQLite makes new
+ * -wal and -shm files with the database's mode, so setting the database is enough from then on.
+ */
+export function privateFiles(path: string): void {
+  if (path === ":memory:") return;
+  for (const p of [path, `${path}-wal`, `${path}-shm`]) {
+    try {
+      if (existsSync(p)) chmodSync(p, 0o600);
+    } catch { /* not ours, or a file system without modes */ }
+  }
 }
 
 export function schemaVersion(db: Database): number {

@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import type { App } from "../app.ts";
 import { UPLOAD_CSP, errorResponse, json } from "../http.ts";
 import { contentType } from "../static.ts";
-import type { Conn } from "../ws.ts";
+import { safely, type Conn } from "../ws.ts";
 import { COALESCE_MS, Engine } from "./engine.ts";
 import { answerText as answerTextOf, valueText } from "./quiz.ts";
 import { ClockScheduler } from "./scheduler.ts";
@@ -25,7 +25,7 @@ function sourcesFor(app: App): { sources: Sources; branding: BrandingStore } {
 }
 import { historyList, historyNight } from "./store.ts";
 import { displayView, unpairedDisplayView, viewFor } from "./views.ts";
-import { displayCommand, displaysSummary } from "../display/index.ts";
+import { DISPLAY_COMMANDS, displayCommand, displaysSummary, type DisplayCommand } from "../display/index.ts";
 
 /** The engine of each app, so tests can reach it (for example to run due timers on a fake clock). */
 export const engines = new WeakMap<App, { engine: Engine; scheduler: ClockScheduler }>();
@@ -34,7 +34,7 @@ export const engines = new WeakMap<App, { engine: Engine; scheduler: ClockSchedu
 export type { HistoryDetail };
 
 export function register(app: App): void {
-  const scheduler = new ClockScheduler(app.clock);
+  const scheduler = new ClockScheduler(app.clock, (m) => app.log(m));
   const { sources, branding } = sourcesFor(app);
   const engine = new Engine({
     db: app.db,
@@ -103,14 +103,14 @@ export function register(app: App): void {
     } else if (e.coalesce) {
       // The submitting team sees its answer at once; everyone else within COALESCE_MS.
       if (submitter) hub.sendState(submitter);
-      if (!pending) pending = setTimeout(() => { pending = null; hub.broadcastState(); }, COALESCE_MS);
+      if (!pending) pending = setTimeout(() => { pending = null; safely(app.log, "Answer broadcast", () => hub.broadcastState()); }, COALESCE_MS);
     } else {
       broadcastNow();
     }
   };
 
   hub.setCommandHandler((conn, name, args) => {
-    if (name === "display.pair" || name === "display.unpairAll") return displayCommand(app, name, args);
+    if ((DISPLAY_COMMANDS as readonly string[]).includes(name)) return displayCommand(app, name as DisplayCommand, args);
     const actor = conn.role === "team" ? { role: "team" as const, teamId: conn.teamId, connId: conn.id, ip: conn.ip } : { role: "host" as const };
     submitter = conn;
     let result;

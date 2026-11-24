@@ -51,6 +51,8 @@ export interface Conn {
   readonly hostSession: string | null;
   /** Display role: true once paired (token or host session). Always true without a display authoriser. */
   readonly paired: boolean;
+  /** Display role: paired by the host session it was opened with (D5), not by a stored token; ends with that session. */
+  readonly pairedBySession: boolean;
   readonly connectedAt: number;
   lastMessageAt: number;
   send(msg: ServerMsg): void;
@@ -60,6 +62,8 @@ export interface Conn {
   bye(reason: ByeReason): void;
   /** Marks a display paired or not; with a token, sends it `paired` so it keeps the token. */
   setPaired(paired: boolean, token?: string): void;
+  /** D5: pairs a display by its upgrade request's host session, with no token; signing out unpairs it. */
+  pairBySession(): void;
 }
 
 export type CommandHandler = (conn: Conn, name: CommandName, args: Record<string, unknown>) => CommandResult | Promise<CommandResult>;
@@ -74,6 +78,18 @@ export const MESSAGES: Partial<Record<ErrorCode, string>> = {
   bad_args: "That request was not understood.",
   server_error: "Something went wrong on the server. Try again.",
 };
+
+/**
+ * Runs a timer callback so that an exception is logged instead of ending the process (SA-09:
+ * Bun exits on an error thrown from setTimeout). Use it for every timer and interval.
+ */
+export function safely(log: ((message: string) => void) | undefined, what: string, fn: () => void): void {
+  try {
+    fn();
+  } catch (e) {
+    (log ?? console.error)(`${what} failed: ${e instanceof Error ? e.stack ?? e.message : String(e)}`);
+  }
+}
 
 export function fail(code: ErrorCode, message?: string): CommandResult {
   return { ok: false, error: { code, message: message ?? MESSAGES[code] ?? "That can't be done right now." } };
@@ -98,6 +114,7 @@ class Connection implements Conn {
   role: Role | null = null;
   teamId: string | null = null;
   paired = true;
+  pairedBySession = false;
   lastMessageAt: number;
   readonly connectedAt: number;
   helloTimer: ReturnType<typeof setTimeout> | null = null;
@@ -133,7 +150,12 @@ class Connection implements Conn {
   }
   setPaired(paired: boolean, token?: string): void {
     this.paired = paired;
+    this.pairedBySession = false;
     if (token) this.send({ t: "paired", token });
+  }
+  pairBySession(): void {
+    this.paired = !!this.hostSession;
+    this.pairedBySession = this.paired;
   }
   bye(reason: ByeReason): void {
     if (this.closed) return;
@@ -147,6 +169,8 @@ export interface HubOptions {
   clock: Clock;
   /** True if the host session (by hash) is still valid. */
   sessionAlive: (hash: string) => boolean;
+  /** Renews a host session from socket activity (SA-12); false if it has ended. */
+  touchSession?: (hash: string) => boolean;
   log?: (msg: string) => void;
 }
 
@@ -206,11 +230,11 @@ export class Hub {
     if (wait <= 0) {
       this.hostLastAt = now;
       this.broadcastState((c) => c.role === "host");
-      this.hostTimer = setTimeout(() => this.flushHosts(), HOST_UPDATE_MS);
+      this.hostTimer = setTimeout(() => safely(this.opts.log, "Host update", () => this.flushHosts()), HOST_UPDATE_MS);
       return;
     }
     this.hostPending = true;
-    this.hostTimer = setTimeout(() => this.flushHosts(), wait);
+    this.hostTimer = setTimeout(() => safely(this.opts.log, "Host update", () => this.flushHosts()), wait);
   }
 
   private flushHosts(): void {
@@ -218,8 +242,8 @@ export class Hub {
     if (!this.hostPending) return;
     this.hostPending = false;
     this.hostLastAt = performance.now();
+    this.hostTimer = setTimeout(() => safely(this.opts.log, "Host update", () => this.flushHosts()), HOST_UPDATE_MS);
     this.broadcastState((c) => c.role === "host");
-    this.hostTimer = setTimeout(() => this.flushHosts(), HOST_UPDATE_MS);
   }
 
   /** Sends every connection its current view (or only those matching `filter`). */
@@ -227,11 +251,39 @@ export class Hub {
     for (const c of this.connections()) if (!filter || filter(c)) this.sendState(c);
   }
 
-  /** Signs out host connections whose session was deleted (null = all host connections). */
+  /**
+   * Signs out host connections whose session was deleted (null = all host connections), and
+   * unpairs displays that were paired by one of those sessions (D5): they show a code again.
+   */
   signOut(hashes: string[] | null): void {
-    for (const c of this.connections("host")) {
-      if (hashes === null || (c.hostSession && hashes.includes(c.hostSession))) c.bye("signed_out");
+    const ended = (c: Conn) => hashes === null || (!!c.hostSession && hashes.includes(c.hostSession));
+    let unpaired = 0;
+    for (const c of this.connections()) {
+      if (c.role === "host" && ended(c)) c.bye("signed_out");
+      else if (c.role === "display" && c.pairedBySession && ended(c)) {
+        c.setPaired(false);
+        this.sendState(c);
+        unpaired++;
+      }
     }
+    if (unpaired > 0) this.broadcastHosts();
+  }
+
+  /**
+   * SA-12: ends connections whose host session has ended without a sign-out (it expired, or
+   * passed its 30 days). Host sockets get `bye signed_out`; displays paired by that session
+   * go back to a code. Run once a minute. Returns how many connections it changed.
+   */
+  sweepSessions(): number {
+    const dead = new Set<string>();
+    for (const c of this.connections()) {
+      if (!c.hostSession || dead.has(c.hostSession)) continue;
+      if ((c.role === "host" || c.pairedBySession) && !this.opts.sessionAlive(c.hostSession)) dead.add(c.hostSession);
+    }
+    if (dead.size === 0) return 0;
+    const before = this.connections().filter((c) => c.hostSession && dead.has(c.hostSession) && (c.role === "host" || c.pairedBySession)).length;
+    this.signOut([...dead]);
+    return before;
   }
 
   closeAll(): void {
@@ -296,6 +348,10 @@ export class Hub {
       if (!conn || conn.closed) return;
       if (!conn.spend()) return conn.bye("protocol");
       conn.lastMessageAt = this.opts.clock.now();
+      // SA-12: a console in use keeps its session alive (pings every 25 s count).
+      if (conn.role === "host" && conn.hostSession && this.opts.touchSession && !this.opts.touchSession(conn.hostSession)) {
+        return conn.bye("signed_out");
+      }
       let msg: ClientMsg;
       try {
         msg = JSON.parse(typeof raw === "string" ? raw : raw.toString("utf8"));

@@ -397,3 +397,29 @@ export function moveMark(row) {
 
 /** The device setting key for "Hide answers on this screen". */
 export const HIDE_ANSWERS_KEY = "lockin.host.hideAnswers";
+
+/**
+ * How long ago, in words: "just now", "5 minutes ago", "3 hours ago", "2 days ago".
+ * @param {number} ms
+ */
+export function agoText(ms) {
+  const mins = Math.floor(Math.max(0, ms) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins === 1 ? "1 minute ago" : `${mins} minutes ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "1 day ago" : `${days} days ago`;
+}
+
+/**
+ * One line per paired display for the console's list (SA-11), numbered in pairing order:
+ * "Display 1 · connected now from 203.0.113.7 · paired 2 days ago".
+ * @param {{ id: string, pairedAt: number, lastSeenAt: number, connected: boolean, ip: string | null }} d
+ * @param {number} index 0-based
+ * @param {number} now server time
+ */
+export function pairedDisplayLine(d, index, now) {
+  const where = d.connected ? `connected now${d.ip ? ` from ${d.ip}` : ""}` : `last seen ${agoText(now - d.lastSeenAt)}`;
+  return `Display ${index + 1} · ${where} · paired ${agoText(now - d.pairedAt)}`;
+}

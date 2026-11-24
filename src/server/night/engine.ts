@@ -23,6 +23,8 @@ export const LOBBY_LINE_MS = 45_000;
 export const LAST_SECONDS_MS = 10_000;
 export const FLASH_MS = 6_000;
 export const COALESCE_MS = 100;
+/** A timed change (the lock) that could not be saved is tried again this soon (SA-09). */
+export const TIMER_RETRY_MS = 2_000;
 const REJOIN_TRIES = 5;
 /** Wrong rejoin tries a minute from one client IP, across all its connections. Higher than REJOIN_TRIES because a pub's phones often share one address. */
 const REJOIN_TRIES_PER_IP = 10;
@@ -67,7 +69,7 @@ const OK: CommandResult = { ok: true };
 type Refusal = { ok: false; error: { code: ErrorCode; message: string } };
 const refuse = (code: ErrorCode, message?: string) => fail(code, message) as Refusal;
 
-/** `ip` is the client address (CF-Connecting-IP behind the tunnel); rejoin tries are limited per IP as well as per connection. */
+/** `ip` is the client address (CF-Connecting-IP from the tunnel on loopback, SA-06); rejoin tries are limited per IP as well as per connection. */
 export type Actor = { role: "host" } | { role: "team"; teamId: string | null; connId: number; ip?: string };
 
 /** What the socket layer must do after a change. */
@@ -442,7 +444,14 @@ export class Engine {
     this.jobs.delete("lock");
     const t = this.m?.state.timer;
     if (!t || t.state !== "running" || t.locksAt !== locksAt) return;
-    this.run(() => { this.lockOpen(locksAt); return OK; });
+    try {
+      this.run(() => { this.lockOpen(locksAt); return OK; });
+    } catch (e) {
+      // SA-09: for example the disk is full or the database stayed busy. Memory went back to the
+      // last saved state (the timer still running), so the lock is tried again until it saves.
+      this.d.log?.(`The lock could not be saved; trying again in ${TIMER_RETRY_MS / 1000} s: ${e instanceof Error ? e.message : String(e)}`);
+      this.d.scheduler.at(this.now() + TIMER_RETRY_MS, () => this.syncTimers());
+    }
   }
 
   private fireLastSeconds(key: string): void {

@@ -192,7 +192,7 @@ describe("pairing writes commit only after the file write (LI-014)", () => {
     const dir = mkdtempSync(join(tmpdir(), "lockin-pair-"));
     dirs.push(dir);
     const p = new DisplayPairing(dir, new FakeClock());
-    const token = p.issue();
+    const { token } = p.issue();
     const file = readFileSync(join(dir, "displays.json"), "utf8");
     mkdirSync(join(dir, "displays.json.tmp"));   // every later write fails
     return { dir, p, token, file };
@@ -220,7 +220,7 @@ describe("pairing writes commit only after the file write (LI-014)", () => {
     const dir = mkdtempSync(join(tmpdir(), "lockin-pair-"));
     dirs.push(dir);
     const p = new DisplayPairing(dir, new FakeClock());
-    const token = p.issue();
+    const { token } = p.issue();
     expect(p.unpairAll()).toBe(1);
     expect(p.isPaired(token)).toBe(false);
     expect(new DisplayPairing(dir, new FakeClock()).isPaired(token)).toBe(false);

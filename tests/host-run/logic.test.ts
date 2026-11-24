@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  acceptedList, answerValueText, can, cleanPrizes, clockText, displayNow, endAction, ordinal, pickMarkingQuestion,
+  acceptedList, agoText, answerValueText, can, pairedDisplayLine, cleanPrizes, clockText, displayNow, endAction, ordinal, pickMarkingQuestion,
   HIDE_ANSWERS_KEY, moveMark, plannedFromInput, primaryAction, sortGroups, steps, timerLeft, topTitle,
 } from "../../public/host/run/logic.js";
 import { COMMAND_NAMES, PHASES, type CommandName, type HostView } from "../../src/shared/protocol.ts";
@@ -249,5 +249,19 @@ describe("console code", () => {
   test("Arrow comes from the vendored path only", () => {
     const imports = [...code.matchAll(/from "([^"]+)"/g)].map((m) => m[1]!);
     for (const i of imports) expect(i === "/vendor/arrow/index.mjs" || i.startsWith("./")).toBe(true);
+  });
+});
+
+describe("paired display list (SA-11)", () => {
+  test("agoText", () => {
+    expect([0, 59_999, 60_000, 5 * 60_000, 60 * 60_000, 3 * 3_600_000, 24 * 3_600_000, 3 * 86_400_000].map(agoText))
+      .toEqual(["just now", "just now", "1 minute ago", "5 minutes ago", "1 hour ago", "3 hours ago", "1 day ago", "3 days ago"]);
+  });
+  test("one line per display: connected now with its address, or when it was last seen", () => {
+    const now = 10 * 86_400_000;
+    expect(pairedDisplayLine({ id: "0123abcd", pairedAt: now - 2 * 86_400_000, lastSeenAt: now, connected: true, ip: "203.0.113.7" }, 0, now))
+      .toBe("Display 1 · connected now from 203.0.113.7 · paired 2 days ago");
+    expect(pairedDisplayLine({ id: "0123abce", pairedAt: now - 9 * 86_400_000, lastSeenAt: now - 3 * 3_600_000, connected: false, ip: null }, 1, now))
+      .toBe("Display 2 · last seen 3 hours ago · paired 9 days ago");
   });
 });

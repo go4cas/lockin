@@ -24,7 +24,8 @@ export class ClockScheduler implements Scheduler {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
 
-  constructor(private clock: Clock) {}
+  /** `log` gets a job's error; a job that throws never stops the others or the timer (SA-09). */
+  constructor(private clock: Clock, private log: (message: string) => void = (m) => console.error(m)) {}
 
   at(time: number, fn: () => void): number {
     const id = this.nextId++;
@@ -40,14 +41,22 @@ export class ClockScheduler implements Scheduler {
 
   /** Runs every job that is due, earliest first. */
   runDue(): void {
-    for (;;) {
-      const now = this.clock.now();
-      const due = this.jobs.filter((j) => j.time <= now).sort((a, b) => a.time - b.time || a.id - b.id)[0];
-      if (!due) break;
-      this.jobs = this.jobs.filter((j) => j !== due);
-      due.fn();
+    try {
+      for (;;) {
+        const now = this.clock.now();
+        const due = this.jobs.filter((j) => j.time <= now).sort((a, b) => a.time - b.time || a.id - b.id)[0];
+        if (!due) break;
+        this.jobs = this.jobs.filter((j) => j !== due);
+        try {
+          due.fn();
+        } catch (e) {
+          // SA-09: an exception thrown from a timer would end the process. Log it and go on.
+          this.log(`A timed job failed: ${e instanceof Error ? e.stack ?? e.message : String(e)}`);
+        }
+      }
+    } finally {
+      this.arm();
     }
-    this.arm();
   }
 
   stop(): void {

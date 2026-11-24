@@ -9,7 +9,9 @@
 //    and reconnect, marking, reveal, sudden death, winner, history, close.
 // 2. tests/e2e/review-fixes-browser.ts: a silent network, a picture changed between two
 //    nights, a phone draft across nights, a branding save race.
-// 3. tests/display/stress.cjs on the fixture server: 400 random phase changes per seed.
+// 3. tests/e2e/audit-batch2-browser.ts: the display's QR token stays out of URLs (SA-11), a
+//    console-opened display is paired by the session (D5), unpair one display.
+// 4. tests/display/stress.cjs on the fixture server: 400 random phase changes per seed.
 // Each fails on page errors, console errors, failed requests or a stuck screen. Screenshots
 // go to outDir. These are integration checks; physical phone and TV sign-off stays a
 // separate release task, and the screenshot harnesses (tests/phone/tools/render.cjs,
@@ -34,6 +36,7 @@ const results: [string, boolean][] = [];
 results.push(["night, lock per question", await step("night, lock per question", ["bun", "tests/e2e/browser-night.ts", join(OUT, "night-question"), "question"])]);
 results.push(["night, lock per round", await step("night, lock per round", ["bun", "tests/e2e/browser-night.ts", join(OUT, "night-round"), "round"])]);
 results.push(["review fixes", await step("review fixes", ["bun", "tests/e2e/review-fixes-browser.ts", join(OUT, "review-fixes")])]);
+results.push(["audit batch 2", await step("audit batch 2", ["bun", "tests/e2e/audit-batch2-browser.ts", join(OUT, "audit-batch2")])]);
 
 const port = 18500 + Math.floor(Math.random() * 1000);
 const fixtures = await startFixtureServer(port, () => {});

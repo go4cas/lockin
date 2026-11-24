@@ -66,6 +66,13 @@ export async function main(argv: string[], env: Record<string, string | undefine
         const tooOld = runtimeProblem();
         if (tooOld) throw new ConfigError(tooOld);
         const config = resolveConfig(args, env, cwd);
+        // SA-10: files the server makes (database, quizzes, uploads) are for its own user only.
+        process.umask(0o077);
+        // SA-09: an error nothing caught leaves the night in an unknown state. Log it and stop;
+        // the service manager starts a fresh process, which recovers the night from the database.
+        const crash = crashHandler((m) => console.error(`${new Date().toISOString()} ${m}`), (c) => process.exit(c));
+        process.on("uncaughtException", (e) => crash("An error nobody caught", e));
+        process.on("unhandledRejection", (e) => crash("A promise failed and nobody caught it", e));
         const running = await startServer(config, appOptions);
         const stop = async () => {
           await running.stop();
@@ -87,6 +94,14 @@ export async function main(argv: string[], env: Record<string, string | undefine
     }
     throw e;
   }
+}
+
+/** What the process does on an uncaught error (SA-09): log it with the time, then exit 1. */
+export function crashHandler(log: (message: string) => void, exit: (code: number) => void): (what: string, e: unknown) => void {
+  return (what, e) => {
+    log(`${what}. Lock-In is stopping so it can be restarted cleanly: ${e instanceof Error ? e.stack ?? e.message : String(e)}`);
+    exit(1);
+  };
 }
 
 if (import.meta.main) {

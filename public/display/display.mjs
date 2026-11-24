@@ -116,6 +116,7 @@ function createDisplay(root, now) {
     lbShown: 0,       // rows of that page revealed so far
     flip: 0,          // page counter for halftime and final standings
     endStage: "winner",
+    qr: "",           // the join QR as a data: URL (SA-11: fetched with the token in a header, never in a URL)
   });
 
   let lbKey = "";
@@ -231,6 +232,7 @@ function createDisplay(root, now) {
    * @param {DisplayView} view @param {boolean} animate
    */
   function receive(view, animate) {
+    loadQr(view);
     if (pending) { clearTimeout(pending); pending = null; }
     const key = contentKey(view);
     if (animate && page.view && key !== shownKey) {
@@ -245,6 +247,27 @@ function createDisplay(root, now) {
     }
     shownKey = key;
     show(view);
+  }
+
+  let qrKey = "";
+  /**
+   * Fetches the join QR when the join address changes (SA-11). The pairing token goes in an
+   * Authorization header, not the URL, so it stays out of access logs and history; a display
+   * paired by the console's session (D5) has no token and is let in by the session cookie.
+   * @param {DisplayView} view
+   */
+  function loadQr(view) {
+    const n = view && !view.pairing ? view.night : null;
+    const key = n && n.joinUrl ? n.joinUrl : "";
+    if (key === qrKey) return;
+    qrKey = key;
+    if (!key) { page.qr = ""; return; }
+    const token = pairToken();
+    /** @type {Record<string, string>} */ const headers = token ? { Authorization: "Bearer " + token } : {};
+    fetch("/qr/join.svg", { headers: headers, cache: "no-store", credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error("QR " + r.status)); })
+      .then(function (svg) { if (qrKey === key) page.qr = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); })
+      .catch(function () { if (qrKey === key) qrKey = ""; });   // tried again with the next view
   }
 
   // ---------------------------------------------------------------- pieces
@@ -287,7 +310,7 @@ function createDisplay(root, now) {
   function joinBlock(small) {
     return html`<div class="${small ? "join panel join-side" : "join join-main"}">
       ${small ? html`<div class="t-xs b join-title">Join now</div>` : ""}
-      <div class="qr"><img src="${() => "/qr/join.svg?r=" + withNight((n) => n.roomCode, "") + "&d=" + encodeURIComponent(pairToken())}" alt=""></div>
+      <div class="qr"><img src="${() => page.qr}" alt="" hidden="${() => !page.qr}"></div>
       <div class="join-url">${small ? "" : "Scan, or go to "}<b>${() => hostOf(withNight((n) => n.joinUrl, ""))}</b></div>
       ${small ? "" : html`<div class="code-label">Room code</div>`}
       <div class="code">${() => withNight((n) => n.roomCode, "")}</div>

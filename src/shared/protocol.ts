@@ -46,7 +46,7 @@ export type CommandName =
   | "mark.group" | "mark.team" | "reveal.start" | "reveal.next" | "leaderboard.show"
   | "sd.start" | "sd.ask" | "sd.reveal" | "final.show"
   | "team.rename" | "team.remove" | "team.moveCode" | "night.newRoomCode"
-  | "display.pair" | "display.unpairAll"
+  | "display.pair" | "display.unpair" | "display.unpairAll"
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
 export const COMMAND_NAMES: readonly CommandName[] = [
@@ -56,7 +56,7 @@ export const COMMAND_NAMES: readonly CommandName[] = [
   "mark.group", "mark.team", "reveal.start", "reveal.next", "leaderboard.show",
   "sd.start", "sd.ask", "sd.reveal", "final.show",
   "team.rename", "team.remove", "team.moveCode", "night.newRoomCode",
-  "display.pair", "display.unpairAll",
+  "display.pair", "display.unpair", "display.unpairAll",
   "team.join", "team.rejoin", "joker.play", "answer.submit",
 ];
 
@@ -228,7 +228,13 @@ export interface HostView extends Common {
   can: Partial<Record<CommandName, boolean>>; // which commands are allowed now, to enable buttons
   lines: Lines;                              // what the display is showing, for the host's reference
   /** Display pairing: paired displays (stored), how many are connected now, and unpaired ones showing a code. */
-  displays?: { paired: number; connected: number; waiting: number };
+  displays?: {
+    paired: number; connected: number; waiting: number;
+    /** SA-11: each stored pairing, oldest first, for "Unpair" on one display (display.unpair { id }). ip: where it is connected from now. */
+    list?: { id: string; pairedAt: number; lastSeenAt: number; connected: boolean; ip: string | null }[];
+    /** D5: displays connected now that are paired by a signed-in console's session (no stored token). */
+    bySession?: number;
+  };
   /** SA-01: server time until which joins by typed room code are paused because someone is guessing the code; absent or past when not paused. */
   joinPausedUntil?: number;
 }
