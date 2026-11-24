@@ -44,6 +44,7 @@ This list is raw material for the Requirements thread, not a commitment.
 ## Constraints
 
 - **Runtime:** Bun and TypeScript, with vanilla JS in the browser. No frameworks and no runtime dependencies.
+  - *Changed 2026-11-24 (Cas):* the browser now uses ArrowJS core, vendored in the repo; see TECH-SPEC 3.1 and NOTES.md.
 - **Realtime and storage:** WebSockets and SQLite.
 - **Shipping:** one single binary, which has to work in two modes:
   - **Local mode:** runs on the host's laptop on the pub's network and keeps working when the internet is flaky. This matters most, because unreliable venue Wi-Fi is the biggest real-world problem.

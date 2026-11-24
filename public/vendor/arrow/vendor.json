@@ -1,0 +1,13 @@
+{
+  "package": "@arrow-js/core",
+  "version": "1.0.6",
+  "license": "MIT",
+  "source": "https://registry.npmjs.org/@arrow-js/core/-/core-1.0.6.tgz",
+  "tarballIntegrity": "sha512-75f4N0iHtHTwgxf9XS8a1vtfGZZmCvqT0Ix+ScDLclNuR9Fqp2yOIK1u8vmN1BPsS4aRfMVTdSFSmgGCqkJSCg==",
+  "files": {
+    "index.mjs": { "from": "dist/index.mjs", "sha256": "64098db05d446980d6e4ef22ee96ed93f8aade14c0a8ef3b5e799daacff6fa7e" },
+    "chunks/internal-DchK7S7v.mjs": { "from": "dist/chunks/internal-DchK7S7v.mjs", "sha256": "8dc0e3aa57045d480e7eb7f173baffbfaf1cf4103224de58087e9bae32f69114" },
+    "index.d.mts": { "from": "dist/index.d.ts", "sha256": "6736a60bb7e2af422b9ab9c6722f387c67d10468a940d19a5e9c68786485f37b" },
+    "LICENSE.txt": { "from": "LICENSE.txt" }
+  }
+}

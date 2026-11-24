@@ -15,7 +15,7 @@ The design for the three Lock-In screens: the host console, the display and the 
 | [fonts/](fonts/) | The bundled fonts (WOFF2, Latin) and their SIL Open Font Licences. |
 | [tools/](tools/) | `derive.ts` (derived brand tokens and readability checks, the reference for the server and the branding screen), `tokens.test.ts`, the render script and the viewing-distance simulation. |
 
-Wireframes are mid-fidelity on purpose: real tokens, real fonts and real sizes, so they double as a test of the theme. Pictures, the QR code and animations are placeholders. Layout and component CSS in `wireframes/*.css` is a reference for the build threads, not production code; `tokens.css` is meant to ship as it is.
+Wireframes are mid-fidelity on purpose: real tokens, real fonts and real sizes, so they double as a test of the theme. Pictures, the QR code and animations are placeholders. Layout and component CSS in `wireframes/*.css` is a reference for the build threads, not production code; `tokens.css` is meant to ship as it is. The wireframe scripts build their markup with `innerHTML` to keep them short; production pages never do that and use Arrow templates instead (TECH-SPEC 3.4 and 12.4).
 
 ## What was tested, and what changed
 
@@ -29,7 +29,7 @@ The brief's Chalkboard concept was tested on four things: contrast, display legi
 | A clean sans-serif for scores, labels and forms | Needed to separate easily confused characters on a TV across a room. | **Atkinson Hyperlegible** (designed by the Braille Institute for low-vision readers; distinct I/l/1 and O/0). Its slashed zero is the price; scores like "20" show a slashed 0. |
 | Team colours: teal, coral, amber, sky, lilac, lime | Up to 30 teams, so colours repeat. A colour-blindness simulation of 8 colours shows some pairs merge (sky and lilac for deuteranopia, amber and lime for protanopia). | **8 team colours** (`--team-1`..`--team-8`: the six plus pink and sand), cycled by join order. Each is at least 6.9:1 on the background. **Colour is never a team's only marker**: the team name is always next to its dot. |
 | Teal for status | Teal is also a team colour, so "teal = correct" could be read as "the teal team". | Right answers always carry a tick and a word; wrong answers **fade** (muted text), they never turn red, which also fits "never mean". |
-| A chalkboard texture | Images behind text reduce contrast and cost memory on old TVs. | **Flat colour by default.** A venue can set a TV background picture; Lock-In always lays a 78% scrim of the background colour over it. |
+| A chalkboard texture | Images behind text reduce contrast and cost memory on smart TVs. | **Flat colour by default.** A venue can set a TV background picture; Lock-In always lays a 78% scrim of the background colour over it. |
 | Logo: a padlock whose shackle is a question mark, the keyhole as its dot | Cas found it could read as a bent padlock to new users. Three directions were drawn and shown at display-header, phone-icon and browser-tab size ([img/test-logo-options.png](img/test-logo-options.png)). | **Option A, chosen by Cas:** a normal closed padlock with a question mark cut into the body; the dot of the "?" is the keyhole. Reads as a padlock first and a question second at every size. Files in [logo/](logo/). The "answers locked" moment still snaps the shackle shut. |
 | Brass & Oak, Neon Taproom theme ideas | Built as sample venue themes through the same token pipeline ([img/display-lobby--brass-and-oak.png](img/display-lobby--brass-and-oak.png), [img/display-locked--neon-taproom.png](img/display-locked--neon-taproom.png)). Both pass every readability check. | The token system works for very different looks with four colours and one font choice. The samples live in `wireframes/themes/` as fixtures, not as shipped themes. |
 
@@ -37,15 +37,15 @@ The brief's Chalkboard concept was tested on four things: contrast, display legi
 
 ### Browser baseline
 
-Agreed with Architecture (TECH-SPEC): display pages must run on Chromium 56 / Safari 11 class engines (Samsung Tizen 2018+, LG webOS 4+). Display CSS may use flexbox, custom properties, `vw`/`vh`, `calc()`, transforms, transitions and `@keyframes`. It must **not** use grid, flexbox `gap`, `clamp()`/`min()`/`max()`, `aspect-ratio`, `:is()`/`:where()`, `backdrop-filter`, `conic-gradient` or `color-mix()`. `tokens.css` holds resolved values only, and `tools/tokens.test.ts` checks both `tokens.css` and `wireframes/display.css` against this list.
+Agreed with Architecture (TECH-SPEC 1.2 and 3.3, updated 2026-11-24): display pages must run on Chromium 86 / Safari 14 class engines (roughly smart TVs from 2022 onwards, Chromecast, any current desktop browser). Display CSS may use grid (spaced with `grid-gap`), flexbox (spaced with margins), custom properties, `vw`/`vh`, `calc()`, `clamp()`/`min()`/`max()`, transforms, transitions, `@keyframes` and `conic-gradient()`. It must **not** use flexbox `gap` (or `row-gap`/`column-gap`), `aspect-ratio`, `:is()`/`:where()`/`:has()`, `:focus-visible`, `backdrop-filter`, `color-mix()`/`oklch()`/`lab()`, the `inset` shorthand, `@container`/`@layer` or `dvh`/`svh` units. `tokens.css` still holds resolved values only. `tools/tokens.test.ts` checks `wireframes/display.css` with the same scanner as `tests/browser-baseline.test.ts`.
 
 ### Layout
 
 - **Units:** everything on the display is in `vh`/`vw`, so 1920×1080 and 1280×720 look identical (T-01).
-- **Overscan-safe area:** old TVs crop up to 5% of each edge. Nothing that matters sits outside `--display-safe-x`/`--display-safe-y` (5%).
+- **Overscan-safe area:** some TVs crop up to 5% of each edge. Nothing that matters sits outside `--display-safe-x`/`--display-safe-y` (5%).
 - **Frame:** a header strip (venue logo left; round, question pips right), the main area, and a footer with the host-voice line left and "Powered by Lock-In" right (T-10).
 - **No interaction, no sound:** nothing on the display needs a remote, and nothing relies on audio (T-01, T-04).
-- **Motion:** transforms and opacity only. The padlock snap, row entries and pulses are CSS keyframes that cost little on an old TV.
+- **Motion:** transforms and opacity only. The padlock snap, row entries and pulses are CSS keyframes that cost little on a low-powered smart TV.
 
 ### Legibility
 
@@ -105,7 +105,7 @@ The console layout works both with the host on the TV laptop (extended display) 
 ## Running the checks
 
 ```sh
-bun test docs/design                     # tokens, derivation, display CSS baseline (19 tests)
+bun test docs/design                     # tokens, derivation, display CSS baseline (11 tests)
 bun docs/design/tools/sample-themes.ts   # regenerate the sample venue themes
 node docs/design/tools/render.js         # re-render every wireframe to docs/design/img (needs Playwright)
 python3 docs/design/tools/distance.py in.png out.png 12 1.5   # back-of-room simulation (needs Pillow)

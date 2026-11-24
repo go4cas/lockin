@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { contrast, deriveBrandTokens, checkReadability, DEFAULT_INPUTS } from "./derive.ts";
+import { scanCss } from "../../../tests/helpers/baseline.ts";
 
 const dir = join(import.meta.dir, "..");
 const tokensCss = readFileSync(join(dir, "tokens.css"), "utf8");
@@ -70,20 +71,12 @@ describe("readability warnings", () => {
   });
 });
 
-describe("Display CSS baseline (Chromium 56 / Safari 11)", () => {
+describe("Display CSS baseline (Chromium 86 / Safari 14, TECH-SPEC 3.3)", () => {
   const css = stripComments(displayCss);
-  const banned: [string, RegExp][] = [
-    ["grid", /display\s*:\s*(inline-)?grid|grid-template|grid-area|place-items/i],
-    ["flex gap", /(^|[;{\s])(row-|column-)?gap\s*:/i],
-    ["clamp/min/max", /clamp\(|\bmin\(|\bmax\(/i],
-    ["aspect-ratio", /aspect-ratio/i],
-    [":is/:where", /:is\(|:where\(/i],
-    ["backdrop-filter", /backdrop-filter/i],
-    ["conic-gradient", /conic-gradient/i],
-    ["color-mix", /color-mix\(/i],
-    ["inset shorthand", /(^|[;{\s])inset\s*:/i],
-  ];
-  for (const [name, re] of banned) test(`no ${name}`, () => expect(css).not.toMatch(re));
+
+  test("uses nothing the display baseline bans (same scanner as tests/browser-baseline.test.ts)", () => {
+    expect(scanCss(displayCss, "wireframes/display.css").map((f) => `${f.line} ${f.rule}: ${f.text}`)).toEqual([]);
+  });
 
   test("every display font size uses a --display-text-* token or em", () => {
     const sizes = [...css.matchAll(/font-size\s*:\s*([^;]+);/g)].map((m) => m[1].trim());

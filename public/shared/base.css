@@ -1,7 +1,7 @@
 /*
  * Base styles shared by the display, phone and host console.
- * Display baseline (TECH-SPEC 3.3): flexbox and custom properties only; no grid,
- * no flex gap, no clamp()/min()/max(), no :is()/:where().
+ * Display baseline (TECH-SPEC 3.3, Chromium 86 / Safari 14): no flex gap,
+ * no aspect-ratio, no :is()/:where()/:has(), no color-mix().
  */
 *,
 *::before,

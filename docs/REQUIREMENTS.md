@@ -458,7 +458,7 @@ Done when:
 
 ## Display
 
-The display is shared with the pub's normal use: the quiz takes it over for the night and hands it back. It may be an old smart-TV browser, a cast tab with a second or two of lag, or a laptop over HDMI.
+The display is shared with the pub's normal use: the quiz takes it over for the night and hands it back. It may be a smart-TV browser (modern ones only, see T-01), a cast tab with a second or two of lag, or a laptop over HDMI.
 
 ### T-01 Open the display (MVP · N3)
 
@@ -468,7 +468,8 @@ Done when:
 - Opening the display address (typed, or opened by casting from a laptop) shows the display for the current venue, with no sign-in.
 - After it opens, it needs no interaction at all: every change is driven by the host console.
 - It fills the screen at 1920×1080 and 1280×720 with no scrolling.
-- It works on the smart-TV and casting setups listed by Architecture as supported, using basic CSS only, and is checked on at least one real smart-TV browser before `v1.0.0`.
+- It works on the smart-TV and casting setups listed by Architecture as supported: modern browsers only, Chromium 86 / Safari 14 class, which is roughly smart TVs from 2022 onwards (TECH-SPEC 1.2 and 3.3). It uses only CSS that baseline supports, and is checked on at least one real smart-TV browser before `v1.0.0`.
+- On a TV browser older than that, it shows a plain message to use a laptop over HDMI or a Chromecast instead, never a blank screen.
 - With no night open, it shows the venue's branding and a waiting screen.
 
 ### T-02 Lobby (MVP · B, N5)
@@ -487,7 +488,7 @@ Done when:
 - From the set time before the planned start (H-17) until Quiz Start, the display shows the holding page with the panels the venue chose, rotating or side by side as Design sets, while the join QR code and room code stay on screen.
 - The countdown matches the server's clock to within 1 second (plus display lag), and shows "starting soon" once it passes zero until the host presses Quiz Start.
 - The home-screen guide is a short looping animation (GIF or CSS) for iPhone and Android, bundled with Lock-In, so it loads from Lock-In itself with no outside service.
-- It needs no interaction and uses only basic CSS, like every display screen (T-01).
+- It needs no interaction and uses only CSS the display baseline supports, like every display screen (T-01).
 
 ### T-03 Question (MVP · B)
 
@@ -688,7 +689,7 @@ Done when:
 
 These apply to all MVP features and are checked by Review on any PR that touches a screen.
 
-- Bun and TypeScript on the server; vanilla JS and vanilla CSS in the browser; no frameworks and no runtime dependencies.
+- Bun and TypeScript on the server. In the browser, ArrowJS core (vendored in the repo, TECH-SPEC 3.1) and vanilla CSS; no other frameworks and no runtime dependencies.
 - The display is readable from the back of a busy room, and does not rely on sound.
 - Phones are dark by default with tap targets of at least 44 px.
 - Every host-facing word is plain English that non-technical staff understand: no error codes or stack traces on screen.
@@ -702,4 +703,4 @@ These apply to all MVP features and are checked by Review on any PR that touches
 - **Private pilot repo.** Recommendation stands: drop it, or keep it for venue data only, never a code fork. Cas to confirm.
 - **Host on the TV laptop or a separate device.** Settled by Architecture: both work, laptop on HDMI is the pilot default (TECH-SPEC 1.1).
 - **Server restart mid-night.** S-05 reads "teams rejoin without losing their score" as also covering a server restart, so accepted answers, marks and scores are saved as they happen. Architecture to confirm the cost.
-- **Smart-TV support list.** T-01 leaves the list of supported display browsers and casting setups to Architecture, checked on real hardware before `v1.0.0`.
+- **Smart-TV support list.** Settled by Architecture and Cas (TECH-SPEC 1.2, 2026-11-24): modern display browsers only (Chromium 86 / Safari 14 class), plus laptop over HDMI and Chromecast. A fallback for older TVs is Later, only if users ask. The pilot pub's TV is still to be checked on real hardware before `v1.0.0`.

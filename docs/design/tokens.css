@@ -15,9 +15,9 @@
  *      radii). Not on the branding screen in v1.0.0.
  *   3. Surface scales: display (vh units), phone and host (px/rem units).
  *
- * Display rule: tokens and display CSS must work on the Chromium 56 / Safari 11 baseline
- * (TECH-SPEC). So no color-mix(), clamp(), min(), max() anywhere in this file;
- * every value is resolved. Plain var() and calc() are fine.
+ * Display rule: tokens and display CSS must work on the Chromium 86 / Safari 14 baseline
+ * (TECH-SPEC 3.3), which has no color-mix() or oklch(). This file holds resolved values
+ * only: no color-mix(), clamp(), min() or max(). Plain var() and calc() are fine.
  */
 
 :root {

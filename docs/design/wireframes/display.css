@@ -1,9 +1,9 @@
 /*
  * Display wireframe styles.
- * Display BASELINE (TECH-SPEC, Chromium 56 / Safari 11): flexbox, custom properties,
- * vw/vh, calc(), transforms, transitions, @keyframes. NOT allowed here: grid,
- * flex gap, clamp()/min()/max(), aspect-ratio, :is()/:where(), backdrop-filter,
- * conic-gradient, filter animations. docs/design/tools/tokens.test.ts checks this file.
+ * Display BASELINE (TECH-SPEC 3.3, Chromium 86 / Safari 14): flexbox, grid with
+ * grid-gap, custom properties, vw/vh, calc(), clamp()/min()/max(), transforms,
+ * transitions, @keyframes. NOT allowed: flex gap, aspect-ratio, :is()/:where()/:has(),
+ * backdrop-filter, color-mix(), inset. docs/design/tools/tokens.test.ts checks this file.
  * Spacing between flex items uses margins, never gap.
  */
 

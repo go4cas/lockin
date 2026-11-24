@@ -1,6 +1,9 @@
 // @ts-check
 // Small helpers for rendering views safely (TECH-SPEC 12.4: text always goes
-// through textContent, never innerHTML). Display baseline: ES2017 classic script.
+// through textContent, never innerHTML). Arrow pages use countdown, joinNames and
+// teamColour; el() and replace() are for any non-Arrow code.
+// Classic script, loaded with a plain <script> tag before a page's Arrow module (TECH-SPEC 3.4).
+// Follows the display baseline (TECH-SPEC 3.3).
 (/** @param {any} root */ function (root) {
   "use strict";
   var LockIn = root.LockIn || (root.LockIn = {});

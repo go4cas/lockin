@@ -1,6 +1,6 @@
-// Scanner for the display browser baseline (TECH-SPEC 3.3): Chromium 56 / Safari 11.
+// Scanner for the display browser baseline (TECH-SPEC 3.3): Chromium 86 / Safari 14.
 // Not a parser: it strips comments, strings and regex literals, then looks for
-// syntax and CSS features those engines do not have.
+// syntax, APIs and CSS features those engines do not have.
 
 export interface Finding { file: string; line: number; rule: string; text: string }
 
@@ -77,20 +77,29 @@ function lineOf(code: string, index: number): number {
   return n;
 }
 
-/** Banned JS syntax for display pages and public/shared. */
+/** APIs newer than the baseline, matched on code with strings and comments removed. */
+const BANNED_JS_APIS: [RegExp, string][] = [
+  [/\.at\(/g, ".at() (Chromium 92, Safari 15.4)"],
+  [/\bstructuredClone\(/g, "structuredClone() (Chromium 98, Safari 15.4)"],
+  [/\bObject\.hasOwn\(/g, "Object.hasOwn() (Chromium 93, Safari 15.4)"],
+  [/\.findLast(?:Index)?\(/g, ".findLast() (Chromium 97, Safari 15.4)"],
+  [/\.(?:toSorted|toReversed|toSpliced)\(/g, "change-array-by-copy methods (Chromium 110, Safari 16)"],
+  [/\bnew\s+(?:WeakRef|FinalizationRegistry)\b/g, "WeakRef (Safari 14.1)"],
+];
+
+/** Banned JS syntax and APIs for display pages, public/shared and public/vendor. */
 export function scanJs(code: string, file = "<js>", lineOffset = 0): Finding[] {
   const s = stripJs(code);
   const found: Finding[] = [];
   const add = (index: number, rule: string, len = 2) =>
     found.push({ file, line: lineOf(s, index) + lineOffset, rule, text: code.slice(index, index + len + 20).split("\n")[0]! });
 
-  for (const m of s.matchAll(/\?\.(?!\d)/g)) add(m.index!, "optional chaining (?.)");
-  for (const m of s.matchAll(/\?\?/g)) add(m.index!, "nullish coalescing (??)");
   for (const m of s.matchAll(/#[A-Za-z_$]/g)) add(m.index!, "private class member (#name)");
-  for (const m of s.matchAll(/(^|[;\n])\s*(import|export)\b/g)) add(m.index! + m[0].length - m[2]!.length, `${m[2]} statement (modules)`);
-  for (const m of s.matchAll(/\bimport\s*\(/g)) add(m.index!, "dynamic import()");
+  for (const [re, rule] of BANNED_JS_APIS) for (const m of s.matchAll(re)) add(m.index!, rule);
+  // Regex lookbehind (Safari 16.4) lives inside regex literals, which stripJs blanks, so check the raw code.
+  for (const m of code.matchAll(/\(\?<[=!]/g)) add(m.index!, "regex lookbehind (Safari 16.4)");
 
-  // Walk brackets: object spread/rest, class fields and top-level await.
+  // Walk brackets: class fields and top-level await.
   const stack: { ch: string; classBody: boolean; start: number }[] = [];
   let pendingClass = false;
   for (let i = 0; i < s.length; i++) {
@@ -114,10 +123,6 @@ export function scanJs(code: string, file = "<js>", lineOffset = 0): Finding[] {
         const field = /(?:^|[;}])\s*(?:static\s+)?[A-Za-z_$][\w$]*\s*(?:=(?!=)|;)/.exec(body);
         if (field) add(open.start + 1 + s.slice(open.start + 1).indexOf(field[0].replace(/^[;}]/, "").trim().split(/\s/)[0]!), "class field", 10);
       }
-    } else if (ch === "." && s.startsWith("...", i)) {
-      const top = stack[stack.length - 1];
-      if (top && top.ch === "{") add(i, "object spread or rest ({...x})", 3);
-      i += 2;
     }
   }
   return found;
@@ -127,14 +132,16 @@ export function scanJs(code: string, file = "<js>", lineOffset = 0): Finding[] {
 export function scanCss(code: string, file = "<css>", lineOffset = 0): Finding[] {
   const s = code.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "));
   const rules: [RegExp, string][] = [
-    [/display\s*:\s*(?:inline-)?grid\b/g, "CSS grid"],
-    [/\bgrid-(?:template|area|column|row|auto)[\w-]*\s*:/g, "CSS grid"],
-    [/(?:^|[;{\s])(?:row-|column-|grid-)?gap\s*:/g, "gap (flexbox or grid)"],
-    [/\b(?:clamp|min|max)\(/g, "clamp(), min() or max()"],
+    [/(?:^|[;{\s])(?:row-|column-)?gap\s*:/g, "gap (flexbox gap is Safari 14.1; use grid-gap in a grid, or margins)"],
     [/\baspect-ratio\s*:/g, "aspect-ratio"],
-    [/:(?:is|where)\(/g, ":is() or :where()"],
+    [/:(?:is|where|has)\(/g, ":is(), :where() or :has()"],
+    [/:focus-visible\b/g, ":focus-visible"],
     [/\bbackdrop-filter\s*:/g, "backdrop-filter"],
     [/\bcolor-mix\(/g, "color-mix()"],
+    [/\b(?:oklch|oklab|lch|lab)\(/g, "oklch(), lab() and other new colour functions"],
+    [/(?:^|[;{\s])inset\s*:/g, "inset shorthand"],
+    [/@(?:container|layer)\b/g, "@container or @layer"],
+    [/\d(?:dvh|svh|lvh|dvw|svw|lvw)\b/g, "dynamic viewport units (dvh, svh, lvh)"],
   ];
   const found: Finding[] = [];
   for (const [re, rule] of rules) {
@@ -143,12 +150,12 @@ export function scanCss(code: string, file = "<css>", lineOffset = 0): Finding[]
   return found;
 }
 
-/** Scans <script> and <style> blocks in an HTML page; module scripts are banned outright. */
+/** Scans <script> and <style> blocks in an HTML page; import maps are banned (Chromium 89, Safari 16.4). */
 export function scanHtml(code: string, file = "<html>"): Finding[] {
   const found: Finding[] = [];
   for (const m of code.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
     const line = lineOf(code, m.index!);
-    if (/type\s*=\s*["']?module/i.test(m[1]!)) found.push({ file, line, rule: 'module script (type="module")', text: m[0].slice(0, 40) });
+    if (/type\s*=\s*["']?importmap/i.test(m[1]!)) { found.push({ file, line, rule: 'import map (type="importmap")', text: m[0].slice(0, 40) }); continue; }
     found.push(...scanJs(m[2]!, file, line - 1));
   }
   for (const m of code.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
@@ -156,6 +163,16 @@ export function scanHtml(code: string, file = "<html>"): Finding[] {
   }
   for (const m of code.matchAll(/\sstyle\s*=\s*"([^"]*)"/gi)) {
     found.push(...scanCss(m[1]!, file, lineOf(code, m.index!) - 1));
+  }
+  return found;
+}
+
+/** HTML sinks that parse text as markup. Data must never reach them (TECH-SPEC 12.4). */
+export function scanHtmlSinks(code: string, file = "<js>"): Finding[] {
+  const s = stripJs(code);
+  const found: Finding[] = [];
+  for (const m of s.matchAll(/\.(innerHTML|outerHTML|insertAdjacentHTML)\b|\bdocument\.write(?:ln)?\s*\(|\bcreateContextualFragment\s*\(/g)) {
+    found.push({ file, line: lineOf(s, m.index!), rule: "HTML sink (innerHTML and friends)", text: code.slice(m.index!, m.index! + 30).split("\n")[0]! });
   }
   return found;
 }
