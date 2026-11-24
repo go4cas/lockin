@@ -65,6 +65,36 @@ let lastFlash = 0;
 let themeVersion = null;
 /** @type {any} */
 let toastTimer = null;
+/** Whose drafts and choices `ui` holds: "<nightId>/<teamId>", or null before the first team (LI-008). */
+/** @type {string | null} */
+let owner = null;
+/** Goes up whenever the owner changes, so a reply to an older owner's command changes nothing. */
+let epoch = 0;
+
+/**
+ * Starts afresh when the page now belongs to another night or team (code review LI-008):
+ * question ids and round numbers repeat across nights of the same quiz, so drafts, pending sends,
+ * errors and joker choices are only kept for the same night and team. Views without a team (idle,
+ * not joined, a reconnect still binding) keep the current owner, so a short drop loses nothing.
+ * @param {TeamView} view
+ */
+function claim(view) {
+  const next = view.night && view.self ? `${view.night.id}/${view.self.id}` : null;
+  if (next === null || next === owner) return;
+  if (owner !== null) {
+    epoch++;
+    ui.picked = null;
+    ui.drafts = {};
+    ui.sending = {};
+    ui.sendError = {};
+    ui.jokerConfirm = null;
+    ui.jokerSkip = {};
+    ui.jokerBusy = false;
+    ui.jokerError = null;
+    ui.zoom = null;
+  }
+  owner = next;
+}
 
 /** Starts the connection. Called once by app.mjs. */
 export function start() {
@@ -114,6 +144,7 @@ function reroute() {
 
 /** @param {TeamView} view */
 function receive(view) {
+  claim(view);
   show(view);
   if (page.status !== "online") page.status = "online";
   const self = view.self;
@@ -234,9 +265,11 @@ export function send(q) {
   if (!built.ok) { ui.sendError[q.id] = built.message; return; }
   ui.sending[q.id] = true;
   ui.sendError[q.id] = "";
+  const mine = epoch;
   client.cmd("answer.submit", { questionId: q.id, value: built.value }).then(
-    () => { ui.sending[q.id] = false; },
+    () => { if (mine === epoch) ui.sending[q.id] = false; },
     (/** @type {any} */ e) => {
+      if (mine !== epoch) return;
       ui.sending[q.id] = false;
       const err = errorOf(e);
       ui.sendError[q.id] = err.code === "disconnected"
@@ -262,9 +295,10 @@ export function playJoker(round) {
   if (ui.jokerBusy) return;
   if (ui.jokerConfirm !== round) { ui.jokerConfirm = round; ui.jokerError = null; return; }
   ui.jokerBusy = true;
+  const mine = epoch;
   client.cmd("joker.play", { round }).then(
-    () => { ui.jokerBusy = false; ui.jokerConfirm = null; },
-    (/** @type {any} */ e) => { ui.jokerBusy = false; ui.jokerConfirm = null; ui.jokerError = errorOf(e).message; },
+    () => { if (mine === epoch) { ui.jokerBusy = false; ui.jokerConfirm = null; } },
+    (/** @type {any} */ e) => { if (mine === epoch) { ui.jokerBusy = false; ui.jokerConfirm = null; ui.jokerError = errorOf(e).message; } },
   );
 }
 
