@@ -51,6 +51,20 @@ describe("deploy scripts", () => {
     expect(s).toContain("sha256sum -c");
   });
 
+  test("the program lives in /opt/lockin, and an old /usr/local install is moved there", () => {
+    const s = readFileSync(join(DEPLOY, "setup.sh"), "utf8");
+    expect(s).toContain("BIN=$OPT/lockin");
+    expect(s).toContain("LIB=$OPT/scripts");
+    expect(s).toContain('cp -p "$OLD_BIN" "$BIN"');
+    // The old files go only after the new install answered.
+    expect(s.indexOf('rm -f "$OLD_BIN"')).toBeGreaterThan(s.indexOf("is running on 127.0.0.1"));
+    for (const u of ["lockin.service", "lockin-backup.service", "lockin-offsite.service"]) {
+      const unit = readFileSync(join(DEPLOY, "systemd", u), "utf8");
+      expect(unit).toMatch(/^ExecStart=\/opt\/lockin\//m);
+      expect(unit).not.toContain("/usr/local");
+    }
+  });
+
   test("setup refuses a port another app uses and checks it is Lock-In that answers", () => {
     const s = readFileSync(join(DEPLOY, "setup.sh"), "utf8");
     expect(s).toContain('ss -Hltnp "sport = :$port"');
@@ -80,7 +94,7 @@ describe("systemd units", () => {
   test("only this machine can connect (SA-06)", () => {
     expect(lines.has("IPAddressAllow=localhost")).toBe(true);
     expect(lines.has("IPAddressDeny=any")).toBe(true);
-    expect(unit).toContain("ExecStart=/usr/local/bin/lockin serve --data /var/lib/lockin");
+    expect(unit).toContain("ExecStart=/opt/lockin/lockin serve --data /var/lib/lockin");
   });
 
   test("the backup runs as lockin without network, from a daily timer", () => {

@@ -53,7 +53,7 @@ Releases are built by GitHub, not on a laptop, so every binary can be tied to a 
    ```
 
    The workflow refuses a tag that does not match `package.json`.
-4. **Check the release.** The first tag is also the first run of `release.yml`, so check it properly. The release page should have four files:
+4. **Check the release.** The release page should have six files:
 
    | File | For |
    |---|---|
@@ -61,6 +61,8 @@ Releases are built by GitHub, not on a laptop, so every binary can be tied to a 
    | `lockin-linux-x64.sha256` | Its checksum |
    | `lockin-linux-x64-baseline` | Older CPUs without AVX2 |
    | `lockin-linux-x64-baseline.sha256` | Its checksum |
+   | `lockin-deploy.tar.gz` | The setup kit: the contents of `deploy/` at this tag |
+   | `lockin-deploy.tar.gz.sha256` | Its checksum |
 
    On any machine with the GitHub CLI, check a download against its checksum and its build attestation:
 
@@ -93,18 +95,22 @@ Releases are built by GitHub, not on a laptop, so every binary can be tied to a 
    ```
 
    **Never open Lock-In's port (8080) or set `LOCKIN_BIND` to `0.0.0.0` on a server.** Lock-In believes the visitor address Cloudflare sends (`CF-Connecting-IP`) only from `127.0.0.1`. If the port were reachable directly, the sign-in and join limits would see the wrong addresses (SA-06). The service also tells the kernel to drop anything to Lock-In that does not come from this machine (`IPAddressDeny=any`), as a second guard.
-3. **Get the setup files** from the release's tag and run the setup:
+3. **Get the setup kit** from the release, check it, and run the setup. No git is needed on the server:
 
    ```sh
-   git clone --depth 1 --branch v1.0.0 https://github.com/go4cas/lockin.git
-   sudo lockin/deploy/setup.sh --public-url https://quiz.example.com --version v1.0.0
+   v=v1.0.0
+   cd ~ && curl -fsSLO "https://github.com/go4cas/lockin/releases/download/$v/lockin-deploy.tar.gz{,.sha256}"
+   sha256sum -c lockin-deploy.tar.gz.sha256 && rm -rf lockin-deploy && tar xzf lockin-deploy.tar.gz
+   sudo lockin-deploy/setup.sh --public-url https://quiz.example.com --version $v
    ```
+
+   (v0.2.0 and older releases have no kit: use `curl -fsSL https://github.com/go4cas/lockin/archive/refs/tags/$v.tar.gz | tar xz` and run `lockin-${v#v}/deploy/setup.sh`.) The kit can be deleted after setup; the installed scripts live in `/opt/lockin/scripts/`.
 
    Use your real quiz address. On a server that already runs other apps, add `--port <free port>` (see [Sharing a server](#sharing-a-server-with-other-apps)). `setup.sh`:
 
    - installs `sqlite3` and `curl` if missing (the backup needs `sqlite3`);
    - adds a system user `lockin` with no login shell;
-   - downloads the release binary for this CPU, checks its SHA-256 and installs it as `/usr/local/bin/lockin`;
+   - downloads the release binary for this CPU, checks its SHA-256 and installs it as `/opt/lockin/lockin` (an install from before 1.0.0 under `/usr/local` is moved there);
    - writes `/etc/lockin/lockin.env` (public URL, port, `LOCKIN_BIND=127.0.0.1`; never secrets);
    - refuses a port another program already listens on;
    - installs the service, the backup script and timer, and the 30-day log setting for Lock-In's own logs;
@@ -116,7 +122,7 @@ Releases are built by GitHub, not on a laptop, so every binary can be tied to a 
 
 Lock-In is made to sit next to other apps on one VPS without touching them:
 
-- **Its own user, folders and settings:** user `lockin`; `/usr/local/bin/lockin`, `/usr/local/lib/lockin/`, `/etc/lockin/`, `/var/lib/lockin/`. No global Bun: the binary carries its own.
+- **Its own user, folders and settings:** user `lockin`; the program in `/opt/lockin/` (binary `lockin`, scripts in `scripts/`), settings in `/etc/lockin/`, data in `/var/lib/lockin/`. No global Bun: the binary carries its own.
 - **Its own port, on `127.0.0.1` only.** The default is 8080, which other apps often use. Before the first run, list the ports in use with `sudo ss -ltnp` and pass a free one with `--port` (for example `--port 8092`). `setup.sh` refuses a port another program is listening on, and checks the answer on that port really is Lock-In's. The port is saved, so later runs keep it.
 - **Its own logs:** the service writes to its own journal namespace (`LogNamespace=lockin`), so its 30-day retention applies to Lock-In's logs only. Read them with `journalctl --namespace=lockin` (see [Logs](#8-logs)).
 - **Capped:** at most 1 GB of memory and 150% CPU.
@@ -204,7 +210,7 @@ After a first real night, look at Security, then Events: if a rule ever fired on
 `setup.sh` prints the setup code on a fresh install. To see it again:
 
 ```sh
-sudo -u lockin lockin setup-code --data /var/lib/lockin
+sudo -u lockin /opt/lockin/lockin setup-code --data /var/lib/lockin
 ```
 
 Open `https://quiz.example.com/host`, enter the setup code and choose the host password. **Use a long passphrase**: three or four words that only you would put together (D4). Anyone on the internet can reach the sign-in page; the passphrase and the limits are what keep them out.
@@ -212,7 +218,7 @@ Open `https://quiz.example.com/host`, enter the setup code and choose the host p
 **Forgotten password** (S-03): on the server, run
 
 ```sh
-sudo -u lockin lockin reset-password --data /var/lib/lockin
+sudo -u lockin /opt/lockin/lockin reset-password --data /var/lib/lockin
 ```
 
 It removes the password, signs every host out and prints a new setup code. Lock-In does not need a restart. Always run these commands as `lockin` (`sudo -u lockin`): run as root, they would leave files in the data folder that Lock-In cannot read.
@@ -269,7 +275,7 @@ Treat backup files like passwords: they hold the password hash, team rejoin code
 ### Restore a backup
 
 ```sh
-sudo /usr/local/lib/lockin/restore.sh /var/lib/lockin/backups/lockin-backup-20261128-050312.tar.gz
+sudo /opt/lockin/scripts/restore.sh /var/lib/lockin/backups/lockin-backup-20261128-050312.tar.gz
 ```
 
 `restore.sh` checks the archive (one `lockin-backup-*` folder, nothing outside it, a database that passes its integrity check), stops Lock-In and the backup timer, moves what is in the data folder now to `/var/lib/lockin.before-restore-<time>` (nothing is deleted; `backups/` stays where it is), unpacks the backup with its modes, gives the files to `lockin`, and starts Lock-In again. Delete the `before-restore` folder once you are happy.
@@ -278,7 +284,7 @@ sudo /usr/local/lib/lockin/restore.sh /var/lib/lockin/backups/lockin-backup-2026
 
 ```sh
 sudo cp /var/lib/lockin/backups/<newest>.tar.gz /tmp/ && sudo chown $USER /tmp/<newest>.tar.gz
-/usr/local/lib/lockin/restore.sh /tmp/<newest>.tar.gz --data /tmp/lockin-try --no-service
+/opt/lockin/scripts/restore.sh /tmp/<newest>.tar.gz --data /tmp/lockin-try --no-service
 ```
 
 ## 6. Updating, and Bun security releases
@@ -286,16 +292,18 @@ sudo cp /var/lib/lockin/backups/<newest>.tar.gz /tmp/ && sudo chown $USER /tmp/<
 **To install a new release:**
 
 ```sh
-cd lockin && git fetch --depth 1 origin tag v1.0.1 && git checkout v1.0.1
-sudo deploy/setup.sh --version v1.0.1
+v=v1.0.1
+cd ~ && curl -fsSLO "https://github.com/go4cas/lockin/releases/download/$v/lockin-deploy.tar.gz{,.sha256}"
+sha256sum -c lockin-deploy.tar.gz.sha256 && rm -rf lockin-deploy && tar xzf lockin-deploy.tar.gz
+sudo lockin-deploy/setup.sh --version $v
 ```
 
-`setup.sh` backs up the data first, keeps the old binary as `/usr/local/bin/lockin.previous`, restarts Lock-In and checks it answers. Avoid updating during a night: the restart is quick and the night carries on, but phones and the display reconnect.
+`setup.sh` backs up the data first, keeps the old binary as `/opt/lockin/lockin.previous`, restarts Lock-In and checks it answers. Avoid updating during a night: the restart is quick and the night carries on, but phones and the display reconnect.
 
 **To go back** to the previous binary:
 
 ```sh
-sudo cp -p /usr/local/bin/lockin.previous /usr/local/bin/lockin && sudo systemctl restart lockin
+sudo cp -p /opt/lockin/lockin.previous /opt/lockin/lockin && sudo systemctl restart lockin
 ```
 
 A newer version may have changed the database; if the old one will not start, restore the backup `setup.sh` took just before the update.
@@ -325,7 +333,7 @@ Everything Lock-In knows is in the data folder, and the public address lives in 
 4. **Restore it on the new server:**
 
    ```sh
-   sudo /usr/local/lib/lockin/restore.sh ./lockin-backup-<time>.tar.gz
+   sudo /opt/lockin/scripts/restore.sh ./lockin-backup-<time>.tar.gz
    ```
 
    The `lockin` user can have a different number on the new server; `restore.sh` gives every file to the new server's `lockin` and keeps the modes.
@@ -339,7 +347,7 @@ Everything Lock-In knows is in the data folder, and the public address lives in 
    sudo systemctl disable --now lockin lockin-backup.timer
    sudo rm -f /etc/systemd/system/lockin.service /etc/systemd/system/lockin-backup.* /etc/systemd/system/lockin-offsite.service /etc/systemd/journald@lockin.conf
    sudo systemctl daemon-reload
-   sudo rm -rf /var/lib/lockin /etc/lockin /usr/local/lib/lockin /usr/local/bin/lockin /usr/local/bin/lockin.previous
+   sudo rm -rf /var/lib/lockin /etc/lockin /opt/lockin
    sudo userdel lockin
    ```
 
@@ -393,7 +401,7 @@ Lock-In 1.0.0 is the first release, for the first pilot pub.
 - **One host password, set up once.** No way to change it from the console yet; `lockin reset-password` on the server starts again.
 - **Checked in real browsers by machine, not yet on real phones and TVs** until the checks in [section 10](#10-before-the-first-night) are done.
 
-**Upgrading from a test install:** host sessions signed in before 1.0.0 move to the new cookie name `__Host-lockin_host` the first time they load a page, so nobody is signed out.
+**Upgrading from a test install:** `setup.sh` moves the program from `/usr/local/bin/lockin` and `/usr/local/lib/lockin/` to `/opt/lockin/`, and removes the old files once 1.0.0 answers; the data and settings stay where they are. Host sessions signed in before 1.0.0 move to the new cookie name `__Host-lockin_host` the first time they load a page, so nobody is signed out.
 
 ## 12. After v1.0.0
 

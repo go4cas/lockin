@@ -15,7 +15,7 @@ User=lockin
 Group=lockin
 # systemd reads the root-only file and hands Lock-In's user a private copy for this run.
 LoadCredential=r2:/etc/lockin/r2.env
-ExecStart=/usr/local/lib/lockin/offsite.sh --data /var/lib/lockin
+ExecStart=/opt/lockin/scripts/offsite.sh --data /var/lib/lockin
 UMask=0077
 Nice=10
 IOSchedulingClass=idle

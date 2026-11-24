@@ -452,3 +452,11 @@ Lock-In may share a VPS with other apps behind one Cloudflare tunnel. Checked de
 - **CPU:** `CPUQuota=150%` beside `MemoryMax=1G`, the same caps as the other apps.
 - RELEASE.md: reuse an existing tunnel (add a hostname, no second `cloudflared`); zone settings are shared, so check rather than change.
 - **Off-server copy to R2 (Cas chose it, 2026-11-24).** Backups on the VPS's own disk die with it. `deploy/offsite.sh` uploads the newest archive with `curl --aws-sigv4` (no new package or runtime dependency), run by `lockin-offsite.service` from the backup's `OnSuccess=`. Credentials: `/etc/lockin/r2.env`, root `0600`, passed with `LoadCredential=` and to curl on stdin, never argv; the file is parsed, not sourced. Idle until that file exists. Retention is the bucket's 30-day lifecycle rule. Tested with a stand-in curl, not yet against real R2: the first VPS run is its test.
+
+## Release: setup kit on the release, program in /opt (2026-11-24)
+
+Cas asked for the server install to match the other apps on the shared VPS: one release download, no git, and the program under `/opt` (Cas agreed both before 1.0.0).
+
+- **`lockin-deploy.tar.gz`** is now a release asset with a `.sha256` and a build attestation: `deploy/` at the tag, packed reproducibly (sorted, owner 0, the commit's time, `gzip -n`). The server fetches it with `curl` and checks it with `sha256sum -c`.
+- **Program in `/opt/lockin/`** (binary `lockin`, `lockin.previous`, scripts in `scripts/`). Settings stay in `/etc/lockin`, data in `/var/lib/lockin`, so nothing in the data moves. `setup.sh` copies a `/usr/local` install (from v0.2.0) to `/opt/lockin`, installs the new units, restarts, and removes the old files only after the new install answers its health check.
+- Not yet run on the VPS: the v0.2.0 server moving to 1.0.0 is its test.
