@@ -24,6 +24,8 @@ export const LAST_SECONDS_MS = 10_000;
 export const FLASH_MS = 6_000;
 export const COALESCE_MS = 100;
 const REJOIN_TRIES = 5;
+/** Wrong rejoin tries a minute from one client IP, across all its connections. Higher than REJOIN_TRIES because a pub's phones often share one address. */
+const REJOIN_TRIES_PER_IP = 10;
 const MINUTE = 60_000;
 
 export const MESSAGES: Partial<Record<ErrorCode, string>> = {
@@ -55,7 +57,8 @@ export function fail(code: ErrorCode, message?: string): CommandResult {
 }
 const OK: CommandResult = { ok: true };
 
-export type Actor = { role: "host" } | { role: "team"; teamId: string | null; connId: number };
+/** `ip` is the client address (CF-Connecting-IP behind the tunnel); rejoin tries are limited per IP as well as per connection. */
+export type Actor = { role: "host" } | { role: "team"; teamId: string | null; connId: number; ip?: string };
 
 /** What the socket layer must do after a change. */
 export interface ChangeEvent {
@@ -119,7 +122,8 @@ export class Engine {
   private idleSeq = 1;
   private flashId: number;
   private moveCodes = new Map<string, { teamId: string; expires: number }>();
-  private rejoinTries = new Map<number, number[]>();
+  /** Wrong rejoin tries in the last minute, keyed `c:<connId>` and `ip:<address>`. */
+  private rejoinTries = new Map<string, number[]>();
   private jobs = new Map<string, { key: string; handle: number }>();
   private lastSecondsFired: string | null = null;
   private lobbyLineAt = 0;
@@ -1100,16 +1104,23 @@ export class Engine {
 
   private teamRejoin(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
     const now = this.now();
-    const tries = (this.rejoinTries.get(actor.connId) ?? []).filter((t) => t > now - MINUTE);
-    this.rejoinTries.set(actor.connId, tries);
-    if (tries.length >= REJOIN_TRIES) return fail("too_many_tries");
+    const recent = (key: string) => {
+      const list = (this.rejoinTries.get(key) ?? []).filter((t) => t > now - MINUTE);
+      if (list.length) this.rejoinTries.set(key, list); else this.rejoinTries.delete(key);
+      return list;
+    };
+    const connKey = `c:${actor.connId}`;
+    const ipKey = actor.ip ? `ip:${actor.ip}` : null;
+    if (recent(connKey).length >= REJOIN_TRIES) return fail("too_many_tries");
+    if (ipKey && recent(ipKey).length >= REJOIN_TRIES_PER_IP) return fail("too_many_tries");
     const code = typeof a.code === "string" ? a.code.trim().toUpperCase() : "";
     let team: TeamRec | undefined;
     const move = this.moveCodes.get(code);
     if (move && move.expires > now) team = this.m!.teams.get(move.teamId);
     if (!team && code.length === 6) team = this.teams().find((t) => t.rejoinCode === code);
     if (!team || team.removedAt !== null || !/^[A-Z0-9]+$/.test(code) || [...code].some((c) => !CODE_ALPHABET.includes(c))) {
-      tries.push(now);
+      this.pruneRejoinTries(now);
+      for (const key of ipKey ? [connKey, ipKey] : [connKey]) this.rejoinTries.set(key, [...recent(key), now]);
       return fail("bad_code");
     }
     if (move && move.teamId === team.id) this.moveCodes.delete(code);
@@ -1119,6 +1130,12 @@ export class Engine {
     this.dirty.teams.add(team.id);
     this.byes.push({ teamId: team.id, reason: "moved", keepConn: actor.connId });
     return { ok: true, result: { teamId: team.id, token, nightId: this.m!.night.id } };
+  }
+
+  /** Drops keys with no try in the last minute once the map grows, so it cannot only grow (REVIEW finding 8). */
+  private pruneRejoinTries(now: number): void {
+    if (this.rejoinTries.size < 1_000) return;
+    for (const [key, list] of this.rejoinTries) if (!list.some((t) => t > now - MINUTE)) this.rejoinTries.delete(key);
   }
 
   private activeTeam(id: unknown): TeamRec | null {

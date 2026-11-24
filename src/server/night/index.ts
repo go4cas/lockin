@@ -109,7 +109,7 @@ export function register(app: App): void {
   };
 
   hub.setCommandHandler((conn, name, args) => {
-    const actor = conn.role === "team" ? { role: "team" as const, teamId: conn.teamId, connId: conn.id } : { role: "host" as const };
+    const actor = conn.role === "team" ? { role: "team" as const, teamId: conn.teamId, connId: conn.id, ip: conn.ip } : { role: "host" as const };
     submitter = conn;
     let result;
     try {

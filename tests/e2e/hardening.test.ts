@@ -100,6 +100,23 @@ describe("roles and input", () => {
     expect(await code(other, "team.rejoin", { code: real.toLowerCase() })).toBe("ok");
   });
 
+  test("REVIEW finding 5: reconnecting does not reset the rejoin limit; it counts per client IP", async () => {
+    const { night } = await openNight(quiz("rejoin-ip"), 2);
+    const ip = { "CF-Connecting-IP": "203.0.113.7" };
+    // 10 wrong tries a minute from one address, spread over fresh connections (2 each, below the per-connection 5)
+    for (let i = 0; i < 5; i++) {
+      const g = await night.client("team", `guesser-${i}`, undefined, ip);
+      for (let k = 0; k < 2; k++) expect(await code(g, "team.rejoin", { code: "ZZZZZZ" })).toBe("bad_code");
+      g.close();
+    }
+    const real = night.teamView("Team 1").self!.rejoinCode;
+    const again = await night.client("team", "guesser-new", undefined, ip);
+    expect(await code(again, "team.rejoin", { code: real })).toBe("too_many_tries");
+    // another client address is not affected
+    const elsewhere = await night.client("team", "elsewhere", undefined, { "CF-Connecting-IP": "198.51.100.9" });
+    expect(await code(elsewhere, "team.rejoin", { code: real })).toBe("ok");
+  });
+
   test("an oversize frame closes only that connection", async () => {
     const { night } = await openNight(quiz("big"), 1);
     const c = night.phones[0]!.c;

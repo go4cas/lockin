@@ -32,6 +32,8 @@ export interface ConnectOptions {
   role?: Role;
   cookie?: string;
   origin?: string | null;
+  /** Extra upgrade-request headers, e.g. CF-Connecting-IP to act as another client. */
+  headers?: Record<string, string>;
 }
 
 export async function connectClient(server: { wsUrl: string }, opts: ConnectOptions = {}): Promise<TestClient> {
@@ -39,6 +41,7 @@ export async function connectClient(server: { wsUrl: string }, opts: ConnectOpti
   const origin = opts.origin === undefined ? TEST_PUBLIC_URL : opts.origin;
   if (origin !== null) headers.Origin = origin;
   if (opts.cookie) headers.Cookie = opts.cookie;
+  Object.assign(headers, opts.headers);
   // Bun's WebSocket accepts headers for the upgrade request.
   const ws = new WebSocket(server.wsUrl, { headers } as unknown as string[]);
 
