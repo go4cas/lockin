@@ -873,8 +873,16 @@ export class Engine {
     if (typeof qid !== "string") return null;
     const ref = this.qIndex.get(qid);
     if (!ref || this.state.questions[qid]?.status !== "locked") return null;
-    if (ref.round === -1 && this.state.sd?.current?.questionId === qid && this.state.sd.current.status === "revealed") return null;
     return ref;
+  }
+
+  /**
+   * A sudden-death question whose reveal is committed (its sudden_deaths row has rightIds) is final:
+   * eliminations and outcomes were replayed from those rightIds, so its marks never change after
+   * (code review LI-005). Checked on the persisted row, so it holds after later questions and restarts.
+   */
+  private sdRevealed(qid: unknown): boolean {
+    return typeof qid === "string" && !!this.m?.sd.some((r) => r.questionId === qid && r.rightIds !== null);
   }
 
   private setMark(teamId: string, qid: string, mark: Mark): void {
@@ -889,6 +897,7 @@ export class Engine {
   }
 
   private markGroup(a: Record<string, unknown>): CommandResult {
+    if (this.sdRevealed(a.questionId)) return fail("wrong_phase", "That deadlock question has been revealed, so its marks can't change.");
     const ref = this.markable(a.questionId);
     if (!ref) return fail("not_found", "That question isn't locked yet.");
     if (typeof a.key !== "string" || (a.mark !== "correct" && a.mark !== "wrong")) return fail("bad_args");
@@ -930,6 +939,7 @@ export class Engine {
   }
 
   private markTeam(a: Record<string, unknown>): CommandResult {
+    if (this.sdRevealed(a.questionId)) return fail("wrong_phase", "That deadlock question has been revealed, so its marks can't change.");
     const ref = this.markable(a.questionId);
     if (!ref) return fail("not_found", "That question isn't locked yet.");
     if (typeof a.teamId !== "string" || (a.mark !== "correct" && a.mark !== "wrong")) return fail("bad_args");

@@ -316,7 +316,7 @@ Rules:
 
 - **Readiness (H-01).** A quiz is ready when it validates, has at least one round, every round has at least one question, every question has text and a complete answer, and every media file exists. `validateQuiz(json)` returns `{ ok: true, quiz } | { ok: false, problems: { path: string; message: string }[] }`; messages are plain English ("Round 2, question 4 has no answer").
 - **Forward compatibility.** An unknown `media.kind` or `answer.type` makes the quiz "not ready" with a message naming it; it never crashes the server. A breaking change bumps `format` to `lockin.quiz/2` and the server reads both.
-- **Images (H-03).** The builder resizes images **in the browser** (canvas) to at most 1920×1080 and re-encodes them as JPEG (quality 0.85) or keeps PNG when the image has transparency, so the server needs no image library. The server checks the file's first bytes (JPEG, PNG or WebP), caps uploads at 5 MB, and names the file after the question id plus a short content hash (`q-ab12cd34-9f3a.jpg`).
+- **Images (H-03).** The builder resizes images **in the browser** (canvas) to at most 1920×1080 and re-encodes them as JPEG (quality 0.85) or keeps PNG when the image has transparency, so the server needs no image library. The server checks the file's first bytes (JPEG, PNG or WebP), caps uploads at 5 MB, and names the file after the question id plus 16 hex characters of the content's SHA-256 (`q-ab12cd34-9f3a07c2d1e4b5a6.jpg`). An existing file at that name is reused only when its bytes are identical; otherwise a numbered name (`…-2.jpg`) is used. Older 4-character names stay valid. Each draft save removes builder-made pictures (`q-…-<hex>.<ext>`) that no question refers to and that are over an hour old, so an upload whose save is still on its way is kept; a quiz in use by a night cannot be saved, so a running night never loses a picture (code review LI-004, audit SA-20).
 - **Accepted answers added while marking (H-10)** are appended to `accepted` in the quiz file and in the running night's snapshot.
 
 ### 5.3 Theme file: `theme/theme.json`
@@ -728,7 +728,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `GET /theme/assets/:file` | B4 | Theme assets |
 | `GET /manifest.webmanifest` | B7 | Web app manifest with venue name and logo |
 | `GET /sw.js` | B7 | Service worker (caches the app shell, never answers) |
-| `GET /media/q/:questionId` | B1 | A question's image for the open night: served to anyone only once the question has been shown; to host sessions always (so images cannot leak answers early) |
+| `GET /media/q/:questionId` | B1 | A question's image for the open night: served to anyone only once the question has been shown; to host sessions always (so images cannot leak answers early). The view's address carries `?v=`, a hash of the night id and the image file name; a different `v` is a 404, and only a versioned address of a shown question may be cached (`private, max-age=3600`); anything else is `no-store` (code review LI-003) |
 | `GET /media/quiz/:quizId/:file` | B3 | Quiz media for the builder; host only |
 | `GET /qr/join.svg` | B8 | QR code for the join URL with the room code. Host session, or a paired display's token as `?d=<token>` (12.6); anyone else gets 404 |
 | `GET /qr/display.svg` | B8 | QR code for the display address (host only) |
@@ -757,7 +757,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `GET /api/venue` / `PUT /api/venue` | B4 | `VenueFile` |
 | `GET /api/theme/preview.css` | B4 | `?theme=<url-encoded ThemeFile JSON>` → CSS, for the live preview (H-16) |
 | `GET /api/history` | B1 | → `HistoryList`: `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` (saved nights, newest first) |
-| `GET /api/history/:nightId` | B1 | → `HistoryDetail` (`src/shared/protocol.ts`): `{ night, standings, rounds, answers }`. Also answers for the night that is open now, so the console can change marks on earlier rounds (H-13; agreed with Cas 2026-11-24). `answers` has one row per team per question answered, with its display text and mark. |
+| `GET /api/history/:nightId` | B1 | → `HistoryDetail` (`src/shared/protocol.ts`): `{ night, standings, rounds, answers }`. Also answers for the night that is open now, so the console can change marks on earlier rounds (H-13; agreed with Cas 2026-11-24). `answers` has one row per team per question answered, with its display text and mark, plus a row with `noAnswer: true` and `display: ""` for each team that sent nothing but has a mark record (the lock's automatic Wrong, or the host's Right for an answer given in person; code review LI-006, Cas 2026-11-24). |
 
 Upload limits: images 5 MB, logo 2 MB, fonts 2 MB. Files are checked by their first bytes, stored under generated names, and served with `X-Content-Type-Options: nosniff`.
 
@@ -858,7 +858,7 @@ export interface QuestionPublic {
   roundIndex: number;              // -1 for sudden death
   number: number;                  // 1-based within the round, or the sudden-death question number
   text: string;
-  image: string | null;            // "/media/q/<id>"
+  image: string | null;            // "/media/q/<id>?v=<night and image version>" (LI-003)
   input:
     | { type: "text" }
     | { type: "choice"; options: string[] }
@@ -994,7 +994,7 @@ Every `cmd` gets exactly one `ack` with the same `id`. A client keeps at most on
 
 ### 10.6 Clock sync and keepalive
 
-Clients send `ping` every 2 s for the first 10 s after connecting, then every 25 s. Offset = `s - (c + rtt / 2)`; the client uses the median of the last 5 offsets. All countdowns are drawn from `locksAt - (Date.now() + offset)`. The server closes a connection with no message for 60 s. B0 provides this in `public/shared/ws-client.js` and `clock.js`, so the display, phone and console all share one implementation.
+Clients send `ping` every 2 s for the first 10 s after connecting, then every 25 s. Offset = `s - (c + rtt / 2)`; the client uses the median of the last 5 offsets. All countdowns are drawn from `locksAt - (Date.now() + offset)`. The server closes a connection with no message for 60 s. The client keeps its own deadlines too (code review LI-001): no welcome 10 s after creating the socket, or no message of any kind for 35 s, and it abandons the socket and reconnects without waiting for the browser's close; after a suspension (timers that ran late) it first pings and allows 10 s for an answer. A command with no ack after 10 s settles as `timeout`. Neither `timeout` nor `disconnected` is retried automatically: the command may have been applied, so the client resumes from the next state. B0 provides this in `public/shared/ws-client.js` and `clock.js`, so the display, phone and console all share one implementation.
 
 ### 10.7 Sending views
 
