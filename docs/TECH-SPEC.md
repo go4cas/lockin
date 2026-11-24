@@ -549,8 +549,9 @@ All commands go over the WebSocket as `{ t: "cmd", id, name, args }` (section 10
 | `team.rename` | `{ teamId, name }` | lobby to ended | H-06 |
 | `team.remove` | `{ teamId }` | lobby | H-06 |
 | `team.moveCode` | `{ teamId }` | lobby to ended | Returns `{ code, url }` for moving the team to a new phone (11.3). |
+| `night.newRoomCode` | `{}` | lobby to before ended | New room code and join key, teams kept; returns `{ roomCode }` (11.2a, D1). |
 | **Team** | | | |
-| `team.join` | `{ roomCode, name }` | lobby | Creates the team; returns `{ teamId, token }` (11.1). |
+| `team.join` | `{ roomCode, name, joinKey? }` | lobby | Creates the team; returns `{ teamId, token }` (11.1). Room code limits and the join key: 11.2a. |
 | `team.rejoin` | `{ code }` | lobby to ended | A rejoin code or a move code; returns `{ teamId, token }` (11.2). |
 | `joker.play` | `{ round }` | lobby (round 0), round_intro, leaderboard, halftime | Only on the upcoming round, once per night, when the quiz has the joker on (P-04). |
 | `answer.submit` | `{ questionId, value: AnswerValue }` | asking, sudden_death | Accepted only if the question is open and server time is before `locksAt` (S-04). |
@@ -793,7 +794,7 @@ export type CommandName =
   | "timer.start" | "timer.pause" | "timer.resume" | "timer.add" | "lock"
   | "mark.group" | "mark.team" | "reveal.start" | "reveal.next" | "leaderboard.show"
   | "sd.start" | "sd.ask" | "sd.reveal" | "final.show"
-  | "team.rename" | "team.remove" | "team.moveCode"
+  | "team.rename" | "team.remove" | "team.moveCode" | "night.newRoomCode"   // newRoomCode: 11.2a (D1)
   | "display.pair" | "display.unpairAll"                       // host only (12.6)
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
@@ -817,7 +818,7 @@ export type ErrorCode =
 3. After every change the server sends `state` to every affected connection. `seq` increases by one per change; a client ignores a `state` whose `seq` is lower than the last one it rendered.
 4. A connection that sends no `hello` within 5 s, or an unknown `protocol`, is closed.
 5. A `display` hello is paired if its `token` matches a paired display, or if the upgrade request carries a valid host session (the console's "Open display"; the server then sends `paired` with a new token). Otherwise it gets the unpaired view (12.6) until the host pairs it.
-6. An unbound `team` connection's view has `night.roomCode` and `night.joinUrl` set to `""`, no `questions` and no `suddenDeath` (12.6).
+6. An unbound `team` connection's view has only `phase`, `venue`, `night.started` and `lines.lobby`; the rest of `night` is blank and `teams`, `standings`, `flash`, `questions` and `suddenDeath` are empty (12.6, SA-07).
 
 ### 10.3 Views
 
@@ -835,7 +836,7 @@ export interface Common {
 export interface NightInfo {
   id: string;
   roomCode: string;
-  joinUrl: string;                 // publicUrl + "/j/" + roomCode
+  joinUrl: string;                 // publicUrl + "/j/" + roomCode + "-" + joinKey (11.2a, D1)
   quizTitle: string;
   plannedStart: number | null;
   holdingFrom: number | null;      // 7.4
@@ -978,6 +979,7 @@ export interface HostView extends Common {
   can: Partial<Record<CommandName, boolean>>; // which commands are allowed now, to enable buttons
   lines: Lines;                              // what the display is showing, for the host's reference
   displays?: { paired: number; connected: number; waiting: number }; // display pairing (12.6)
+  joinPausedUntil?: number;        // SA-01: typed room codes paused until this server time (11.2a)
 }
 ```
 
@@ -1015,6 +1017,16 @@ The engine builds the views after each change and sends: the display view once a
 - Each team has a **6-character rejoin code** from `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (no 0, O, 1, I or L), shown on the team's phone in a team menu.
 - `team.rejoin { code }` on another phone issues a new token, sends `bye { reason: "moved" }` to the old phone's connection and closes it, and **issues a new rejoin code**, so the old phone cannot take the team back with the code it showed.
 - Codes are compared case-insensitively. A connection gets 5 wrong tries per minute, and a client IP (`CF-Connecting-IP`, as login) 10 across all its connections, then `too_many_tries` (REVIEW finding 5: before, reconnecting reset the count). The IP limit is higher because a pub's phones often share one address.
+- The limits and the code lookup run before the engine's change wrapper (SA-04), so a wrong code never copies or writes the night.
+
+### 11.2a Joining: room code limits and the join key (SA-01, D1, Cas 2026-11-24)
+
+- The room code is 4 letters from 19 (130,321 codes), so on its own it can be guessed in seconds. Wrong room codes in `team.join` are limited: 3 a minute per connection, 10 a minute per client IP, and 30 a minute from everyone together. When the total is reached, every join by typed code answers `too_many_tries` for 60 s, right code or not, so the answer never says whether a code was right. While any limit applies to a connection, its typed joins (right code or not, any name) answer `too_many_tries`. A wrong code answers `room_code` whatever the other args are.
+- Successful joins are never limited per IP: a pub's phones share one address and join in a burst when the host says "join now".
+- **Join key:** `night.open` also makes a join key, 10 characters from the rejoin alphabet (about 50 bits), kept in `EngineState.joinKey` (optional, so older nights load). `NightInfo.joinUrl` and the QR code are `<publicUrl>/j/<roomCode>-<joinKey>`. The phone reads both from its URL and sends `team.join { roomCode, name, joinKey }`. A join with the right key skips all the room code limits, so phones that scan the QR code get in even while someone is guessing. A wrong key counts as a typed join. The key goes only where the room code goes (paired displays, the console, bound phones).
+- While typed joins are paused, `HostView.joinPausedUntil` (server time) is set, the console says "Someone is guessing the room code" and the server logs a line.
+- **New room code:** `night.newRoomCode` (host, any phase but `ended`) makes a new room code and join key, keeps every team, and clears the limits. The console offers it as "New room code" under the room code, with a confirm step. Phones still on the join page need the new code.
+- The checks run before the engine's change wrapper (SA-04): a refused join never copies or writes the night.
 
 ### 11.3 The host moves a team (H-06)
 
@@ -1051,6 +1063,7 @@ The repo is public, and Lock-In runs on the open internet. Threats that matter: 
 
 - Login sets cookie `lockin_host`: 32 random bytes, base64url; `HttpOnly`, `SameSite=Strict`, `Path=/`, `Secure` (except on `http://localhost` in development); 7 days, renewed on use (so a night never needs a second login, S-03). The server stores only its SHA-256 in `host_sessions`.
 - Login is rate-limited to 5 failures per minute per client IP, then a 1-minute wait.
+- Request bodies are counted in bytes as they are read and refused with `413` as soon as they pass the route's limit (SA-02): 4 KB for `/api/auth/*`, 64 KB for theme, venue and quiz-title routes, 2 MB for `PUT /api/quizzes/:id`, 5 MB plus 64 KB for a question picture and 6 MB for a theme asset. `Content-Length` is only used to refuse early. `Bun.serve` has `maxRequestBodySize` = 6 MB + 64 KB as an outer bound.
 - Logout deletes the session. A password change or reset deletes all sessions.
 
 ### 12.3 Teams
@@ -1064,6 +1077,8 @@ The repo is public, and Lock-In runs on the open internet. Threats that matter: 
 
 - Every response: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and a `Content-Security-Policy` of `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'` on pages. Uploaded files (including SVG logos) are served with `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox` and are only ever shown through `<img>`, so script in an SVG cannot run.
 - Mutating HTTP requests and WebSocket upgrades must have an `Origin` that matches `publicUrl`; otherwise `403`.
+- **Sockets and messages (SA-04):** at most 600 open sockets in total and 120 per client IP (a full pub on one Wi-Fi address, with room for every phone reconnecting at once); over the cap the upgrade answers `429` and no socket is made. Each non-host socket has a message budget of 20, refilled at 10 a second, pings included; over it, `bye { reason: "protocol" }`. Frames are at most 32 KB. A socket with 1 MB of unsent data queued (it is not reading) is closed. Team commands are checked before the engine copies the night, and an `answer.submit` that repeats the team's current answer is answered without a write or a broadcast. Host-only view updates (team presence, display counts) are sent at most every 250 ms.
+- **Runtime (SA-05):** the binary carries the Bun runtime, so a Bun security release only helps once the binary is rebuilt. `serve` refuses to start on a Bun older than `MIN_BUN` (`src/server/runtime.ts`, now 1.4.5); `package.json` engines and CI match it. A weekly CI job fails when a newer 1.4.x is out. Release rule: when Bun publishes a security release, raise `MIN_BUN`, rebuild and redeploy.
 - All input is validated against the formats in sections 5 and 10 (lengths, types, ranges) before use. Text is always rendered as text, never parsed as HTML, in every page: in Arrow templates through `${}` slots (which Arrow turns into text nodes and attribute values, see 3.4), and elsewhere through `textContent`. Page code never uses `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `createContextualFragment`; `tests/browser-baseline.test.ts` checks this. The one exception is inside the vendored Arrow, which uses `innerHTML` on a `<template>` element to parse the developer's own static template strings (with placeholders, never data). Arrow uses no `eval` or `new Function`, so the page CSP above needs no change.
 
 ### 12.5 Secrets and venue data in the repo
@@ -1074,15 +1089,19 @@ The repo is public, and Lock-In runs on the open internet. Threats that matter: 
 
 ### 12.6 Display pairing and the room code (REVIEW finding 4, Cas 2026-11-24)
 
-The room code is what keeps strangers out of the night, so only screens in the pub get it.
+The room code keeps casual strangers out of the night, so only screens in the pub get it. On its own it is short enough to guess; the limits and the join key in 11.2a are what stop a script (SA-01).
 
-- An unpaired display connection gets the idle view plus `pairing: { code }`: a 4-digit code, unique among waiting displays, made per connection. It carries no night, room code, teams or questions.
+- An unpaired display connection gets the idle view plus `pairing: { code }`: a 6-digit code (D2), unique among open waiting displays, made per connection. It carries no night, room code, teams or questions.
+- A code is never evicted, moved or reused while its connection is open (SA-03). At most 20 unpaired displays hold a code at once, and 5 per client IP; past that a display gets `pairing: { code: "" }` and says "Too many screens are waiting to be paired. Reload this page in a minute." When a place frees up, one waiting display without a code is sent one.
+- A code lasts 10 minutes; the display is then sent a new one at once (a sweep runs every 15 s). An expired code pairs nothing.
 - The host types the code on the console (`display.pair { code }`, "Pair a display" on the run page, idle or lobby). The display gets `paired { token }` (32 random bytes, base64url), keeps it in `localStorage` (`lockin.display`) and sends it in every `hello`. The server stores only its SHA-256 in `<dataDir>/displays.json` (mode 0600). Wrong codes: 10 a minute, then `too_many_tries`.
+- `display.pair` answers `{ paired, ip, connectedFor }`, and the console says "Paired a display at <ip>, connected N minutes ago. Not your TV? Unpair every display." (SA-03).
+- Pairing writes go to the file first and change memory only once the write worked (LI-014): a failed write leaves tokens as they were, and the visible code can be tried again.
 - A display opened from a browser signed in to the console is paired at once.
 - `display.unpairAll` forgets every paired display; connected ones go back to showing a code.
 - `HostView.displays = { paired, connected, waiting }` shows stored pairings, paired displays connected now, and unpaired ones showing a code.
 - `GET /qr/join.svg` needs a host session or `?d=<paired token>`.
-- Unbound team connections never see the room code or questions (10.2). Joining is lobby-only already (`joining_closed`).
+- Unbound team connections never see the room code or questions (10.2). Since SA-07 (D3) they get only `phase`, `venue`, `night.started` and `lines.lobby`: every other `NightInfo` field is blank (`""`, `[]`, `0`, `null`, `false`), and `teams`, `standings`, `flash`, `suddenDeath` and the other lines are empty. Joining is lobby-only already (`joining_closed`).
 - What it does not stop: someone in the pub passing the room code on before Quiz Start. The host can remove teams in the lobby.
 
 ---

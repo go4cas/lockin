@@ -41,6 +41,19 @@ The flaky e2e test from PR #18 (`tests/e2e/night.test.ts` reading a phone's view
 
 What was **not** found, and was looked for: XSS (team names, prizes and quiz text are rendered as text everywhere; checked by a test in the browser too), path traversal (every file route checks the name with a strict regex before `join`, and `safeRelative` blocks `..`, hidden and empty path parts), host commands from team or display sockets, a host hello without a session, upgrades and mutating requests from another origin, answers after the lock, answers leaking to the display or to other teams.
 
+### Status after the audit Batch 1 PR (2026-11-24)
+
+Cas commissioned an external security audit and code review of main @ 8060221. The audit is in `docs/SECURITY-AUDIT.md` with a status line per finding. This PR fixes audit Batch 1 (SA-01 to SA-05) plus SA-07, and code review items LI-011, LI-014 and LI-015.
+
+| # | Status | What changed |
+|---|---|---|
+| 4 | **Fixed further** (SA-01, D1) | The audit found the room code could be guessed in about 12 s, since `team.join` had no limit. Wrong room codes are now limited per connection, per IP and in total; the QR code carries a join key that gets past the limits; the host has "New room code". Unbound phones get only what the join page needs (SA-07, D3). Pairing codes are 6 digits, expire, are capped and are never evicted or moved (SA-03, D2). |
+| 6 | **Fixed** (SA-04, LI-011) | Caps on sockets (600 total, 120 per IP), a message budget per socket, 32 KB frames, 1 MB backpressure. Team commands are checked before the night is copied; a repeat answer writes nothing. Host-only updates are sent at most every 250 ms. |
+| 10 | **Fixed** (SA-02, LI-015) | The audit showed this was not host-only: sign-in used the same reader. Bodies are counted in bytes as they are read and refused with 413 at each route's limit; `maxRequestBodySize` is set. |
+| new | **Fixed** (SA-05) | Bun 1.4.5 minimum in engines and CI; `serve` refuses an older runtime; weekly check for a newer 1.4.x. |
+| new | **Fixed** (LI-014) | Pairing writes change memory only after `displays.json` is written. |
+| 1-3, 7-9, 11-17 | Open | Unchanged. Audit Batch 2 and 3 (SA-06, SA-08 to SA-21) and D4 to D6 come later. |
+
 ## How this was checked
 
 | Check | Result |

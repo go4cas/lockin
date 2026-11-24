@@ -331,3 +331,27 @@ Fixes for REVIEW.md findings 4 and 5, and the flaky e2e test from PR #18. Cas ch
 - **Tests that connect a display now pair it** by sending the host cookie (driver and protocol tests). `tests/e2e/browser-night.ts` pairs through the real UI: it reads the code off the TV page and types it into the console.
 - **Flaky test (PR #18):** `tests/e2e/night.test.ts` read the phone's view straight after the host's ack. It now waits for the phone's view (`waitFor`) at the three places that did that.
 - **Not covered:** someone in the pub can still pass the room code on before Quiz Start. The host can remove strange teams in the lobby. A host approve step would close that too (Later, if it is ever a problem).
+
+## Audit Batch 1 fixes: findings and decisions (2026-11-24)
+
+Cas commissioned an external security audit (`docs/SECURITY-AUDIT.md`) and code review of main @ 8060221, and on 2026-11-24 agreed every recommended decision:
+
+- **D1 (yes):** a join key in the QR code and join link, plus a "New room code" host command. Built here.
+- **D2 (yes):** pairing codes are 6 digits, expire after 10 minutes, and waiting displays are capped. Built here.
+- **D3 (yes):** an unbound phone gets only phase, venue, `night.started` and the lobby line. Built here.
+- **D4 (yes):** keep the 8-character password minimum and change the setup hint to say "use a passphrase". Later (Batch 2, with SA-08).
+- **D5 (yes):** a display opened from the signed-in console is paired by the session, with no stored token. Later (Batch 2, with SA-11).
+- **D6 (yes):** `LICENSE` and `SECURITY.md` before the repo is announced. Later.
+
+What was built, and what was found on the way:
+
+- **Room code (SA-01).** Confirmed on main: wrong codes were never counted, and a right code with an empty name answered `bad_args`, so the code could be confirmed without making a team. Now: 3 wrong a minute per connection, 10 per IP, 30 in total; at the total, typed joins pause for 60 s and every typed join answers `too_many_tries`, right code or not. Successful joins are never limited per IP (30 phones on one pub address join fine; tested). The join key (10 characters, `EngineState.joinKey`, optional so older nights load) skips every limit. The phone reads `/j/<code>-<key>` and sends `joinKey`. `night.newRoomCode` also clears the limits. `HostView.joinPausedUntil` drives the console warning.
+- **Before the clone (SA-04, LI-011).** `Engine.command` runs a pre-check for team commands before `run()`: join limits and checks, rejoin limits and lookup, joker checks and answer checks. A repeated identical answer is answered there with no write, no seq bump and no broadcast (before, it bumped seq, wrote the state row and broadcast to everyone). The checks inside the handlers stay, so a direct call is still safe.
+- **Socket caps (SA-04).** The hub admits a socket before the upgrade (`Hub.admit`) and gives the place back on close. Hosts are not message-limited (trusted once signed in, and marking can be quick). The B9 flood test changed meaning: one phone sending 2,000 changes is now cut off after 19 to 20, and the other 9 answers still count in about 55 ms. `tests/e2e/hardening.test.ts` "roles and input" now paces its 30 commands per socket to stay under the budget.
+- **Host-only updates** (team presence, display counts) go through `Hub.broadcastHosts()`: the first goes at once, later ones within 250 ms fold into one. 100 display connects sent the host 2 states (before: 100). Tests that read `HostView.displays` right after a change must wait at least 250 ms.
+- **Pairing (SA-03, D2, LI-014).** Confirmed on main: `codeFor` dropped the oldest half of codes at 5,000 waiting, which could hand the TV's code to another socket. Now a code is never evicted or moved; 20 waiting in total and 5 per IP, past that `pairing.code` is `""` and the display says to reload in a minute. A freed place is offered to one display without a code. Codes expire after 10 minutes (a 15 s sweep sends the new code). `display.pair` answers `{ paired, ip, connectedFor }`. The code stays claimable until the token is written, so a failed write can be retried. Per-display unpair (`display.unpair { id }`) is not built: it needs per-display records, which fits D5/SA-11 in Batch 2.
+- **Bodies (SA-02, LI-015).** `readBodyBytes`/`readJsonBody`/`readFormBody` in `http.ts` count bytes as they arrive; `BodyTooLarge` becomes 413 in the router. 8 parallel 20 MB chunked logins grew the server by about 1.3 MB (the audit saw 53 MB to 857 MB on main).
+- **Bun (SA-05).** `src/server/runtime.ts` has `MIN_BUN` (1.4.5). The start log now says `Lock-In <version> on Bun <version>`; `--version` is unchanged. The cloud session's own Bun was 1.4.4, so the tests here ran on a downloaded 1.4.5 binary. `tests/helpers/process.ts` still spawns `bun` from PATH.
+- **Contract changes (agreed through D1 to D3):** `CommandName` gains `night.newRoomCode`; `team.join` takes optional `joinKey`; `NightInfo.joinUrl` carries the key; `HostView.joinPausedUntil?`; `display.pair` result gains `ip` and `connectedFor`; `EngineState.joinKey?`; unbound `TeamView` contents (type unchanged). The `nights.room_code` column is now updated when the code changes.
+- **Not done here:** SA-06 (`CF-Connecting-IP` trust) matters more now that every limit keys on the IP; it is Batch 2. With the default `127.0.0.1` bind behind `cloudflared` it cannot be spoofed.
+
