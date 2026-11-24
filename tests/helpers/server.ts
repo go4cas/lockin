@@ -10,7 +10,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startServer, type RunningServer } from "../../src/server/app.ts";
-import type { Clock } from "../../src/server/auth.ts";
+import type { Clock, PasswordHasher } from "../../src/server/auth.ts";
 import type { Config } from "../../src/server/config.ts";
 
 /** The public URL every test server uses; send it as Origin on mutating requests. */
@@ -34,13 +34,15 @@ export interface TestServerOptions {
   config?: Partial<Config>;
   clock?: Clock;
   keepData?: boolean;
+  /** Password hashing stand-in (SA-08 tests count what runs at once). */
+  hasher?: PasswordHasher;
 }
 
 export async function startTestServer(opts: TestServerOptions = {}): Promise<TestServer> {
   const dataDir = opts.dataDir ?? mkdtempSync(join(tmpdir(), "lockin-test-"));
   const logs: string[] = [];
   const config: Config = { dataDir, port: 0, bind: "127.0.0.1", publicUrl: TEST_PUBLIC_URL, ...opts.config };
-  const running = await startServer(config, { log: (m) => logs.push(m), clock: opts.clock });
+  const running = await startServer(config, { log: (m) => logs.push(m), clock: opts.clock, hasher: opts.hasher });
   const base = `http://127.0.0.1:${running.port}`;
 
   const doFetch: TestServer["fetch"] = (path, init = {}) => {

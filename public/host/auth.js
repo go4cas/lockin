@@ -53,7 +53,7 @@
       const pw = /** @type {HTMLInputElement} */ (setup.elements.namedItem("password")).value;
       const pw2 = /** @type {HTMLInputElement} */ (setup.elements.namedItem("password2")).value;
       if (code.length !== 8) return showError("The setup code has 8 characters.");
-      if (pw.length < 8) return showError("The password must be at least 8 characters.");
+      if (pw.length < 8) return showError("The password must be at least 8 characters. A passphrase of a few words is easiest to remember.");
       if (pw !== pw2) return showError("The two passwords are not the same.");
       post("/api/auth/setup", { setupCode: code, password: pw }, setup.querySelector("button"));
     });

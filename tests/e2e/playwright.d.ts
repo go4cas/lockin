@@ -6,6 +6,8 @@ declare module "playwright" {
     on(event: "console", fn: (m: { type(): string; text(): string }) => void): void;
     on(event: "requestfailed", fn: (r: { url(): string; failure(): { errorText: string } | null }) => void): void;
     on(event: "response", fn: (r: { url(): string; status(): number }) => void): void;
+    on(event: "request", fn: (r: { url(): string }) => void): void;   // audit-batch2-browser.ts
+    setViewportSize(size: { width: number; height: number }): Promise<void>;
     goto(url: string): Promise<unknown>;
     screenshot(opts: { path: string }): Promise<unknown>;
     waitForFunction<A>(fn: (arg: A) => boolean, arg?: A, opts?: { timeout?: number }): Promise<unknown>;
@@ -16,6 +18,7 @@ declare module "playwright" {
     textContent(selector: string): Promise<string | null>;
     // used by review-fixes-browser.ts
     evaluate<R>(fn: () => R): Promise<R>;
+    evaluate<R, A>(fn: (arg: A) => R, arg: A): Promise<R>;
     inputValue(selector: string): Promise<string>;
     locator(selector: string): Locator;
     route(url: string, handler: (route: Route) => Promise<void> | void): Promise<void>;
@@ -23,6 +26,7 @@ declare module "playwright" {
   export interface Locator {
     locator(selector: string): Locator;
     click(): Promise<void>;
+    screenshot(opts: { path: string }): Promise<unknown>;
   }
   export interface Route {
     request(): { method(): string };

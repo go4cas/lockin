@@ -59,7 +59,7 @@ describe("first run and the setup code (TECH-SPEC 12.1)", () => {
     const s = await server();
     const res = await post(s, "/api/auth/setup", { password: "short", setupCode: s.app.auth.setupCode() });
     expect(res.status).toBe(400);
-    expect((await res.json()).error.message).toBe("The password must be at least 8 characters.");
+    expect((await res.json()).error.message).toBe("The password must be at least 8 characters. A passphrase of a few words is easiest to remember.");
   });
 
   test("the password is stored only as an argon2id hash, outside the database", async () => {

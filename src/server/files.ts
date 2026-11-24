@@ -1,6 +1,6 @@
 // Small file helpers shared by the server modules.
 
-import { existsSync, mkdirSync, renameSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, renameSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 
 /**
@@ -12,10 +12,16 @@ export function writeJsonAtomic(path: string, value: unknown, mode?: number): vo
   writeTextAtomic(path, JSON.stringify(value, null, 2) + "\n", mode);
 }
 
+/**
+ * With `mode`, the file ends up with exactly that mode (SA-10): a stale `<name>.tmp` left by a
+ * crash is removed first, because writeFileSync only applies a mode to a file it creates.
+ */
 export function writeTextAtomic(path: string, text: string, mode?: number): void {
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.tmp`;
+  if (mode !== undefined) rmSync(tmp, { force: true });
   writeFileSync(tmp, text, mode === undefined ? undefined : { mode });
+  if (mode !== undefined) chmodSync(tmp, mode);   // the umask may have taken bits off
   renameSync(tmp, path);
 }
 

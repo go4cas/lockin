@@ -4,16 +4,17 @@
 // main.ts. startServer() listens.
 
 import type { Database } from "bun:sqlite";
+import { isIP } from "node:net";
 import { join } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import type { CopyPicker, Rules } from "../shared/rules-api.ts";
-import { Auth, RateLimiter, SESSION_COOKIE, readCookie, type Clock } from "./auth.ts";
+import { Auth, RateLimiter, SESSION_COOKIE, readCookie, type Clock, type PasswordHasher } from "./auth.ts";
 import { registerAuthRoutes } from "./auth-routes.ts";
 import { ensureDataDir, isLocalDevUrl, type Config } from "./config.ts";
 import { openDb } from "./db.ts";
 import { MAX_REQUEST_BODY, Router, errorResponse, json, originAllowed, withSecurityHeaders, type Handler, type Method, type RequestContext, type RouteOptions } from "./http.ts";
 import { diskSource, registerStatic, type FileSource } from "./static.ts";
-import { Hub, type BunServer, type SocketData } from "./ws.ts";
+import { Hub, safely, type BunServer, type SocketData } from "./ws.ts";
 import { register as registerBranding } from "./branding/index.ts";
 import { register as registerDisplay } from "./display/index.ts";
 import { register as registerNight } from "./night/index.ts";
@@ -65,6 +66,8 @@ export interface AppOptions {
   clock?: Clock;
   files?: FileSource;
   log?: (message: string) => void;
+  /** Password hashing (tests inject a fake to count what runs at once, SA-08). */
+  hasher?: PasswordHasher;
 }
 
 interface InternalApp extends App {
@@ -80,9 +83,9 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
   ensureDataDir(config.dataDir);
   const clock = opts.clock ?? systemClock;
   const db = openDb(join(config.dataDir, "lockin.db"));
-  const auth = new Auth(db, config.dataDir, clock, !isLocalDevUrl(config.publicUrl));
+  const auth = new Auth(db, config.dataDir, clock, !isLocalDevUrl(config.publicUrl), opts.hasher);
   const log = opts.log ?? ((m: string) => console.log(`${new Date().toISOString()} ${m}`));
-  const hub = new Hub({ clock, sessionAlive: (h) => auth.sessionAlive(h), log });
+  const hub = new Hub({ clock, sessionAlive: (h) => auth.sessionAlive(h), touchSession: (h) => auth.touchSession(h), log });
   auth.onSessionsDeleted = (hashes) => hub.signOut(hashes);
   const router = new Router();
 
@@ -123,9 +126,38 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
   return app;
 }
 
-/** The client's IP: CF-Connecting-IP behind the tunnel (TECH-SPEC 4.5), else the socket address. */
-function clientIp(req: Request, server: BunServer): string {
-  return req.headers.get("cf-connecting-ip") ?? server.requestIP(req)?.address ?? "unknown";
+/** True for a loopback peer: 127.0.0.0/8, ::1 and IPv4-mapped 127.x (SA-06). */
+export function isLoopback(address: string): boolean {
+  const a = address.toLowerCase();
+  if (a === "::1" || a === "0:0:0:0:0:0:0:1") return true;
+  const v4 = a.startsWith("::ffff:") ? a.slice(7) : a;
+  return isIP(v4) === 4 && v4.startsWith("127.");
+}
+
+/**
+ * The client's IP (TECH-SPEC 4.5, SA-06). CF-Connecting-IP is believed only when the peer is
+ * loopback (cloudflared on the same machine) and the value is an IP address; otherwise anyone
+ * who can reach the port could pick their own address and dodge every per-IP limit.
+ */
+export function clientIp(header: string | null, peer: string | null | undefined): string {
+  const value = header?.trim() ?? "";
+  if (peer && isLoopback(peer) && value && isIP(value) !== 0) return value;
+  return peer || "unknown";
+}
+
+/** True when the server listens on more than loopback (SA-06 start warning). */
+export function bindIsOpen(bind: string): boolean {
+  return !(bind === "localhost" || isLoopback(bind));
+}
+
+/** How often ended host sessions are swept (SA-12). */
+export const SESSION_SWEEP_MS = 60_000;
+
+/** SA-12: signs out sockets whose session ended by expiry, and deletes ended sessions. */
+export function sweepSessions(app: App): { closed: number; deleted: number } {
+  const closed = app.ws.sweepSessions();
+  const deleted = app.auth.pruneSessions();
+  return { closed, deleted };
 }
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -133,7 +165,7 @@ const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 /** Handles one HTTP request (also used by tests without a socket). */
 export async function handleRequest(app: InternalApp, req: Request, server: BunServer): Promise<Response | undefined> {
   const url = new URL(req.url);
-  const ip = clientIp(req, server);
+  const ip = clientIp(req.headers.get("cf-connecting-ip"), server.requestIP(req)?.address);
   const cookie = readCookie(req.headers.get("cookie"), SESSION_COOKIE);
   const session = app.auth.checkSession(cookie);
 
@@ -193,10 +225,16 @@ export async function startServer(config: Config, opts: AppOptions = {}): Promis
 
   for (const fn of app.startHooks) await fn();
 
+  // SA-12: once a minute, end sockets whose session has ended and delete ended sessions.
+  const sessionSweep = setInterval(() => safely(app.log, "Session sweep", () => sweepSessions(app)), SESSION_SWEEP_MS);
+
   const port = server.port!;
   app.log(`Lock-In ${VERSION} on Bun ${Bun.version}`);
   app.log(`Public address: ${config.publicUrl}  (host console: ${config.publicUrl}/host)`);
   app.log(`Data folder: ${config.dataDir}`);
+  if (bindIsOpen(config.bind) && config.publicUrl.startsWith("https:")) {
+    app.log("This port is open to the network. Lock-In expects to sit behind the tunnel on 127.0.0.1.");
+  }
   if (setupCode) app.log(`No host password is set yet. Setup code: ${setupCode}`);
   app.log(`Listening on ${config.bind}:${port}`);   // last, so "ready" means every line above is out
 
@@ -209,6 +247,7 @@ export async function startServer(config: Config, opts: AppOptions = {}): Promis
     async stop() {
       if (stopped) return;
       stopped = true;
+      clearInterval(sessionSweep);
       for (const fn of app.stopHooks) await fn();
       app.ws.closeAll();
       await server.stop(true);

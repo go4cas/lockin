@@ -72,28 +72,31 @@ describe("display pairing (REVIEW finding 4)", () => {
     const tv = await client(s, "display");
     const code = view<DisplayView>(tv).pairing!.code;
     await settle();
-    expect(view<HostView>(host).displays).toEqual({ paired: 0, connected: 0, waiting: 1 });
+    expect(view<HostView>(host).displays).toEqual({ paired: 0, connected: 0, waiting: 1, list: [], bySession: 0 });
 
     const wrong = code === "000000" ? "000001" : "000000";
     expect(await errCode(host, "display.pair", { code: wrong })).toBe("bad_code");
     const result = await ok(host, "display.pair", { code });
     // SA-03: the host is told where the paired screen is and how long it has been waiting
-    expect(result).toEqual({ paired: 1, ip: "127.0.0.1", connectedFor: expect.any(Number) });
+    expect(result).toEqual({ paired: 1, ip: "127.0.0.1", connectedFor: expect.any(Number), id: expect.stringMatching(/^[0-9a-f]{8}$/) });
     await settle();
     const paired = tv.received.find((m): m is Extract<ServerMsg, { t: "paired" }> => m.t === "paired");
     expect(paired!.token.length).toBeGreaterThan(20);
     const v = view<DisplayView>(tv);
     expect(v.pairing ?? null).toBeNull();
     expect(v.night!.roomCode).toBe(roomCode);
-    expect(view<HostView>(host).displays).toEqual({ paired: 1, connected: 1, waiting: 0 });
+    expect(view<HostView>(host).displays).toEqual({
+      paired: 1, connected: 1, waiting: 0, bySession: 0,
+      list: [{ id: result.id as string, pairedAt: s.app.clock.now(), lastSeenAt: s.app.clock.now(), connected: true, ip: "127.0.0.1" }],
+    });
     // the code is used up
     expect(await errCode(host, "display.pair", { code })).toBe("bad_code");
 
     // a reload sends the token in hello and is paired at once
     const again = await client(s, "display", undefined, paired!.token);
     expect(view<DisplayView>(again).night!.roomCode).toBe(roomCode);
-    // the join QR is served to it with its token, and to nobody without one
-    expect((await s.fetch(`/qr/join.svg?d=${encodeURIComponent(paired!.token)}`)).status).toBe(200);
+    // the join QR is served to it with its token in a header (SA-11), and to nobody without one
+    expect((await s.fetch("/qr/join.svg", { headers: { Authorization: `Bearer ${paired!.token}` } })).status).toBe(200);
     expect((await s.fetch("/qr/join.svg")).status).toBe(404);
     // the token survives a restart (stored hashed in displays.json)
     const raw = await Bun.file(`${s.dataDir}/displays.json`).text();
@@ -101,16 +104,85 @@ describe("display pairing (REVIEW finding 4)", () => {
     expect(new DisplayPairing(s.dataDir, s.app.clock).isPaired(paired!.token)).toBe(true);
   });
 
-  test("a display opened from a browser signed in to the console is paired at once", async () => {
+  test("D5: a display opened from a browser signed in to the console is paired by the session, with no stored token", async () => {
+    const { s, host, cookie, roomCode } = await setup();
+    const tv = await client(s, "display", cookie);
+    expect(tv.received.some((m) => m.t === "paired")).toBe(false);   // no token to keep
+    expect(view<DisplayView>(tv).night!.roomCode).toBe(roomCode);
+    expect(s.app.services.displayPairing!.pairedCount).toBe(0);     // nothing stored
+    await settle();
+    expect(view<HostView>(host).displays).toMatchObject({ paired: 0, connected: 1, bySession: 1, list: [] });
+    // its QR comes by the session cookie
+    expect((await s.fetch("/qr/join.svg", { cookie })).status).toBe(200);
+  });
+
+  test("D5: signing out unpairs the session's display at once", async () => {
     const { s, cookie, roomCode } = await setup();
     const tv = await client(s, "display", cookie);
-    expect(tv.received.some((m) => m.t === "paired")).toBe(true);
-    expect(view<DisplayView>(tv).night!.roomCode).toBe(roomCode);
+    const res = await s.fetch("/api/auth/logout", { method: "POST", cookie });
+    expect(res.status).toBe(200);
+    await settle();
+    const v = view<DisplayView>(tv);
+    expect(v.pairing!.code).toMatch(/^[0-9]{6}$/);
+    expect(v.night).toBeNull();
+    // and a reload with the old cookie is not paired
+    const again = await client(s, "display", cookie);
+    expect(view<DisplayView>(again).pairing).toBeTruthy();
+    expect(everything(again)).not.toContain(roomCode);
+  });
+
+  test("SA-11: unpair one display; the other stays paired", async () => {
+    const { s, host, roomCode } = await setup();
+    const a = await client(s, "display");
+    const b = await client(s, "display");
+    const ra = await ok(host, "display.pair", { code: view<DisplayView>(a).pairing!.code }) as { id: string };
+    const rb = await ok(host, "display.pair", { code: view<DisplayView>(b).pairing!.code }) as { id: string };
+    await settle();
+    expect(view<HostView>(host).displays!.list!.map((d) => d.id)).toEqual([ra.id, rb.id]);
+    const tokenA = a.received.find((m): m is Extract<ServerMsg, { t: "paired" }> => m.t === "paired")!.token;
+
+    expect(await ok(host, "display.unpair", { id: ra.id })).toEqual({ paired: 1 });
+    await settle();
+    expect(view<DisplayView>(a).pairing!.code).toMatch(/^[0-9]{6}$/);
+    expect(view<DisplayView>(a).night).toBeNull();
+    expect(view<DisplayView>(b).night!.roomCode).toBe(roomCode);
+    expect(view<HostView>(host).displays!.list!.map((d) => d.id)).toEqual([rb.id]);
+    // its token is dead, also after a restart
+    expect(s.app.services.displayPairing!.isPaired(tokenA)).toBe(false);
+    expect(new DisplayPairing(s.dataDir, s.app.clock).isPaired(tokenA)).toBe(false);
+    expect(await errCode(host, "display.unpair", { id: ra.id })).toBe("not_found");
+    expect(await errCode(host, "display.unpair", { id: "nope" })).toBe("bad_args");
+  });
+
+  test("SA-11: a pairing unused for 90 days is refused at hello and dropped; one in use is kept", async () => {
+    const { s, host, clock, roomCode } = await setup();
+    const old = await client(s, "display");
+    const used = await client(s, "display");
+    await ok(host, "display.pair", { code: view<DisplayView>(old).pairing!.code });
+    await ok(host, "display.pair", { code: view<DisplayView>(used).pairing!.code });
+    const tokenOf = (c: TestClient) => c.received.find((m): m is Extract<ServerMsg, { t: "paired" }> => m.t === "paired")!.token;
+    const [oldToken, usedToken] = [tokenOf(old), tokenOf(used)];
+    old.close(); used.close();
+    await Bun.sleep(50);
+    clock.advance(60 * 24 * 60 * 60_000);   // 60 days: the second TV comes back
+    const back = await client(s, "display", undefined, usedToken);
+    expect(view<DisplayView>(back).night!.roomCode).toBe(roomCode);
+    back.close();
+    await Bun.sleep(50);
+    clock.advance(31 * 24 * 60 * 60_000);   // 91 days after pairing, 31 after the second was last seen
+    const stale = await client(s, "display", undefined, oldToken);
+    expect(view<DisplayView>(stale).pairing!.code).toMatch(/^[0-9]{6}$/);
+    expect(everything(stale)).not.toContain(roomCode);
+    const fresh = await client(s, "display", undefined, usedToken);
+    expect(view<DisplayView>(fresh).night!.roomCode).toBe(roomCode);
+    expect(s.app.services.displayPairing!.pairedCount).toBe(1);
+    expect(new DisplayPairing(s.dataDir, clock).isPaired(oldToken)).toBe(false);
   });
 
   test("unpair every display: paired screens go back to a code and old tokens stop working", async () => {
-    const { s, host, cookie, roomCode } = await setup();
-    const tv = await client(s, "display", cookie);
+    const { s, host, roomCode } = await setup();
+    const tv = await client(s, "display");
+    await ok(host, "display.pair", { code: view<DisplayView>(tv).pairing!.code });
     const token = tv.received.find((m): m is Extract<ServerMsg, { t: "paired" }> => m.t === "paired")!.token;
     expect(await ok(host, "display.unpairAll")).toEqual({ unpaired: 1 });
     await settle();
@@ -119,7 +191,7 @@ describe("display pairing (REVIEW finding 4)", () => {
     const old = await client(s, "display", undefined, token);
     expect(view<DisplayView>(old).pairing).toBeTruthy();
     expect(everything(old)).not.toContain(roomCode);
-    expect((await s.fetch(`/qr/join.svg?d=${encodeURIComponent(token)}`)).status).toBe(404);
+    expect((await s.fetch("/qr/join.svg", { headers: { Authorization: `Bearer ${token}` } })).status).toBe(404);
   });
 
   test("wrong codes from the console are limited to 10 a minute", async () => {
@@ -138,6 +210,7 @@ describe("display pairing (REVIEW finding 4)", () => {
     const phone = await client(s, "team");
     expect(await errCode(phone, "display.pair", { code: "1234" })).toBe("not_allowed");
     expect(await errCode(phone, "display.unpairAll")).toBe("not_allowed");
+    expect(await errCode(phone, "display.unpair", { id: "0123abcd" })).toBe("not_allowed");
   });
 });
 

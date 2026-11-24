@@ -226,4 +226,5 @@ td.move.down, td.move.same { color: var(--color-text-muted); }
 }
 .hide-answers .secret:not([data-peek]):hover { filter: blur(0.35em); }
 .pair-card { margin-top: 16px; max-width: 900px; } .pair-input { width: 7em; font-size: 20px; letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
+.paired-list { list-style: none; margin: 8px 0; padding: 0; } .paired-list li { gap: 8px; padding: 4px 0; flex-wrap: wrap; } .paired-list li[hidden] { display: none; }
 .join-card .warn { color: var(--color-warning); max-width: 32ch; }

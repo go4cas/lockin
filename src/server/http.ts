@@ -5,7 +5,7 @@ export type Method = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 export interface RequestContext {
   url: URL;
   params: Record<string, string>;
-  /** Client IP: CF-Connecting-IP when present (behind the tunnel), else the socket address. */
+  /** Client IP: CF-Connecting-IP when the peer is loopback (the tunnel, SA-06), else the socket address. */
   ip: string;
   /** Hash of the host session, if the request carries a valid one. */
   hostSession: string | null;
