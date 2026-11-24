@@ -15,6 +15,8 @@ start();
 
 // The service worker caches the app shell only, so the page opens from the home
 // screen even on a bad connection. It never answers for the server (P-10, 9.1).
-if ("serviceWorker" in navigator && window.isSecureContext && !/[?&]fixture=/.test(location.search)) {
+// Only a fixture page on this machine skips it (SA-21: test plumbing does nothing elsewhere).
+const fixturePage = /** @type {any} */ (window).LockIn.isFixtureHost(location) && /[?&]fixture=/.test(location.search);
+if ("serviceWorker" in navigator && window.isSecureContext && !fixturePage) {
   navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => { /* optional: the page works without it */ });
 }

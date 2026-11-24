@@ -8,7 +8,14 @@ import { readJsonFile, removeFile, writeJsonAtomic, writeTextAtomic } from "./fi
 
 /** Rejoin, move and setup code alphabet: no 0, O, 1, I or L (TECH-SPEC 11.2). */
 export const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+/** The host cookie's name over plain http (only http://localhost, for development). */
 export const SESSION_COOKIE = "lockin_host";
+/**
+ * The host cookie's name when it is Secure (SA-13). The __Host- prefix makes the browser
+ * refuse one that is not Secure, has a Domain or another Path, so a sibling subdomain
+ * cannot plant one. SESSION_COOKIE is still read for one release so nobody is signed out.
+ */
+export const SECURE_SESSION_COOKIE = "__Host-lockin_host";
 export const SESSION_DAYS = 7;
 /** A session ends this long after sign-in, however much it is used (SA-12). */
 export const SESSION_MAX_DAYS = 30;
@@ -323,12 +330,30 @@ export class Auth {
 
   // --- cookies ------------------------------------------------------------
 
-  sessionCookie(token: string): string {
-    return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_DAYS * 24 * 60 * 60}${this.secureCookie ? "; Secure" : ""}`;
+  /** The host cookie's name: __Host- prefixed when Secure (SA-13). */
+  get cookieName(): string {
+    return this.secureCookie ? SECURE_SESSION_COOKIE : SESSION_COOKIE;
   }
 
-  clearCookie(): string {
-    return `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${this.secureCookie ? "; Secure" : ""}`;
+  sessionCookie(token: string): string {
+    return `${this.cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_DAYS * 24 * 60 * 60}${this.secureCookie ? "; Secure" : ""}`;
+  }
+
+  /** Clears the host cookie; with `legacy`, the pre-SA-13 name instead. */
+  clearCookie(legacy = false): string {
+    const name = legacy ? SESSION_COOKIE : this.cookieName;
+    return `${name}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${this.secureCookie ? "; Secure" : ""}`;
+  }
+
+  /**
+   * The session token a request carries. `legacy` is true when it came under the old
+   * name on a Secure server (SA-13: accepted for one release, then swapped for the new one).
+   */
+  readSessionCookie(header: string | null): { token: string | null; legacy: boolean } {
+    const token = readCookie(header, this.cookieName);
+    if (token || !this.secureCookie) return { token, legacy: false };
+    const old = readCookie(header, SESSION_COOKIE);
+    return { token: old, legacy: !!old };
   }
 }
 

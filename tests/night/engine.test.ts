@@ -121,16 +121,16 @@ describe("teams (11, P-02, H-06)", () => {
     expect(code(r.engine.command(phone3, "team.rejoin", { code: fresh }))).toBe("ok");
   });
 
-  test("REVIEW finding 5: wrong rejoin tries count per IP across connections (10 a minute)", () => {
+  test("REVIEW finding 5: wrong rejoin tries count per IP across connections (10 a minute, SA-14: right codes still work)", () => {
     const { r } = setup();
     host(r, "night.open", { quizId: "friday" });
     const t = joinTeam(r, "Sherlock Ohms");
     const fromIp = (connId: number, ip: string) => ({ role: "team" as const, teamId: null, connId, ip });
     for (let i = 0; i < 10; i++) expect(code(r.engine.command(fromIp(200 + i, "203.0.113.7"), "team.rejoin", { code: "AAAAAA" }))).toBe("bad_code");
     const real = r.engine.m!.teams.get(t.teamId)!.rejoinCode;
-    expect(code(r.engine.command(fromIp(300, "203.0.113.7"), "team.rejoin", { code: real }))).toBe("too_many_tries");
+    // SA-14: past the IP limit wrong codes are refused, but a right one still works (more in tests/server/audit-batch3.test.ts).
+    expect(code(r.engine.command(fromIp(300, "203.0.113.7"), "team.rejoin", { code: "AAAAAB" }))).toBe("too_many_tries");
     expect(code(r.engine.command(fromIp(301, "198.51.100.9"), "team.rejoin", { code: "AAAAAA" }))).toBe("bad_code");
-    r.advance(60_001);
     expect(code(r.engine.command(fromIp(302, "203.0.113.7"), "team.rejoin", { code: real }))).toBe("ok");
   });
 

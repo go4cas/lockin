@@ -65,6 +65,18 @@ This PR fixes audit Batch 2 (SA-06, SA-08 to SA-12; SA-07 was done in Batch 1), 
 | new | **Fixed** (SA-09, SA-10, SA-11, SA-12, D4, D5) | Timers can no longer end the process; the data folder and database are private to the server's user; the display's token stays out of URLs, pairings expire after 90 days unused and can be unpaired one by one; a console-opened display is paired by the session; host sessions end on time even with a socket open, and after 30 days at most. |
 | 1-3, 9, 11-17 | Open | Unchanged. Audit Batch 3 (SA-13 to SA-21) and D6 come later. Finding 1 (run sheet) now also carries the systemd unit (SA-09) and the Cloudflare rule on `/api/auth/*` (SA-08). |
 
+### Status after the audit Batch 3 PR (2026-11-24)
+
+This PR fixes audit Batch 3 (SA-13 to SA-21; SA-20 was already fixed with LI-004) and decision D6.
+
+| # | Status | What changed |
+|---|---|---|
+| 3 | **Fixed** (D6) | `LICENSE` is the AGPL-3.0 (Cas, 2026-11-24); `package.json` says `AGPL-3.0-only`; README has a Licence and a Security section; `SECURITY.md` asks for private reports through GitHub. The version is still `0.1.0` until the Release thread. |
+| 9 | **Fixed** (SA-15) | Team names are NFKC-normalised with invisible and bidirectional characters removed; the uniqueness key is case-folded. |
+| 11 | **Partly fixed** (SA-16) | The release workflow builds `bun-linux-x64-baseline` as well, so a VPS without AVX2 has a binary. The `synchronous=NORMAL` note stays for the release notes. |
+| new | **Fixed** (SA-13, SA-14, SA-17 to SA-21) | Headers (HSTS, COOP, CORP, Permissions-Policy, `no-store` on the API, tighter CSP, `__Host-` cookie, `development: false`); a guesser can no longer lock a pub out of rejoining; security events are logged; venue text is no longer read as replacement patterns; the preview CSS echoes nothing; small items. |
+| 1, 2, 12-17 | Open | Unchanged. Finding 1 (run sheet) also carries log retention (SA-17), and turning on secret scanning, push protection and private vulnerability reporting (SA-16). |
+
 ## How this was checked
 
 | Check | Result |

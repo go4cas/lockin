@@ -188,6 +188,7 @@ input[type="date"].input, input[type="time"].input { -webkit-appearance: none; a
 .prize:last-child { border-bottom: 0; }
 .prize b { color: var(--color-joker); width: 40px; flex: none; }
 .credit { text-align: center; font-size: 12px; color: var(--color-text-muted); padding: 4px 0 8px; }
+.credit a { color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }

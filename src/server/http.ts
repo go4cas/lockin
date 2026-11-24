@@ -22,7 +22,12 @@ export interface RouteOptions {
 
 interface Route { method: Method; parts: string[]; handler: Handler; opts: RouteOptions }
 
-export const PAGE_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'";
+// SA-13: base-uri, form-action, object-src and script-src added. style-src keeps 'unsafe-inline'
+// because Arrow sets style attributes and style-src-attr is not in the display baseline (Safari 14).
+export const PAGE_CSP = "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
+/** SA-13: sent on every response when the public URL is https. */
+export const HSTS = "max-age=31536000";
+export const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=()";
 export const UPLOAD_CSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
 
 /** Error body: `{ error: { code, message } }` with a plain-English message. */
@@ -106,12 +111,27 @@ export function tooLarge(): Response {
   return errorResponse(413, "too_large", "That request is too big.");
 }
 
-/** Adds the headers every response carries (12.4). Pages get the page CSP unless a handler set its own. */
-export function withSecurityHeaders(res: Response): Response {
+export interface SecurityHeaderOptions {
+  /** The public URL is https: add Strict-Transport-Security (SA-13). */
+  https?: boolean;
+  /** An API answer: `Cache-Control: no-store` unless the handler chose its own (SA-13). */
+  api?: boolean;
+}
+
+/**
+ * Adds the headers every response carries (12.4, SA-13). Pages get the page CSP unless a
+ * handler set its own; API answers are not stored by browsers or proxies.
+ */
+export function withSecurityHeaders(res: Response, opts: SecurityHeaderOptions = {}): Response {
   const h = res.headers;
   try {
     h.set("X-Content-Type-Options", "nosniff");
     h.set("Referrer-Policy", "no-referrer");
+    h.set("Cross-Origin-Opener-Policy", "same-origin");
+    h.set("Cross-Origin-Resource-Policy", "same-origin");
+    h.set("Permissions-Policy", PERMISSIONS_POLICY);
+    if (opts.https) h.set("Strict-Transport-Security", HSTS);
+    if (opts.api && !h.has("Cache-Control")) h.set("Cache-Control", "no-store");
     if (!h.has("Content-Security-Policy") && (h.get("Content-Type") ?? "").startsWith("text/html")) {
       h.set("Content-Security-Policy", PAGE_CSP);
     }
@@ -119,7 +139,7 @@ export function withSecurityHeaders(res: Response): Response {
   } catch {
     // Immutable headers (for example a fetched Response): copy it.
     const copy = new Response(res.body, res);
-    return withSecurityHeaders(copy);
+    return withSecurityHeaders(copy, opts);
   }
 }
 

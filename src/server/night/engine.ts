@@ -26,8 +26,14 @@ export const COALESCE_MS = 100;
 /** A timed change (the lock) that could not be saved is tried again this soon (SA-09). */
 export const TIMER_RETRY_MS = 2_000;
 const REJOIN_TRIES = 5;
-/** Wrong rejoin tries a minute from one client IP, across all its connections. Higher than REJOIN_TRIES because a pub's phones often share one address. */
+/** Wrong rejoin tries a minute from one client IP, across all its connections, before its wrong codes answer too_many_tries (a right code still works, SA-14). Higher than REJOIN_TRIES because a pub's phones often share one address. */
 const REJOIN_TRIES_PER_IP = 10;
+/**
+ * SA-14: past REJOIN_TRIES_PER_IP an IP's wrong codes are refused but a right rejoin code still
+ * works, so one phone guessing on the pub Wi-Fi cannot stop every other phone rejoining. This
+ * many wrong codes a minute from one IP stops everything from it, so guessing stays bounded.
+ */
+const REJOIN_HARD_PER_IP = 60;
 const MINUTE = 60_000;
 /** Wrong room codes a minute (SA-01): per connection, per client IP, and from everyone together. */
 export const JOIN_TRIES = 3;
@@ -118,6 +124,28 @@ const LINE_KEEP: Record<string, (keyof Lines)[]> = {
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isInt = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v);
 const len = (s: string) => [...s].length;
+
+/** A ZWJ that does not join two emoji (a family, a profession): removed like any other invisible character. */
+const LONE_ZWJ = /(?<!\p{Extended_Pictographic}\uFE0F?)\u200D|\u200D(?!\p{Extended_Pictographic})/gu;
+
+/**
+ * A team name as stored and shown (audit SA-15): NFKC (so full-width and other compatibility
+ * letters become plain ones), with control, zero-width and bidirectional characters removed
+ * (except ZWJ inside an emoji) and runs of spaces made one. Length is counted after this.
+ */
+export function cleanTeamName(v: string): string {
+  return v.normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .replace(/[\p{Cc}\p{Cf}]/gu, (c) => (c === "\u200D" ? c : ""))
+    .replace(LONE_ZWJ, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+
+/** The key that makes two names the same team (SA-15): the clean name, case-folded, with every invisible joiner gone. */
+export function teamNameKey(name: string): string {
+  return cleanTeamName(name).replace(/\u200D/g, "").toUpperCase().toLowerCase();
+}
 
 export class Engine {
   /** The open night, or null when idle. */
@@ -1108,7 +1136,7 @@ export class Engine {
 
   private cleanName(v: unknown): string | null {
     if (typeof v !== "string") return null;
-    const name = v.replace(/\s+/g, " ").trim();
+    const name = cleanTeamName(v);
     return len(name) >= 1 && len(name) <= 30 ? name : null;
   }
 
@@ -1123,7 +1151,7 @@ export class Engine {
     const check = this.joinCheck(actor, a);
     if (!check.ok) return check;
     const name = check.name;
-    const nameKey = name.toLowerCase();
+    const nameKey = teamNameKey(name);
     const used = new Map<number, number>();
     for (const t of this.teams()) used.set(t.colour, (used.get(t.colour) ?? 0) + 1);
     let colour = 1;
@@ -1165,11 +1193,14 @@ export class Engine {
     const connKey = `c:${actor.connId}`;
     const ipKey = actor.ip ? `ip:${actor.ip}` : null;
     if (this.recentTries(this.rejoinTries, connKey, now).length >= REJOIN_TRIES) return fail("too_many_tries");
-    if (ipKey && this.recentTries(this.rejoinTries, ipKey, now).length >= REJOIN_TRIES_PER_IP) return fail("too_many_tries");
-    if (this.rejoinTarget(a)) return null;
+    const ipTries = ipKey ? this.recentTries(this.rejoinTries, ipKey, now).length : 0;
+    const target = this.rejoinTarget(a);
+    // Move codes (8 characters, made by the host for one team) skip the IP limits (SA-14).
+    if (!target?.viaMove && ipTries >= REJOIN_HARD_PER_IP) return fail("too_many_tries");
+    if (target) return null;
     this.pruneRejoinTries(now);
     for (const key of ipKey ? [connKey, ipKey] : [connKey]) this.rejoinTries.set(key, [...this.recentTries(this.rejoinTries, key, now), now]);
-    return fail("bad_code");
+    return fail(ipTries >= REJOIN_TRIES_PER_IP ? "too_many_tries" : "bad_code");
   }
 
   private teamRejoin(actor: Extract<Actor, { role: "team" }>, a: Record<string, unknown>): CommandResult {
@@ -1210,7 +1241,7 @@ export class Engine {
     const name = this.cleanName(a.name);
     if (!name) return fail("bad_args", "Team names are 1 to 30 characters.") as Refusal;
     if (actor.teamId && this.m!.teams.get(actor.teamId)?.removedAt === null) return fail("bad_args", "This phone is already in a team.") as Refusal;
-    const nameKey = name.toLowerCase();
+    const nameKey = teamNameKey(name);
     if (this.teams().some((t) => t.nameKey === nameKey)) return fail("team_has_phone") as Refusal;
     if (this.teams().length >= this.quiz.settings.maxTeams) return fail("night_full") as Refusal;
     return { ok: true, name };
@@ -1295,7 +1326,7 @@ export class Engine {
     if (!team) return fail("not_found", "That team could not be found.");
     const name = this.cleanName(a.name);
     if (!name) return fail("bad_args", "Team names are 1 to 30 characters.");
-    const key = name.toLowerCase();
+    const key = teamNameKey(name);
     if (this.teams().some((t) => t.id !== team.id && t.nameKey === key)) return fail("name_taken");
     team.name = name;
     team.nameKey = key;

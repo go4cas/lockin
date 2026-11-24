@@ -73,14 +73,16 @@ export function manifest(theme: ThemeFile | null): Record<string, unknown> {
 export function personalise(page: string, theme: ThemeFile | null): string {
   const name = escapeHtml(theme?.name?.trim() || DEFAULT_NAME);
   const logo = logoUrl(theme);
+  // Every replacement is a function (SA-18): a string would treat $&, $` and $' in the name as patterns.
   let out = page
-    .replace("<title>Lock-In</title>", `<title>${name}</title>`)
-    .replace('<meta name="apple-mobile-web-app-title" content="Lock-In">', `<meta name="apple-mobile-web-app-title" content="${name}">`);
+    .replace("<title>Lock-In</title>", () => `<title>${name}</title>`)
+    .replace('<meta name="apple-mobile-web-app-title" content="Lock-In">', () => `<meta name="apple-mobile-web-app-title" content="${name}">`);
   // iOS cannot use an SVG as a home-screen icon, so only a PNG or JPEG logo replaces Lock-In's.
   if (logo && logo.type !== "image/svg+xml") {
-    out = out.replace('<link rel="apple-touch-icon" href="/static/phone/icons/apple-touch-icon.png">', `<link rel="apple-touch-icon" href="${escapeHtml(logo.url)}">`);
+    out = out.replace('<link rel="apple-touch-icon" href="/static/phone/icons/apple-touch-icon.png">', () => `<link rel="apple-touch-icon" href="${escapeHtml(logo.url)}">`);
   }
-  if (theme?.colours.background) out = out.replace('<meta name="theme-color" content="#17191b">', `<meta name="theme-color" content="${escapeHtml(theme.colours.background)}">`);
+  const bg = theme?.colours.background;
+  if (bg) out = out.replace('<meta name="theme-color" content="#17191b">', () => `<meta name="theme-color" content="${escapeHtml(bg)}">`);
   return out;
 }
 
