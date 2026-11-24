@@ -12,6 +12,7 @@ import { ClockScheduler } from "./scheduler.ts";
 import { fileSources, type Sources } from "./sources.ts";
 import * as brandingModule from "../branding/index.ts";
 import type { VenueFile } from "../../shared/formats.ts";
+import type { HistoryDetail } from "../../shared/protocol.ts";
 
 /** What B4's branding store offers (PR 11): used when it is there, else the engine reads the files itself. */
 interface BrandingLike {
@@ -37,18 +38,8 @@ import { displayView, viewFor } from "./views.ts";
 /** The engine of each app, so tests can reach it (for example to run due timers on a fake clock). */
 export const engines = new WeakMap<App, { engine: Engine; scheduler: ClockScheduler }>();
 
-/**
- * GET /api/history/:nightId (agreed with B5 and Cas, 2026-11-24): answers for
- * the open night as well as saved ones. One answer row per team per question
- * it answered; no row means no answer. Asked sudden-death questions come
- * last, as a round with index -1 titled "Deadlock".
- */
-export interface HistoryDetail {
-  night: { id: string; quizTitle: string; openedAt: number; endedAt: number | null; status: "open" | "ended" };
-  standings: (import("../../shared/rules-api.ts").StandingRow & { name: string })[];
-  rounds: { index: number; title: string; questions: { id: string; number: number; text: string; answerText: string }[] }[];
-  answers: { teamId: string; questionId: string; display: string; mark: "correct" | "wrong" | "pending" }[];
-}
+/** GET /api/history/:nightId answers with the shared HistoryDetail (src/shared/protocol.ts, TECH-SPEC 9.2). */
+export type { HistoryDetail };
 
 export function register(app: App): void {
   const scheduler = new ClockScheduler(app.clock);

@@ -754,8 +754,8 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `POST /api/theme/assets` | B4 | multipart `file`, `kind: "logo" \| "displayBackground" \| "font"` → `{ file: "assets/<name>" }` |
 | `GET /api/venue` / `PUT /api/venue` | B4 | `VenueFile` |
 | `GET /api/theme/preview.css` | B4 | `?theme=<url-encoded ThemeFile JSON>` → CSS, for the live preview (H-16) |
-| `GET /api/history` | B1 | → `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` |
-| `GET /api/history/:nightId` | B1 | → `{ night, standings: StandingRow & { name }[], rounds, answers }` |
+| `GET /api/history` | B1 | → `HistoryList`: `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` (saved nights, newest first) |
+| `GET /api/history/:nightId` | B1 | → `HistoryDetail` (`src/shared/protocol.ts`): `{ night, standings, rounds, answers }`. Also answers for the night that is open now, so the console can change marks on earlier rounds (H-13; agreed with Cas 2026-11-24). `answers` has one row per team per question answered, with its display text and mark. |
 
 Upload limits: images 5 MB, logo 2 MB, fonts 2 MB. Files are checked by their first bytes, stored under generated names, and served with `X-Content-Type-Options: nosniff`.
 
@@ -1148,7 +1148,7 @@ Done when:
 - Marking uses `Rules`: auto-marking at lock, review groups, `mark.group` adds accepted answers to the snapshot and the quiz file (through B3's quiz store interface `saveAcceptedAnswer(quizId, questionId, text)`, stubbed if B3 has not merged).
 - Joker rules (P-04), Quiz Start closing joining, one phone per team, rejoin and move codes (section 11) are tested.
 - Sudden death runs through `sd.start`, `sd.ask`, `sd.reveal` with tied-team-only answering, and its outcomes feed `rank`.
-- Quiz End writes `results`; `GET /api/history` and `/api/history/:id` return saved nights; mark changes are logged (H-13).
+- Quiz End writes `results`; `GET /api/history` returns saved nights and `/api/history/:id` saved nights and the open night (9.2); mark changes are logged (H-13).
 - Lines and flashes (10.4) come from `CopyPicker` (a fake until B4 merges) with no repeats per pool.
 - View sends are coalesced as in 10.7.
 
@@ -1251,6 +1251,6 @@ Done when:
 ## 15. Open questions
 
 1. **The pilot pub's TV.** Cas reports a modern smart TV with a streaming or casting device attached (2026-11-24), so either can show the display. The make and model of both (or the browser version in the TV's settings) confirm they meet the display baseline (1.2, 3.3) and decide which setups are tested there before `v1.0.0`. Cas to confirm later.
-2. **"Hide answers" switch on the console (1.1).** A guard against a mirrored display showing the console. Small, but a scope addition, so it needs Cas's yes before Design or B5 adds it.
+2. **"Hide answers" switch on the console (1.1).** Decided (Cas, 2026-11-24): yes, in v1. B5 adds it on the console only (H-08); no protocol change.
 3. **Round win when everyone scores 0 (8.3).** This spec says such a round has no winner. Cas to confirm.
 4. **Fallback display for older TVs (Later).** The display supports modern browsers only (1.2). If users report TVs below the baseline after launch, a vanilla, classic-script fallback display page could be added, chosen by the same check that B6 adds. Not planned for `v1.0.0`; Cas decides if it is needed.
