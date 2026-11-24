@@ -88,6 +88,54 @@ This PR adds `docs/RELEASE.md`, the host run sheet `docs/RUN-SHEET.md` and the s
 | 2 | Open | Real-hardware checks are listed in RELEASE.md section 10, for Cas before `v1.0.0`. |
 | 12-17 | Open | Unchanged. |
 
+### Status after the code review refactors PR (2026-11-24)
+
+| # | Status | What changed |
+|---|---|---|
+| 12 | **Fixed** | The guard for `lock` in sudden death reads the sudden-death question's own status, so `can.lock` is false once it is revealed. The command matrix test (`tests/night/command-matrix.test.ts`) changes in exactly that row, in both lock modes. |
+| 2 | Open | Real-hardware checks, Cas's before `v1.0.0` (RELEASE.md section 10). |
+| 13-17 | Open | Nits and doc drift, unchanged; none blocks the pilot. |
+
+## Code review and security audit: where every item stands (2026-11-24)
+
+The external code review (LI-001 to LI-023) and security audit (SA-01 to SA-21, `docs/SECURITY-AUDIT.md`) of `8060221`, item by item. "This PR" is the code review refactors PR.
+
+### Code review
+
+| Item | Priority | Title | Status |
+|---|---|---|---|
+| LI-001 | P1 | Detect silent WebSocket failures and settle pending commands | Fixed, #21 |
+| LI-002 | P2 | One date and year interpretation for validation and marking | Fixed, #21 |
+| LI-003 | P2 | Version question image URLs by night and image | Fixed, #21 |
+| LI-004 | P2 | No silent collisions in quiz image file names | Fixed, #21 (with SA-20) |
+| LI-005 | P2 | Sudden-death marks consistent with revealed outcomes | Fixed, #21 |
+| LI-006 | P2 | Manual marks for teams that sent no answer | Fixed, #21 |
+| LI-007 | P2 | Keep branding edits made while a save is in progress | Fixed, #21 |
+| LI-008 | P2 | Scope phone drafts and local choices to the night and team | Fixed, #21 |
+| LI-009 | P2 | Separate editable drafts from playable quizzes, shared limits | Limits fixed in #23; the separate `QuizDraft` type in this PR |
+| LI-010 | P2 | Parse template expressions in the browser safety checks | Fixed, #23 |
+| LI-011 | P2 | Limit public socket work before cloning the night | Fixed, #22 (with SA-04) |
+| LI-012 | P2 | Explicit forwarded client IP trust | Fixed, #24 (same as SA-06) |
+| LI-013 | P2 | Bounded expiry for login rate-limit state | Fixed, #24 (same as SA-08) |
+| LI-014 | P2 | Commit display pairing only after its file write succeeds | Fixed, #22 |
+| LI-015 | P2 | Enforce real request byte limits while reading bodies | Fixed, #22 (with SA-02) |
+| LI-016 | P2 | Smaller night engine, one commit boundary | This PR: handlers in command modules, a typed command table and exhaustive guard, a command matrix test made from the engine before the split |
+| LI-017 | P2 | Arrow workarounds behind shared rendering primitives | This PR: `public/shared/parts.mjs` (row pools, slot keys, retained screens) used by console, phone and display; display recovery limited to rendering errors, 3 a minute, old tree disposed. Not done: splitting the large display, phone, builder and branding modules (the review puts this after the adapter is stable), and an Arrow upgrade (its own dependency change) |
+| LI-018 | P2 | Reproducible browser checks in CI | Fixed, #23 |
+| LI-019 | P3 | Type command arguments and results across the socket | This PR: `COMMANDS` registry, `CommandArgs`/`CommandResults`, typed `LockInClient` |
+| LI-020 | P3 | Compose services explicitly, no global store selection | This PR: `createServices` once per app, required hub plug-ins checked at start |
+| LI-021 | P3 | Runtime assets apart from design archives | This PR: `assets/` holds copy, tokens, fonts and logo; the binary embeds only `public/` and `assets/`. Not done: generating the three derived-token copies from one source (the parity tests already stop drift, and generation needs a new build step) and stamping the service worker's cache name per release (it fetches network-first, and its shell list is tested against the files and the Arrow chunk) |
+| LI-022 | P3 | Executable design renderer | Fixed, #23 |
+| LI-023 | P2 | Keep the default venue name in production views | Fixed, #21 |
+
+### Security audit
+
+All 21 findings are fixed: SA-01 to SA-05 and SA-07 in #22 (Batch 1), SA-06 and SA-08 to SA-12 in #24 (Batch 2), SA-13 to SA-19 and SA-21 in #25 (Batch 3), SA-20 in #21 with LI-004. Decisions D1 to D6 are all in. What is left is not code:
+
+- Repository settings (SA-16): private vulnerability reporting is on (Cas, 2026-11-24); secret scanning is on by default for public repositories; push protection should be checked (RELEASE.md).
+- On the server: the Cloudflare rate-limit rules and the hardened systemd unit (SA-08, SA-09) are in `deploy/` and RELEASE.md, not yet run on a real VPS.
+- Two small optional extras the audit suggested, not done: extending the browser baseline scan to Arrow `.innerHTML` and view-built `href`/`src`/`style` bindings, and a provenance record for the bundled fonts.
+
 ## How this was checked
 
 | Check | Result |
