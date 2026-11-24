@@ -355,6 +355,7 @@ for (const lockMode of ["question", "round"] as const) {
         expect(report.problems).toEqual([]);
         expect(report.checked.display).toBeGreaterThan(50);
         expect(report.checked.team).toBeGreaterThan(200);
+        expect(report.checked.unbound).toBeGreaterThan(10);   // the "second phone" that never joined (SA-07)
       } catch (e) {
         console.error(night.p?.log().slice(-4000));
         throw e;

@@ -28,7 +28,7 @@ const STANDINGS_PHASES = new Set(["leaderboard", "halftime", "sudden_death", "en
 
 interface Seen { role: "display" | "team"; selfId: string | null; view: DisplayView | TeamView; where: string }
 
-export interface PrivacyReport { checked: { display: number; team: number }; problems: string[] }
+export interface PrivacyReport { checked: { display: number; team: number; unbound: number }; problems: string[] }
 
 export class PrivacyWatch {
   private secrets: { text: string; questionId: string | null }[] = [];
@@ -47,7 +47,7 @@ export class PrivacyWatch {
   /** Checks every display and team `state` message the clients received. */
   check(clients: { role: "host" | "display" | "team"; received: ServerMsg[]; label?: string }[]): PrivacyReport {
     const problems: string[] = [];
-    const checked = { display: 0, team: 0 };
+    const checked = { display: 0, team: 0, unbound: 0 };
     for (const c of clients) {
       if (c.role === "host") continue;
       let selfId: string | null = null;
@@ -57,6 +57,7 @@ export class PrivacyWatch {
         const view = msg.view as DisplayView | TeamView;
         if (c.role === "team" && (view as TeamView).self) selfId = (view as TeamView).self!.id;
         checked[c.role]++;
+        if (c.role === "team" && !(view as TeamView).self) checked.unbound++;
         problems.push(...this.checkOne({ role: c.role, selfId, view, where: `${c.label ?? c.role} seq ${msg.seq} (${view.phase})` }));
       }
     }
@@ -98,6 +99,18 @@ export class PrivacyWatch {
         }
       }
       if (!tv.self && tv.answers.length) out.push(`${where}: answers on an unbound connection`);
+      // 6. SA-07 (D3): an unbound phone gets only phase, venue, night.started and the lobby line.
+      if (!tv.self) {
+        if (tv.teams.length) out.push(`${where}: team names on an unbound connection`);
+        if (tv.standings) out.push(`${where}: standings on an unbound connection`);
+        if (tv.flash) out.push(`${where}: a flash on an unbound connection`);
+        if (tv.questions.length || tv.suddenDeath) out.push(`${where}: questions on an unbound connection`);
+        for (const [k, line] of Object.entries(tv.lines)) if (k !== "lobby" && line) out.push(`${where}: line "${k}" on an unbound connection`);
+        const n = tv.night;
+        if (n && (n.id || n.roomCode || n.joinUrl || n.quizTitle || n.prizes.length || n.teamCount || n.round || n.roundCount)) {
+          out.push(`${where}: night details on an unbound connection`);
+        }
+      }
       rest = { ...tv, answers: [] };   // own answers checked above; search the rest
     }
 

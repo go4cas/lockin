@@ -247,9 +247,11 @@ export function teamView(e: Engine, teamId: string | null): TeamView {
   const base = { ...common(e), role: "team" as const };
   const team = e.m && teamId ? e.m.teams.get(teamId) : undefined;
   const bound = !!team && team.removedAt === null;
-  // REVIEW finding 4: a phone that is not in a team gets no room code and no questions, so the
-  // socket can't be used to read the code or follow the quiz from outside the pub.
-  if (!bound && base.night) base.night = { ...base.night, roomCode: "", joinUrl: "" };
+  // REVIEW finding 4 and SA-07 (D3): a phone that is not in a team gets only what the join,
+  // rejoin and "joining closed" screens need: phase, venue, night.started and the lobby line.
+  // No room code, join key, quiz title, prizes, team names, standings or flashes, so the socket
+  // can't be used to read the code or follow the night from outside the pub.
+  if (!bound) return unboundTeamView(base, e.m ? lines(e).lobby : null);
   if (!e.m) {
     return { ...base, flash: null, self: null, teams: [], questions: [], answers: [], standings: null, suddenDeath: null, lines: lines(e) };
   }
@@ -287,6 +289,18 @@ export function teamView(e: Engine, teamId: string | null): TeamView {
     standings: publicStandings(e),
     suddenDeath: sdv,
     lines: lines(e),
+  };
+}
+
+/** The whole TeamView an unbound phone gets (SA-07, TECH-SPEC 10.3). */
+function unboundTeamView(base: Omit<TeamView, "flash" | "self" | "teams" | "questions" | "answers" | "standings" | "suddenDeath" | "lines">, lobby: Lines["lobby"]): TeamView {
+  const night: NightInfo | null = base.night ? {
+    id: "", roomCode: "", joinUrl: "", quizTitle: "", plannedStart: null, holdingFrom: null, holdingPanels: [], prizes: [],
+    roundCount: 0, round: null, joker: false, lockMode: "question", teamCount: 0, started: base.night.started,
+  } : null;
+  return {
+    ...base, night, flash: null, self: null, teams: [], questions: [], answers: [], standings: null, suddenDeath: null,
+    lines: { ...emptyLines(), lobby },
   };
 }
 
