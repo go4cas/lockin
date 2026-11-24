@@ -59,7 +59,11 @@ export function blocked(r: GuardReader, name: EngineCommand): ErrorCode | null {
     case "timer.resume": return (p === "asking" || p === "sudden_death") && t.state === "paused" ? null : "wrong_phase";
     case "timer.add": return (p === "asking" || p === "sudden_death") && (t.state === "running" || t.state === "paused") ? null : "wrong_phase";
     case "lock":
-      if (p === "sudden_death") return curStatus === "open" || curStatus === "locked" ? null : "wrong_phase";
+      if (p === "sudden_death") {
+        // Not once the question is revealed: locking would do nothing (review finding 12).
+        const sdStatus = s.sd?.current?.status;
+        return sdStatus === "open" || sdStatus === "locked" ? null : "wrong_phase";
+      }
       if (p !== "asking") return "wrong_phase";
       return perRound ? (s.shown === qs.length ? null : "wrong_phase") : (s.shown > 0 ? null : "wrong_phase");
     case "round.finish":

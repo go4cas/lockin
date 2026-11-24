@@ -447,7 +447,6 @@
     "can": [
       "night.update",
       "quiz.end",
-      "lock",
       "mark.group",
       "mark.team",
       "team.rename",
