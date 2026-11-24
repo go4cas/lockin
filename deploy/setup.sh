@@ -12,13 +12,15 @@
 #   --binary <file>     Install this binary instead (for example one you built).
 #   --port <number>     Port on 127.0.0.1 for the Cloudflare tunnel (default 8080).
 #   --repo <owner/name> Where releases are downloaded from (default go4cas/lockin).
-#   --no-journald       Leave the system journal's retention settings alone.
+#   --no-journald       Do not install Lock-In's own log retention file.
 #
 # What it does: installs sqlite3 if missing, makes the lockin system user, installs the
 # binary to /usr/local/bin/lockin (the old one stays as lockin.previous), writes the
 # settings file, installs the systemd units and the backup script, backs up the data before
 # replacing a binary, starts Lock-In, checks it answers, and prints the setup code if no
 # host password is set yet. It never opens a firewall port and never touches Cloudflare.
+# On a server shared with other apps it refuses a port another program already listens on,
+# and its logs go to their own journal namespace, so their retention never touches others.
 set -euo pipefail
 umask 022
 
@@ -48,7 +50,7 @@ while [ $# -gt 0 ]; do
     --port) port="${2:?--port needs a number}"; shift 2 ;;
     --repo) repo="${2:?--repo needs owner/name}"; shift 2 ;;
     --no-journald) journald=0; shift ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
     *) die "unknown option $1 (see --help)" ;;
   esac
 done
@@ -72,6 +74,14 @@ case "$public_url" in *[[:space:]\"\'\$\`\\]*) die "--public-url has a character
 public_url="${public_url%/}"
 case "$port" in ''|*[!0-9]*) die "--port must be a number" ;; esac
 if [ "$port" -lt 1024 ] || [ "$port" -gt 65535 ]; then die "--port must be between 1024 and 65535"; fi
+
+# A shared server: never take a port another app is already listening on.
+if command -v ss >/dev/null; then
+  listeners=$(ss -Hltnp "sport = :$port" 2>/dev/null || true)
+  if [ -n "$listeners" ] && ! grep -q '"lockin"' <<<"$listeners"; then
+    die "port $port is already used by another program on this server. Pick a free port with --port (see: sudo ss -ltnp)"
+  fi
+fi
 
 changed=0     # anything that needs Lock-In restarted
 had_binary=0; [ -x "$BIN" ] && had_binary=1
@@ -169,12 +179,15 @@ for u in lockin.service lockin-backup.service lockin-backup.timer; do
     units_changed=1
   fi
 done
+# Lock-In logs to its own journal namespace (LogNamespace=lockin in the unit), so this
+# retention applies to Lock-In's logs only, never to other apps on the server.
 if [ "$journald" = 1 ]; then
-  install -d -m 755 /etc/systemd/journald.conf.d
-  if ! cmp -s "$here/journald-lockin.conf" /etc/systemd/journald.conf.d/lockin.conf; then
-    install -m 644 "$here/journald-lockin.conf" /etc/systemd/journald.conf.d/lockin.conf
-    say "set the journal to keep logs for 30 days"
-    systemctl restart systemd-journald || say "warning: could not restart systemd-journald; the new retention applies after a reboot"
+  if ! cmp -s "$here/journald-lockin.conf" /etc/systemd/journald@lockin.conf; then
+    install -m 644 "$here/journald-lockin.conf" /etc/systemd/journald@lockin.conf
+    say "set Lock-In's own logs to be kept for 30 days"
+    if systemctl is-active --quiet systemd-journald@lockin.service; then
+      systemctl restart systemd-journald@lockin.service || say "warning: could not restart Lock-In's journal; the new retention applies after a reboot"
+    fi
   fi
 fi
 if [ "$units_changed" = 1 ]; then
@@ -195,12 +208,14 @@ fi
 # 7. Check it answers on 127.0.0.1.
 ok=0
 for _ in $(seq 1 30); do
-  if curl -fsS --max-time 2 "http://127.0.0.1:$port/api/ping" >/dev/null 2>&1; then ok=1; break; fi
+  # Check the answer is Lock-In's, not another app's on the same port.
+  body=$(curl -fsS --max-time 2 "http://127.0.0.1:$port/api/ping" 2>/dev/null || true)
+  if [[ "$body" == *'"app":"lockin"'* ]]; then ok=1; break; fi
   sleep 1
 done
 if [ "$ok" != 1 ]; then
   echo "setup: Lock-In did not answer on 127.0.0.1:$port within 30 seconds. Its last log lines:" >&2
-  journalctl -u lockin.service -n 30 --no-pager >&2 || true
+  journalctl --namespace=lockin -u lockin.service -n 30 --no-pager >&2 || true
   if [ -f "$BIN.previous" ]; then echo "setup: to go back to the previous binary: sudo cp -p $BIN.previous $BIN && sudo systemctl restart lockin" >&2; fi
   exit 1
 fi

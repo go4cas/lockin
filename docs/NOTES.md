@@ -441,3 +441,13 @@ LI-016, LI-017, LI-019, LI-020, LI-021 and the draft-type half of LI-009, before
 - **LI-017, what the three clients had in common.** Console and phone each had an identical `pool()`; the phone had generation keys; both kept screens built once and hidden (`mountParts` and `mount`, the console showing a microtask later, the phone at once with a view copy per screen). These now share `public/shared/parts.mjs`, keeping each client's timing. The display keeps its own 30 ms blank swap between phases (it is the only client that animates a swap). Its error listener used to remount on any error, endlessly; now only errors from `/vendor/arrow/`, `/static/display/` or `parts.mjs` count, at most 3 a minute, and the old tree is disposed first. `window.LockInDisplayRecovery` shows the counts. The stress check (`tests/display/stress.cjs`) has a recovery check.
 - **LI-021.** Runtime files moved to `assets/` with `git mv`; public URLs are unchanged. Design notes and wireframes stay in `docs/design/` and link to `assets/`. Copy pools are now edited in `assets/copy.en.json`.
 - **Not done, on purpose:** generating the three derived-token copies (parity tests already hold them equal), a per-release service worker cache name (network-first already), splitting the big client modules, and any Arrow upgrade. Each is listed in REVIEW.md with its reason.
+
+## Release: sharing the VPS with other apps (2026-11-24)
+
+Lock-In goes on Cas's existing VPS next to three other apps behind one Cloudflare tunnel. Checked deploy/ and RELEASE.md against that setup:
+
+- **Port 8080 is a common default** (another app on the pilot VPS already uses it). Lock-In would fail to bind and restart forever, and `setup.sh`'s check of `/api/ping` could pass on the other app's answer. Fix: `setup.sh` refuses a port another program listens on (`ss -ltnp`), and the ping check now needs `"app":"lockin"` in the answer.
+- **Log retention was server-wide.** `journald.conf.d/lockin.conf` set 30 days for every app's logs. Fix: the service logs to its own namespace (`LogNamespace=lockin`, systemd 245+), and the 30-day file is `/etc/systemd/journald@lockin.conf`. Logs are read with `journalctl --namespace=lockin`.
+- **The rate-limiting rule matched paths on the whole domain.** Fix: the expressions include `http.host`. Free plan allows one rate rule per domain, so RELEASE.md says to check none is in use.
+- **CPU:** `CPUQuota=150%` beside `MemoryMax=1G`, the same caps as the other apps.
+- RELEASE.md: reuse an existing tunnel (add a hostname, no second `cloudflared`); zone settings are shared, so check rather than change.

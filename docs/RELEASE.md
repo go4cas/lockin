@@ -18,7 +18,7 @@ The files in [`deploy/`](../deploy/) do the server side:
 | `deploy/restore.sh` | Puts a backup back, on this server or a new one. |
 | `deploy/systemd/lockin.service` | The service: restarts on any exit, own user, hardened. |
 | `deploy/systemd/lockin-backup.service`, `.timer` | The daily backup at 05:00 server time. |
-| `deploy/journald-lockin.conf` | Keeps logs for 30 days. |
+| `deploy/journald-lockin.conf` | Keeps Lock-In's own logs for 30 days. |
 
 Contents:
 
@@ -99,16 +99,28 @@ Releases are built by GitHub, not on a laptop, so every binary can be tied to a 
    sudo lockin/deploy/setup.sh --public-url https://quiz.example.com --version v1.0.0
    ```
 
-   Use your real quiz address. `setup.sh`:
+   Use your real quiz address. On a server that already runs other apps, add `--port <free port>` (see [Sharing a server](#sharing-a-server-with-other-apps)). `setup.sh`:
 
    - installs `sqlite3` and `curl` if missing (the backup needs `sqlite3`);
    - adds a system user `lockin` with no login shell;
    - downloads the release binary for this CPU, checks its SHA-256 and installs it as `/usr/local/bin/lockin`;
    - writes `/etc/lockin/lockin.env` (public URL, port, `LOCKIN_BIND=127.0.0.1`; never secrets);
-   - installs the service, the backup script and timer, and the 30-day log setting;
-   - starts Lock-In, checks it answers on `http://127.0.0.1:8080/api/ping`, and prints the setup code.
+   - refuses a port another program already listens on;
+   - installs the service, the backup script and timer, and the 30-day log setting for Lock-In's own logs;
+   - starts Lock-In, checks that it is Lock-In answering on `http://127.0.0.1:<port>/api/ping`, and prints the setup code.
 
-   Running it again changes only what differs and restarts Lock-In only if something changed. Later runs need no options: it keeps the saved public URL and port. To install a binary you have (for example one you built with `bun run build`), use `--binary <file>` instead of `--version`. Pass `--no-journald` if the server's journal settings are someone else's to decide.
+   Running it again changes only what differs and restarts Lock-In only if something changed. Later runs need no options: it keeps the saved public URL and port. To install a binary you have (for example one you built with `bun run build`), use `--binary <file>` instead of `--version`. Pass `--no-journald` to skip Lock-In's log retention file.
+
+### Sharing a server with other apps
+
+Lock-In is made to sit next to other apps on one VPS without touching them:
+
+- **Its own user, folders and settings:** user `lockin`; `/usr/local/bin/lockin`, `/usr/local/lib/lockin/`, `/etc/lockin/`, `/var/lib/lockin/`. No global Bun: the binary carries its own.
+- **Its own port, on `127.0.0.1` only.** The default is 8080, which other apps often use. Before the first run, list the ports in use with `sudo ss -ltnp` and pass a free one with `--port` (for example `--port 8092`). `setup.sh` refuses a port another program is listening on, and checks the answer on that port really is Lock-In's. The port is saved, so later runs keep it.
+- **Its own logs:** the service writes to its own journal namespace (`LogNamespace=lockin`), so its 30-day retention applies to Lock-In's logs only. Read them with `journalctl --namespace=lockin` (see [Logs](#8-logs)).
+- **Capped:** at most 1 GB of memory and 150% CPU.
+- **Its own backups:** in `/var/lib/lockin/backups`, at 05:00 server time.
+- **The same tunnel:** if `cloudflared` already runs on the server, Lock-In gets one more public hostname on that tunnel (see [The tunnel](#the-tunnel)); nothing is installed and no port is opened.
 
 The data folder is `/var/lib/lockin`, owned by `lockin`, mode `0700`; Lock-In keeps its files there `0600` (SA-10). Do not loosen these modes: the folder holds the password hash, the rejoin codes and every quiz's answers.
 
@@ -118,17 +130,18 @@ The data folder is `/var/lib/lockin`, owned by `lockin`, mode `0700`; Lock-In ke
 
 - `Restart=always`, `RestartSec=1` and no start limit: Lock-In stops itself on an error nothing caught (SA-09), and a fresh process picks up the night from the database within a second or two;
 - its own user, `NoNewPrivileges`, `ProtectSystem=strict` with only `/var/lib/lockin` writable, `PrivateTmp`, no capabilities, kernel and device protections, `MemoryMax=1G`;
-- `IPAddressAllow=localhost` and `IPAddressDeny=any`.
+- `IPAddressAllow=localhost` and `IPAddressDeny=any`;
+- `CPUQuota=150%` and its own journal namespace, `LogNamespace=lockin`, for sharing a server.
 
-It does not set `MemoryDenyWriteExecute`, because Bun's JavaScript engine compiles code while running. These settings have been checked with `systemd-analyze verify` but not yet on a live VPS: if Lock-In will not start after setup, `journalctl -u lockin -n 50` shows why.
+It does not set `MemoryDenyWriteExecute`, because Bun's JavaScript engine compiles code while running. These settings have been checked with `systemd-analyze verify` but not yet on a live VPS: if Lock-In will not start after setup, `journalctl --namespace=lockin -u lockin -n 50` shows why (and `journalctl -u lockin -n 20` shows systemd's own lines about starting it).
 
 Useful commands:
 
 ```sh
 systemctl status lockin                  # is it running
 sudo systemctl restart lockin            # restart (a night in progress carries on)
-journalctl -u lockin -f                  # follow the log
-curl -s http://127.0.0.1:8080/api/ping   # {"app":"lockin","version":"1.0.0"}
+journalctl --namespace=lockin -f         # follow the log
+curl -s http://127.0.0.1:8080/api/ping   # {"app":"lockin","version":"1.0.0"} (use your port)
 ```
 
 ## 3. Cloudflare
@@ -137,35 +150,39 @@ These are steps in your Cloudflare account; nothing in the repo does them.
 
 ### The tunnel
 
+**If the server already has a tunnel** for other apps, do not install a second `cloudflared`: in Zero Trust, Networks, Tunnels, open that tunnel and do step 3 only, adding Lock-In's hostname with Lock-In's port. Every app on the tunnel gets its own hostname and its own port.
+
 1. In the Cloudflare dashboard, go to Zero Trust, then Networks, then Tunnels, and create a tunnel of type **Cloudflared**. Name it after the server.
 2. Choose Debian (64-bit) and run the install commands it shows on the VPS. The last one looks like `sudo cloudflared service install <token>`: that token is a secret, so do not paste it anywhere else or commit it.
-3. Add a public hostname (the dashboard may call it a published application route): your quiz address, for example `quiz.example.com`, with service type **HTTP** and URL **`127.0.0.1:8080`** (the port from `setup.sh`).
+3. Add a public hostname (the dashboard may call it a published application route): your quiz address, for example `quiz.example.com`, with service type **HTTP** and URL **`127.0.0.1:<port>`** (the port from `setup.sh`, 8080 unless you chose another).
 4. Open `https://quiz.example.com/api/ping` in a browser. It should show `{"app":"lockin",...}`.
 
 `cloudflared` runs as its own systemd service and restarts itself. It updates through the Cloudflare package repository with the rest of the system (`sudo apt upgrade`).
 
 ### Zone settings
 
-In the domain's settings:
+These settings belong to the whole domain (the zone), so on a domain other sites share, check them rather than change them: Lock-In needs nothing unusual, and each item below is fine for ordinary sites. In the domain's settings:
 
 - **SSL/TLS:** Always Use HTTPS on. Lock-In sends HSTS itself when its public URL is `https`.
 - **Network:** WebSockets on (the default). Phones, the display and the console all use `/ws`; Cloudflare closes idle sockets after 100 s, and Lock-In pings every 25 s, so nothing else is needed.
-- **Caching:** add no Cache Rules and no "Cache Everything" for this hostname. Lock-In marks its own responses (`no-cache` with ETags for app files, `no-store` for the API and pages, `private` for question pictures), and a cache rule could serve one team's or the host's answer to someone else.
+- **Caching:** add no Cache Rules and no "Cache Everything" for this hostname. Browser Cache TTL set to "Respect existing headers" is right for Lock-In. Lock-In marks its own responses (`no-cache` with ETags for app files, `no-store` for the API and pages, `private` for question pictures), and a cache rule could serve one team's or the host's answer to someone else.
 - **Do not** turn on "I'm Under Attack" mode or a challenge for this hostname during a night: phones reconnecting to `/ws` cannot answer a browser challenge.
 
 ### Rate-limiting rules
 
 Lock-In limits sign-ins, joins and sockets per visitor itself (SA-01, SA-08, SA-14). The Cloudflare rules stop a flood before it reaches the server. Go to Security, then WAF, then Rate limiting rules.
 
+**Always include the hostname** in the expression (replace `quiz.example.com` with yours). Rules apply to the whole domain, and other sites on it may have their own `/ws` or `/api/auth/` paths that this rule must not touch.
+
 **Mind the pub's Wi-Fi.** Every phone on the pub's Wi-Fi, the host and the display reach Cloudflare from the same address. Lock-In allows up to 120 sockets per address for that reason, so the `/ws` limit must be generous: a whole room reconnecting at once after a Wi-Fi blip must never trip it.
 
-On the **Free plan** (one rule, counted per IP over 10 seconds, blocking for 10 seconds; checked against Cloudflare's docs on 2026-11-24), make one rule:
+On the **Free plan** (one rule per domain, counted per IP over 10 seconds, blocking for 10 seconds; checked against Cloudflare's docs on 2026-11-24), make one rule. If another site on the domain already uses the one rule, decide which needs it more; Lock-In's own limits still hold without it.
 
 - Name: `Lock-In sign-in and sockets`
 - When incoming requests match (expression editor):
 
   ```
-  (starts_with(http.request.uri.path, "/api/auth/")) or (http.request.uri.path eq "/ws")
+  (http.host eq "quiz.example.com") and ((starts_with(http.request.uri.path, "/api/auth/")) or (http.request.uri.path eq "/ws"))
   ```
 
 - Characteristics: IP. Rate: **100 requests per 10 seconds**. Action: Block, for 10 seconds.
@@ -174,8 +191,8 @@ On **Pro or higher** (two rules, longer periods), make two:
 
 | Rule | Expression | Rate | Block for |
 |---|---|---|---|
-| Lock-In sign-in | `starts_with(http.request.uri.path, "/api/auth/")` | 20 requests per 1 minute | 10 minutes |
-| Lock-In sockets | `http.request.uri.path eq "/ws"` | 300 requests per 1 minute | 1 minute |
+| Lock-In sign-in | `http.host eq "quiz.example.com" and starts_with(http.request.uri.path, "/api/auth/")` | 20 requests per 1 minute | 10 minutes |
+| Lock-In sockets | `http.host eq "quiz.example.com" and http.request.uri.path eq "/ws"` | 300 requests per 1 minute | 1 minute |
 
 After a first real night, look at Security, then Events: if a rule ever fired on the pub's own address, raise its rate.
 
@@ -294,12 +311,12 @@ Everything Lock-In knows is in the data folder, and the public address lives in 
 Lock-In writes to the system journal: start-up lines (version, public URL, the setup code while no password is set), errors, and one line per security event, `Security: <event> from <ip>` (SA-17). Events include failed and good sign-ins, limiter trips, display pairings and teams joining or being removed; no line holds a password, code or token.
 
 ```sh
-journalctl -u lockin --since today                    # tonight's log
-journalctl -u lockin --since "7 days ago" | grep "Security:"
-journalctl -u lockin -p err --since "7 days ago"      # errors only
+journalctl --namespace=lockin --since today                    # tonight's log
+journalctl --namespace=lockin --since "7 days ago" | grep "Security:"
+journalctl --namespace=lockin -p err --since "7 days ago"      # errors only
 ```
 
-**Retention: 30 days.** Security lines hold visitors' IP addresses, which are personal information, so `setup.sh` sets the journal to keep logs for 30 days and at most 500 MB (`/etc/systemd/journald.conf.d/lockin.conf`). That setting covers the whole journal on the server. To keep logs longer or shorter, edit `MaxRetentionSec` in that file and run `sudo systemctl restart systemd-journald`; `setup.sh` puts it back unless run with `--no-journald`.
+**Retention: 30 days.** Security lines hold visitors' IP addresses, which are personal information, so Lock-In logs to its own journal namespace (`LogNamespace=lockin`) and `setup.sh` sets that namespace to keep logs for 30 days and at most 500 MB (`/etc/systemd/journald@lockin.conf`). It does not change the retention of other apps' logs on the server. To keep Lock-In's logs longer or shorter, edit `MaxRetentionSec` in that file and run `sudo systemctl restart systemd-journald@lockin`; `setup.sh` puts it back unless run with `--no-journald`. A plain `journalctl` does not show Lock-In's lines: add `--namespace=lockin`.
 
 ## 9. Repository settings
 

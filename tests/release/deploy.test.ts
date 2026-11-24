@@ -50,6 +50,15 @@ describe("deploy scripts", () => {
     expect(s).not.toMatch(/ufw allow|iptables -A|0\.0\.0\.0 *$/m);
     expect(s).toContain("sha256sum -c");
   });
+
+  test("setup refuses a port another app uses and checks it is Lock-In that answers", () => {
+    const s = readFileSync(join(DEPLOY, "setup.sh"), "utf8");
+    expect(s).toContain('ss -Hltnp "sport = :$port"');
+    expect(s).toContain(`*'"app":"lockin"'*`);
+    // Retention goes to Lock-In's own namespace, never the shared journal.
+    expect(s).toContain("/etc/systemd/journald@lockin.conf");
+    expect(s).not.toContain("journald.conf.d");
+  });
 });
 
 describe("systemd units", () => {
@@ -79,6 +88,11 @@ describe("systemd units", () => {
     expect(b).toMatch(/^User=lockin$/m);
     expect(b).toMatch(/^PrivateNetwork=yes$/m);
     expect(readFileSync(join(DEPLOY, "systemd/lockin-backup.timer"), "utf8")).toMatch(/^Persistent=true$/m);
+  });
+
+  test("logs go to their own namespace and share the CPU (shared server)", () => {
+    expect(lines.has("LogNamespace=lockin")).toBe(true);
+    expect(lines.has("CPUQuota=150%")).toBe(true);
   });
 
   test("journal retention is 30 days (SA-17)", () => {
