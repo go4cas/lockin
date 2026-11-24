@@ -2,6 +2,175 @@
 
 Independent review of `main` at `bed9010` (B0 to B9 merged, PRs 6 to 17), 2026-11-24. The reviewer did not build any of it and judged only from the repository, the test run and a night played against the compiled binary. **No code was changed.** This file is written to be handed to a separate code review and security audit.
 
+## v1.0.0 final review (2026-11-24)
+
+A fresh, independent check of `main` at `de564bb` (everything through PR #31 merged), before tagging `v1.0.0`. The reviewer did not write the code. **No code, docs or deploy files were changed**; this section is the only edit. The older sections below are the earlier pilot review and the fix history, kept as they were.
+
+### Verdict
+
+**Code: go.** Every MVP "Done when" that can be checked from the repository passes, every test passes, and the release binary passed the load test, both full nights, the kill and restart checks, the privacy checks and all browser checks.
+
+**Tagging `v1.0.0`: not yet.** Do these first, in this order:
+
+| # | Blocker | Why it blocks the tag | Who |
+|---|---|---|---|
+| B1 | **Port 8080 is taken on the shared VPS** (openGym's web container listens on `127.0.0.1:8080`). `deploy/setup.sh` defaults to 8080 **and its health check would wrongly report success**: Lock-In refuses to start ("the port is already in use", exit 3) and systemd restarts it every second for ever, while `curl -f http://127.0.0.1:8080/api/ping` gets openGym's page with a 200, so setup prints "Lock-In is running". Reproduced locally (see "How this was checked"). Fix: a free default port (8092 sits next to Audition's 8091), and make the check require `"app":"lockin"` in the ping reply. | `deploy/` is fetched from the tag (`git clone --branch v1.0.0`), so the fix must be in the tag. Workaround: `--port 8092`, which still leaves the false-success check. | Release walkthrough thread |
+| B2 | **The log setting changes the whole server's journal.** `setup.sh` installs `/etc/systemd/journald.conf.d/lockin.conf` by default (`Storage=persistent`, `MaxRetentionSec=30day`, `SystemMaxUse=500M`), which applies to Market Jury, openGym, Audition and cloudflared too, and restarts `systemd-journald`. On the shared VPS this should be off by default, with Lock-In's 30-day limit for the IP addresses in `Security:` lines kept another way, for example a journal namespace (`LogNamespace=lockin` in the unit, with its own `journald@lockin.conf`). | Same as B1: the default ships in the tag. Workaround: `--no-journald`, but then the 30-day limit (SA-17) is not set. | Release walkthrough thread |
+| B3 | **RELEASE.md section 3 says to create a new tunnel and install `cloudflared`.** The standard is the one `hostinger-vps` tunnel shared by every VPS app: add a public hostname route only, no new install. Also: point it at `http://127.0.0.1:<port>`, not `localhost` (Lock-In binds IPv4 only and its unit allows only loopback; `localhost` can resolve to `::1`); scope the rate-limiting rule to Lock-In's hostname (`http.host eq "<quiz host>" and (...)`), because a rule without a host applies to `/ws` and `/api/auth/*` on every go4cas.com app, and the Free plan's one rate-limiting rule is the zone's only one; and section 7 ("move to a new server") must not suggest uninstalling `cloudflared` from a box other apps use. | Following the doc as written on the shared box would add a second tunnel or touch the other apps' traffic. | Release walkthrough thread |
+| B4 | **Real-hardware checks** (RELEASE.md section 10, earlier finding 2): the pilot pub's TV or casting device on `/display`, current and previous iOS Safari and Android Chrome, add to home screen on one iPhone and one Android. | T-01, P-01 and P-10 each name a real-device check before `v1.0.0`. | Cas, tomorrow |
+| B5 | **Version bump** to `1.0.0` in `package.json` in its own PR (RELEASE.md section 1). `release.yml` refuses a tag that does not match. | Mechanical. | After B1 to B4 |
+
+Not blockers, but worth doing with B1 to B3 (details under "Production standards" below): no off-server backup copy (Market Jury and Audition both copy to R2), no CPU cap (Audition has one), and a few stale lines in RELEASE.md and this file.
+
+### How this was checked
+
+Everything ran in a fresh clone of `main` at `de564bb`, on Bun **1.4.5** (the pinned minimum; the earlier review ran 1.4.4), with `sqlite3` and `shellcheck` installed so no test was skipped.
+
+| Check | Result |
+|---|---|
+| CI on `de564bb` | success (CI run 61) |
+| `bun run typecheck` | clean |
+| `bun test`, whole suite | **895 pass, 4 skip, 0 fail**, 40,710 `expect()` calls, 60 files, 89 s. The 4 skips are the `shellcheck` and `sqlite3` backup tests; with both installed, `tests/release` gives **13 pass, 0 skip** |
+| `bun run build` and `bun run build -- --baseline` | `dist/lockin-linux-x64` and `dist/lockin-linux-x64-baseline`, 110 MB each, 74 embedded files. `--version` prints `0.1.0` (B5) |
+| Load test on the binary (`LOCKIN_BIN=dist/lockin-linux-x64 bun test tests/load`) | 30 teams, 6×5 quiz, 34.3 s. 990 answers acked (90 changes), 900 stored, **0 dropped**. Send to host sees it: p50 63 ms, p95 103 ms, p99 108 ms, **max 145 ms** (target under 1 s). Ack p95 3 ms. Server memory at the end 67 MB. Privacy problems 0 |
+| Same on the baseline binary | max 111 ms, 0 dropped |
+| Full nights on the binary, both lock modes (`tests/e2e/night.test.ts`) | pass: joker, marking, dispute, halftime, tie, sudden death, Quiz End, history, **kill -9 mid-question** and restart. Privacy watch: per question 80 display and 400 team views, per round 73 and 370, none leaked. Passes on the baseline binary too |
+| Hardening on the binary (`tests/e2e/hardening.test.ts`) | pass: no host command from team or display sockets, full night refuses the next team, rejoin limits, oversize frame, a 2,000-change flood (others' answers reached the host in 55 ms), a 30-phone reconnect storm, **killed while the timer runs out** (locked on restart, later answers too late), **killed during marking and at the leaderboard** (marks, disputes, jokers survive) |
+| Packaging tests on the binary | pass (embedded files, nothing from `docs/`, fonts with licences, runs from an empty folder) |
+| Browser checks on the binary (`LOCKIN_BIN=dist/lockin-linux-x64 bun run --cwd tools/browser checks`, Playwright 1.63.0, Chromium 1243) | **all 5 pass** in 2 min 19 s: night per question and per round (21 and 17 steps, 32/32 UI answers stored each, server killed mid-question and every page reconnected), review fixes, audit batch 2, display stress (3 seeds, 0 errors). `tools/browser` typecheck clean |
+| Binary by hand | `/api/ping` gives `{"app":"lockin","version":"0.1.0"}`; the data folder and every file are `0700`/`0600`; `setup-code` prints the code; the start log shows version, Bun, public URL, data folder, setup code and bind address |
+| B1 reproduction | Something answering 200 on `127.0.0.1:8080`, then `lockin serve` on 8080: "Lock-In cannot start: the port is already in use…", exit 3; `curl -fsS http://127.0.0.1:8080/api/ping` exits 0 with the other app's page |
+| Secrets and venue data | No key patterns in the repo (`git grep` for Anthropic, AWS, GitHub, Slack and private-key formats); no pilot venue name in the repo or the binary |
+
+### MVP features against REQUIREMENTS.md "Done when"
+
+Key: **P** every criterion passes; **M** passes in code, but a real-device or real-server check is still owed. No feature fails. Evidence is a test (file and test name), a run above, or a code line. Each feature was checked against its full criteria list; the evidence column names the strongest proof, and any criterion that is not a plain pass is named.
+
+#### Shared and server
+
+| ID | | Evidence |
+|---|---|---|
+| S-01 One binary on a server | M | Build above; no `dependencies` in `package.json`; one `Bun.serve` in `src/server/app.ts`; secrets scan above. "Runs on a VPS behind a Cloudflare tunnel": not yet run on the VPS (paused while the VPS standards were written; see B1 to B3) |
+| S-03 Host login | P | `tests/server/auth.test.ts` "a setup code is made at start…", "stored only as an argon2id hash, outside the database", "sessions last 7 days and are renewed on use"; reset steps in RELEASE.md section 4 and RUN-SHEET.md; host-only commands: hardening "team and display connections can run no host command" |
+| S-04 Strict server-side lock | P | `tests/night/engine.test.ts` "S-04: an answer 1 ms before locksAt counts, one at locksAt does not"; hardening "killed while the timer runs out…" |
+| S-05 Reconnect and rejoin | P | e2e night kill -9; hardening reconnect storm; browser night (every page reconnected); `tests/night/protocol.test.ts` "rejoin on a new phone…" |
+| S-06 Scoring and joker | P | `tests/rules/standings.test.ts` "joker doubles that round only"; engine "closest questions are marked together at the lock…"; sudden death adds no points (standings "sudden death through rank") |
+| S-07 Positions and tie breaker | P | standings "shared round win…", "joker round win…", three-way tie and sudden-death tests; `tests/display/logic.test.ts` "more round wins…" |
+| S-08 Event history | P | e2e night (history after restart); `tests/night/protocol.test.ts` "history detail with sudden death"; backup covers `lockin.db` (`tests/release` backup and restore) |
+| S-09 Plain files | P | `tests/quizzes/api.test.ts` "a quiz folder copied in by hand appears (S-09)"; theme as `theme/` files; formats in TECH-SPEC 5 |
+| S-10 Copy pools | P | `tests/branding/copy.test.ts` "never repeats the last line…", "fills every placeholder", "skips a line whose placeholder has no value" |
+| S-11 Capacity | P | Load test above: 0 dropped, max 145 ms; 30-team leaderboard paging in the display tests |
+
+#### Host console
+
+| ID | | Evidence |
+|---|---|---|
+| H-01 Quiz library | P | `tests/quizzes/api.test.ts` (create, duplicate, rename, delete, "invalid files show as not ready…"); readiness blocks opening a night |
+| H-02 Quiz builder | P | api "creates the default shape: 6 rounds of 5…", "an incomplete draft saves (autosave)…", "PUT, DELETE and media uploads answer 423 quiz_in_use…" |
+| H-03 Media and answer types | P | `tests/shared/formats.test.ts` validateQuiz, "validDatetime by precision", "names an unknown answer type or media kind instead of crashing" |
+| H-04 Spelling check | P | `spellcheck="true"` on title, round, question, note, answers and options (`public/host/build/builder.js:356-590`); browser built-in, no service |
+| H-05 Open a night, lobby | P | `tests/server/db.test.ts` "only one night can be open"; engine "prizes default to venue.json and can be changed…"; planned start in the holding-page tests |
+| H-06 Manage teams | P | engine "rename and remove (lobby only)…"; protocol "rejoin on a new phone: old phone gets bye moved…"; offline count on the console (`public/host/run/app.js:58`) |
+| H-07 Quiz Start and Quiz End | P | engine "join … closes at Quiz Start", "a whole night: … Quiz End"; e2e night |
+| H-08 Questions and the timer | P | engine "show, answer, change answer, pause, resume, add 15 s, timer runs out, then lock early"; hide-answers switch in the console |
+| H-09 Per-round lock | P | engine "earlier questions stay open; the round timer starts after the last question and locks them all"; e2e and browser nights in round mode |
+| H-10 Marking and review queue | P | `tests/rules/text.test.ts` "J.F.K. and jfk normalise to the same key", grouping; engine "… mark.group adds the accepted answer to the snapshot and quiz store…" |
+| H-11 Reveal and leaderboard | P | e2e and browser nights; `tests/host-run/logic.test.ts` "marking with answers left shows Reveal, blocked, with the count" |
+| H-12 Halftime | P | `tests/host-run/logic.test.ts` "leaderboard after the halftime round offers halftime"; e2e night |
+| H-13 Change a mark | P | engine "… disputes are logged"; hardening "marks, dispute changes and jokers survive". Changes are stored in `mark_changes` and returned by the history query, but no screen lists them (earlier nit 13, still open) |
+| H-14 Sudden death | P | standings sudden-death tests; `tests/review-fixes/sudden-death-marks.test.ts`; e2e night |
+| H-17 Holding page settings | P | display logic "plain lobby before holdingFrom, holding page from it, never after Quiz Start"; branding routes "PUT saves prizes … holding minutes and panels" |
+| H-15 Prizes | P | formats "accepts prizes and panels…"; engine prize defaults |
+| H-16 Venue branding | P | `tests/branding/`; formats theme tests; SA-19 preview test; browser "branding save race" |
+
+#### Display
+
+| ID | | Evidence |
+|---|---|---|
+| T-01 Open the display | M | Pairing tests; browser checks; `tests/browser-baseline.test.ts`. One real smart-TV browser still owed (B4) |
+| T-02 Lobby | P | Display fixtures and browser night |
+| T-12 Holding page | P | Display logic tests; guide bundled in `public/` |
+| T-03 Question | P | Display fixtures; privacy watch (counts only, never answers) |
+| T-04 Answers locked | P | Browser night; display stress 0 errors |
+| T-05 Reveal | P | Browser night; privacy test "the revealed question's answer is allowed on the reveal screen only" |
+| T-06 Leaderboard | P | 30-team fixtures; display logic |
+| T-07 Halftime | P | e2e night |
+| T-08 Sudden death | P | e2e and browser nights reach sudden death; copy pools split |
+| T-09 Winner and goodbye | P | Browser night ("winner") |
+| T-10 Theme and credit | P | Branding tests; credit links to the source (AGPL) |
+| T-11 Reconnecting | P | Browser night: server killed, display came back with no reload |
+
+#### Team phone
+
+| ID | | Evidence |
+|---|---|---|
+| P-01 Join a team | M | engine join tests; browser night (phones join from the QR link). Real iOS Safari and Android Chrome still owed (B4) |
+| P-02 One phone per team | P | engine "join checks the room code, one phone per team and the team limit…" |
+| P-03 Waiting screens | P | `tests/phone/logic.test.ts`; browser night |
+| P-04 Joker | P | e2e night; `tests/review-fixes/phone-owner.test.ts` |
+| P-05 Answer | P | Browser night: 32/32 UI answers stored in each mode |
+| P-06 Answers locked | P | hardening "later answers are too late"; phone logic |
+| P-07 Score and position | P | Browser night final standings |
+| P-08 Offline and rejoin | P | `tests/shared/ws-client.test.ts` "reconnects after the server restarts, shows offline meanwhile…"; browser "a silent network (LI-001)" |
+| P-09 Sudden death | P | e2e night (only tied teams answer; privacy watch) |
+| P-10 Add to home screen | M | `tests/phone/routes.test.ts` (manifest, service worker shell). Install on a real iPhone and Android still owed (B4) |
+
+Quality bar: Bun and TypeScript; vendored Arrow with no runtime dependencies (`tests/vendor-arrow.test.ts`); no secrets or venue data; `bun test` green. **Pass.**
+
+### Docs and deploy files against the code
+
+| Item | Doc or file says | Code does | |
+|---|---|---|---|
+| Commands | `serve`, `setup-code`, `reset-password`, `--version`, `--data` | Same (`lockin --help`) | match |
+| Settings | `LOCKIN_PUBLIC_URL`, `LOCKIN_PORT`, `LOCKIN_BIND=127.0.0.1` in `/etc/lockin/lockin.env` | Same names; defaults port 8080, bind `127.0.0.1` (`src/server/config.ts:23`) | match |
+| Health check | `/api/ping` gives `{"app":"lockin","version":…}` | Same | match, but `setup.sh` only checks the status code (B1) |
+| Paths | `/usr/local/bin/lockin`, `/usr/local/lib/lockin/`, `/etc/lockin/`, `/var/lib/lockin` | Unit, timer and scripts use the same | match |
+| Data modes | folder `0700`, files `0600` | Seen on a fresh start | match |
+| Minimum Bun | 1.4.5 | `MIN_BUN = "1.4.5"`, `engines`, CI | match |
+| Release files | four assets with `.sha256` | `release.yml` builds both, checksums, attests | match |
+| Run sheet | 4-letter room code, 6-digit pairing code, move code once for 10 minutes, pairing kept 90 days unused | `ROOM_ALPHABET`, `PAIR_CODE_TTL_MS`, `MOVE_CODE_TTL_MS = 10 min`, `PAIRING_UNUSED_MS = 90 days` | match |
+| RELEASE.md section 12 | Lists LI-016, 017, 019, 020 and 021 as "after v1.0.0" | Done in PR #31 | **stale** |
+| RELEASE.md section 2 | "checks it answers on `http://127.0.0.1:8080/api/ping`" | True, but see B1 | port changes with B1 |
+
+### Production standards (shared VPS and Cloudflare)
+
+Checked against Cas's production deployments map (updated 2026-11-24): Market Jury on `:3000`, openGym on `127.0.0.1:8080`, Audition on `127.0.0.1:8091`, one `hostinger-vps` tunnel for all three, UFW SSH only, Audition's pattern of its own user, folders, loopback port and resource caps.
+
+| Area | Standard | Lock-In today | |
+|---|---|---|---|
+| Port | Own loopback port | Default 8080, **same as openGym** | **B1** |
+| Tunnel | One shared tunnel; add a route | RELEASE.md creates a new tunnel and installs `cloudflared` | **B3** |
+| Route target | `127.0.0.1:<port>` (Audition) | Doc says `127.0.0.1:8080` | fine once the port changes; never `localhost` |
+| Logs | Shared journal | `setup.sh` changes retention for the whole journal by default | **B2** |
+| Rate limiting | Zone-wide Free plan | Rule has no hostname, so it would cover every go4cas.com app | **B3** |
+| User | Own system user | `lockin`, no shell, no home | ok |
+| Folders | Own folders (Audition: `/opt`, `/var/lib`, `/etc`) | `/usr/local/bin`, `/usr/local/lib/lockin`, `/var/lib/lockin`, `/etc/lockin` | ok: no clash. Uses `/usr/local` where Audition uses `/opt`; worth aligning only if Cas wants one layout |
+| Runtime | Leave Market Jury's global Bun alone | Compiled binary carries its own Bun; nothing installed globally except `sqlite3` and `curl` if missing | ok |
+| Firewall | UFW SSH only | Nothing opened; the unit also drops non-loopback traffic (`IPAddressDeny=any`) | ok. RELEASE.md section 2's `ufw` steps are already done on this box: skip them |
+| Resource caps | Audition: 1 GB memory, 150% CPU | `MemoryMax=1G`, no `CPUQuota` | gap (small): add a CPU cap so a runaway can't starve the other apps |
+| Backups | Market Jury and Audition copy off the box to R2; openGym's local-only copy is called a gap | Local only, 14 kept in `/var/lib/lockin/backups`; RELEASE.md asks for a weekly manual copy | gap: same as openGym's. An R2 copy like Market Jury's would close it |
+| Backup time | Jury 02:00 UTC, openGym and Audition 03:00 | 05:00 server time, random 10 min delay | ok, no overlap |
+| Rollback | Keep at least one release | `lockin.previous` plus a backup before each update | ok |
+| Deploy path | Audition: public GitHub release plus a script over SSH | Same shape: release assets plus `setup.sh` | ok |
+| Zone cache settings | "Respect existing headers" zone-wide | Lock-In sends its own cache headers | ok (works well with it) |
+| Web Analytics | Off for Audition because its CSP blocks the script | Lock-In's CSP (`script-src 'self'`) blocks it too | turn automatic setup off for this host, as for Audition |
+| Framing headers | Audition needs a CF header rule | Lock-In sends `frame-ancestors 'none'` itself | ok, no rule needed |
+| Moving servers | Shared box | Section 7 says to uninstall `cloudflared` on the old server | **B3**: never on the shared box |
+
+### REVIEW.md status tables
+
+Checked every row of "Code review and security audit: where every item stands" against the merge history, the tests and `docs/SECURITY-AUDIT.md`.
+
+- **Accurate.** PR numbers match the merges (#21 pre-pilot bugs, #22 Batch 1, #23 robustness, #24 Batch 2, #25 Batch 3). Every test file named in a status line exists and passes. All 21 SA items have a "fixed" status line in SECURITY-AUDIT.md, and the code they name is there (for example `MIN_BUN = "1.4.5"`, `src/server/seclog.ts`, `bun-release-check.yml`, `dependabot.yml`, `SECURITY.md`, `LICENSE`).
+- **Fixed in this PR:** the rows for LI-009, 016, 017, 019, 020 and 021 said "This PR"; they now say **#31**, the refactors PR.
+- **Earlier findings 13 to 17** (nits and doc drift) are still open as listed. None blocks the pilot.
+
+### Not covered
+
+Real phones, TVs and casting (B4), the live VPS and Cloudflare (not set up yet), the systemd hardening under a real systemd (only `systemd-analyze verify` and a stand-in so far: the first VPS start is that test), and the copy pools' tone.
+
+---
+
 ## Summary: fails and findings, most severe first
 
 Nothing found blocks a pilot night on its own. The code meets almost every MVP "Done when"; what is left is mostly release work and checks on real hardware that cannot be done in a repo.
@@ -98,7 +267,7 @@ This PR adds `docs/RELEASE.md`, the host run sheet `docs/RUN-SHEET.md` and the s
 
 ## Code review and security audit: where every item stands (2026-11-24)
 
-The external code review (LI-001 to LI-023) and security audit (SA-01 to SA-21, `docs/SECURITY-AUDIT.md`) of `8060221`, item by item. "This PR" is the code review refactors PR.
+The external code review (LI-001 to LI-023) and security audit (SA-01 to SA-21, `docs/SECURITY-AUDIT.md`) of `8060221`, item by item. The code review refactors PR is #31.
 
 ### Code review
 
@@ -112,19 +281,19 @@ The external code review (LI-001 to LI-023) and security audit (SA-01 to SA-21, 
 | LI-006 | P2 | Manual marks for teams that sent no answer | Fixed, #21 |
 | LI-007 | P2 | Keep branding edits made while a save is in progress | Fixed, #21 |
 | LI-008 | P2 | Scope phone drafts and local choices to the night and team | Fixed, #21 |
-| LI-009 | P2 | Separate editable drafts from playable quizzes, shared limits | Limits fixed in #23; the separate `QuizDraft` type in this PR |
+| LI-009 | P2 | Separate editable drafts from playable quizzes, shared limits | Limits fixed in #23; the separate `QuizDraft` type in #31 |
 | LI-010 | P2 | Parse template expressions in the browser safety checks | Fixed, #23 |
 | LI-011 | P2 | Limit public socket work before cloning the night | Fixed, #22 (with SA-04) |
 | LI-012 | P2 | Explicit forwarded client IP trust | Fixed, #24 (same as SA-06) |
 | LI-013 | P2 | Bounded expiry for login rate-limit state | Fixed, #24 (same as SA-08) |
 | LI-014 | P2 | Commit display pairing only after its file write succeeds | Fixed, #22 |
 | LI-015 | P2 | Enforce real request byte limits while reading bodies | Fixed, #22 (with SA-02) |
-| LI-016 | P2 | Smaller night engine, one commit boundary | This PR: handlers in command modules, a typed command table and exhaustive guard, a command matrix test made from the engine before the split |
-| LI-017 | P2 | Arrow workarounds behind shared rendering primitives | This PR: `public/shared/parts.mjs` (row pools, slot keys, retained screens) used by console, phone and display; display recovery limited to rendering errors, 3 a minute, old tree disposed. Not done: splitting the large display, phone, builder and branding modules (the review puts this after the adapter is stable), and an Arrow upgrade (its own dependency change) |
+| LI-016 | P2 | Smaller night engine, one commit boundary | #31: handlers in command modules, a typed command table and exhaustive guard, a command matrix test made from the engine before the split |
+| LI-017 | P2 | Arrow workarounds behind shared rendering primitives | #31: `public/shared/parts.mjs` (row pools, slot keys, retained screens) used by console, phone and display; display recovery limited to rendering errors, 3 a minute, old tree disposed. Not done: splitting the large display, phone, builder and branding modules (the review puts this after the adapter is stable), and an Arrow upgrade (its own dependency change) |
 | LI-018 | P2 | Reproducible browser checks in CI | Fixed, #23 |
-| LI-019 | P3 | Type command arguments and results across the socket | This PR: `COMMANDS` registry, `CommandArgs`/`CommandResults`, typed `LockInClient` |
-| LI-020 | P3 | Compose services explicitly, no global store selection | This PR: `createServices` once per app, required hub plug-ins checked at start |
-| LI-021 | P3 | Runtime assets apart from design archives | This PR: `assets/` holds copy, tokens, fonts and logo; the binary embeds only `public/` and `assets/`. Not done: generating the three derived-token copies from one source (the parity tests already stop drift, and generation needs a new build step) and stamping the service worker's cache name per release (it fetches network-first, and its shell list is tested against the files and the Arrow chunk) |
+| LI-019 | P3 | Type command arguments and results across the socket | #31: `COMMANDS` registry, `CommandArgs`/`CommandResults`, typed `LockInClient` |
+| LI-020 | P3 | Compose services explicitly, no global store selection | #31: `createServices` once per app, required hub plug-ins checked at start |
+| LI-021 | P3 | Runtime assets apart from design archives | #31: `assets/` holds copy, tokens, fonts and logo; the binary embeds only `public/` and `assets/`. Not done: generating the three derived-token copies from one source (the parity tests already stop drift, and generation needs a new build step) and stamping the service worker's cache name per release (it fetches network-first, and its shell list is tested against the files and the Arrow chunk) |
 | LI-022 | P3 | Executable design renderer | Fixed, #23 |
 | LI-023 | P2 | Keep the default venue name in production views | Fixed, #21 |
 
