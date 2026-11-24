@@ -795,7 +795,7 @@ export type CommandName =
   | "mark.group" | "mark.team" | "reveal.start" | "reveal.next" | "leaderboard.show"
   | "sd.start" | "sd.ask" | "sd.reveal" | "final.show"
   | "team.rename" | "team.remove" | "team.moveCode" | "night.newRoomCode"   // newRoomCode: 11.2a (D1)
-  | "display.pair" | "display.unpairAll"                       // host only (12.6)
+  | "display.pair" | "display.unpair" | "display.unpairAll"    // host only (12.6)
   | "team.join" | "team.rejoin" | "joker.play" | "answer.submit";
 
 export type ErrorCode =
@@ -978,7 +978,7 @@ export interface HostView extends Common {
   finalStandingsAt: number | null;           // ended: server time the display moves from the winner to the final standings (null: waiting for final.show, or not ended)
   can: Partial<Record<CommandName, boolean>>; // which commands are allowed now, to enable buttons
   lines: Lines;                              // what the display is showing, for the host's reference
-  displays?: { paired: number; connected: number; waiting: number }; // display pairing (12.6)
+  displays?: { paired: number; connected: number; waiting: number; list?: { id: string; pairedAt: number; lastSeenAt: number; connected: boolean; ip: string | null }[]; bySession?: number }; // display pairing (12.6)
   joinPausedUntil?: number;        // SA-01: typed room codes paused until this server time (11.2a)
 }
 ```
@@ -1055,14 +1055,16 @@ The repo is public, and Lock-In runs on the open internet. Threats that matter: 
 ### 12.1 Host password (S-03)
 
 - Stored in `<dataDir>/auth.json` as `{ "passwordHash": "<Bun.password argon2id hash>", "setAt": <time> }`. Never plain text, never in the repo or the database backups' file names.
-- Minimum 8 characters. No other rules (non-technical hosts).
+- Minimum 8 characters. No other rules (non-technical hosts). The setup page says "Use a passphrase: three or four words that only you would put together" (decision D4); the sign-in limits in 12.2 do the rest.
 - **First run:** while `auth.json` is missing, `/host` shows the setup page. Every setup request must include the **setup code** (requests through the tunnel all look local, so the source address proves nothing): 8 characters from the rejoin alphabet, generated at start, printed to the log and shown by `lockin setup-code`. This stops a stranger setting the password on a fresh VPS.
 - **Forgotten password:** run `lockin reset-password` on the VPS (over SSH, per the run sheet), or delete `auth.json` from the data folder and restart. Both sign out every session.
 
 ### 12.2 Host sessions
 
 - Login sets cookie `lockin_host`: 32 random bytes, base64url; `HttpOnly`, `SameSite=Strict`, `Path=/`, `Secure` (except on `http://localhost` in development); 7 days, renewed on use (so a night never needs a second login, S-03). The server stores only its SHA-256 in `host_sessions`.
-- Login is rate-limited to 5 failures per minute per client IP, then a 1-minute wait.
+- **Session lifetime (SA-12):** use renews a session by 7 days, but never past 30 days from sign-in. Host socket messages (the console pings every 25 s) renew it too, at most one write a minute, so a console left open through a night does not expire. Once a minute the server sends `bye { reason: "signed_out" }` to host sockets whose session has ended, unpairs displays paired by it (12.6) and deletes ended rows.
+- **Sign-in limits (SA-08):** 5 wrong passwords (or setup codes) a minute per client IP, then a wait that doubles each time: 1 minute, 2, 4, 8, then 15 at most. A good sign-in resets it; strikes are forgotten a day after the last block ends. The limiter keeps at most 10,000 keys and drops the oldest first. There is no global lock-out (it would let a stranger lock the host out). At most 2 password hashes run at once with 8 waiting; past that the answer is `429 busy` "Lock-In is busy. Try again in a moment.", which is not counted as a wrong try.
+- **Client IP (SA-06):** `CF-Connecting-IP` is used only when the peer is loopback (`cloudflared` on the same machine) and the value is an IP address; otherwise the socket's peer address. Every per-IP limit keys on this. At start, if `bind` is not loopback and `publicUrl` is `https`, the log says "This port is open to the network. Lock-In expects to sit behind the tunnel on 127.0.0.1."
 - Request bodies are counted in bytes as they are read and refused with `413` as soon as they pass the route's limit (SA-02): 4 KB for `/api/auth/*`, 64 KB for theme, venue and quiz-title routes, 2 MB for `PUT /api/quizzes/:id`, 5 MB plus 64 KB for a question picture and 6 MB for a theme asset. `Content-Length` is only used to refuse early. `Bun.serve` has `maxRequestBodySize` = 6 MB + 64 KB as an outer bound.
 - Logout deletes the session. A password change or reset deletes all sessions.
 
@@ -1079,6 +1081,8 @@ The repo is public, and Lock-In runs on the open internet. Threats that matter: 
 - Mutating HTTP requests and WebSocket upgrades must have an `Origin` that matches `publicUrl`; otherwise `403`.
 - **Sockets and messages (SA-04):** at most 600 open sockets in total and 120 per client IP (a full pub on one Wi-Fi address, with room for every phone reconnecting at once); over the cap the upgrade answers `429` and no socket is made. Each non-host socket has a message budget of 20, refilled at 10 a second, pings included; over it, `bye { reason: "protocol" }`. Frames are at most 32 KB. A socket with 1 MB of unsent data queued (it is not reading) is closed. Team commands are checked before the engine copies the night, and an `answer.submit` that repeats the team's current answer is answered without a write or a broadcast. Host-only view updates (team presence, display counts) are sent at most every 250 ms.
 - **Runtime (SA-05):** the binary carries the Bun runtime, so a Bun security release only helps once the binary is rebuilt. `serve` refuses to start on a Bun older than `MIN_BUN` (`src/server/runtime.ts`, now 1.4.5); `package.json` engines and CI match it. A weekly CI job fails when a newer 1.4.x is out. Release rule: when Bun publishes a security release, raise `MIN_BUN`, rebuild and redeploy.
+- **Crashes (SA-09):** every timer and interval callback (the engine's lock and lines, host updates, the answer broadcast, sweeps) runs inside `try`/`catch` and logs its error; the scheduler always re-arms. A lock that cannot be saved (disk full, database busy) is tried again every 2 s. `serve` installs `uncaughtException` and `unhandledRejection` handlers that log with a timestamp and exit 1, so the service manager restarts a clean process (the night recovers from the database, 7.6).
+- **Data folder (SA-10):** `serve` sets the process umask to `077`. The data folder and its subfolders are made with mode `0700`, and a folder the server's user owns is set to `0700` at every start. `lockin.db` and its `-wal` and `-shm` files are set to `0600` when opened. Files written with a mode (`auth.json`, `setup-code`, `displays.json`) replace any stale temp file and end with exactly that mode.
 - All input is validated against the formats in sections 5 and 10 (lengths, types, ranges) before use. Text is always rendered as text, never parsed as HTML, in every page: in Arrow templates through `${}` slots (which Arrow turns into text nodes and attribute values, see 3.4), and elsewhere through `textContent`. Page code never uses `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `createContextualFragment`; `tests/browser-baseline.test.ts` checks this. The one exception is inside the vendored Arrow, which uses `innerHTML` on a `<template>` element to parse the developer's own static template strings (with placeholders, never data). Arrow uses no `eval` or `new Function`, so the page CSP above needs no change.
 
 ### 12.5 Secrets and venue data in the repo
@@ -1095,12 +1099,14 @@ The room code keeps casual strangers out of the night, so only screens in the pu
 - A code is never evicted, moved or reused while its connection is open (SA-03). At most 20 unpaired displays hold a code at once, and 5 per client IP; past that a display gets `pairing: { code: "" }` and says "Too many screens are waiting to be paired. Reload this page in a minute." When a place frees up, one waiting display without a code is sent one.
 - A code lasts 10 minutes; the display is then sent a new one at once (a sweep runs every 15 s). An expired code pairs nothing.
 - The host types the code on the console (`display.pair { code }`, "Pair a display" on the run page, idle or lobby). The display gets `paired { token }` (32 random bytes, base64url), keeps it in `localStorage` (`lockin.display`) and sends it in every `hello`. The server stores only its SHA-256 in `<dataDir>/displays.json` (mode 0600). Wrong codes: 10 a minute, then `too_many_tries`.
-- `display.pair` answers `{ paired, ip, connectedFor }`, and the console says "Paired a display at <ip>, connected N minutes ago. Not your TV? Unpair every display." (SA-03).
+- `display.pair` answers `{ paired, ip, connectedFor, id }`, and the console says "Paired a display at <ip>, connected N minutes ago. Not your TV? Unpair it in the list below." (SA-03).
+- **Stored pairings (SA-11):** each entry in `displays.json` is `{ id, tokenHash, pairedAt, lastSeenAt }` (`id`: 8 hex characters). `lastSeenAt` is updated at `hello` and while connected, at most once an hour. A pairing not seen for 90 days is refused at `hello` and dropped. Files from before SA-11 get ids on load and count as seen then.
+- **Unpair one display (SA-11):** `display.unpair { id }` forgets that pairing; its connected screens go back to a code. `HostView.displays.list` lists each stored pairing, oldest first, with `connected` and the `ip` it is connected from now; the console shows "Display N · connected now from <ip> · paired 2 days ago" with an Unpair button on each.
 - Pairing writes go to the file first and change memory only once the write worked (LI-014): a failed write leaves tokens as they were, and the visible code can be tried again.
-- A display opened from a browser signed in to the console is paired at once.
-- `display.unpairAll` forgets every paired display; connected ones go back to showing a code.
-- `HostView.displays = { paired, connected, waiting }` shows stored pairings, paired displays connected now, and unpaired ones showing a code.
-- `GET /qr/join.svg` needs a host session or `?d=<paired token>`.
+- **Paired by the session (D5):** a display opened from a browser signed in to the console is paired for as long as that session lives, with no stored token and no `paired` message. Signing out, a password reset or the session ending (12.2) unpairs it at once and it shows a code.
+- `display.unpairAll` forgets every paired display; connected ones (also session-paired ones) go back to showing a code.
+- `HostView.displays = { paired, connected, waiting, list?, bySession? }` shows stored pairings, paired displays connected now, unpaired ones showing a code, each stored pairing (above), and how many connected displays are paired by a session.
+- `GET /qr/join.svg` needs a host session or `Authorization: Bearer <paired token>` (SA-11). The token is never put in a URL, where it would land in access logs and browser history; the display fetches the QR and shows it as a `data:` image.
 - Unbound team connections never see the room code or questions (10.2). Since SA-07 (D3) they get only `phase`, `venue`, `night.started` and `lines.lobby`: every other `NightInfo` field is blank (`""`, `[]`, `0`, `null`, `false`), and `teams`, `standings`, `flash`, `suddenDeath` and the other lines are empty. Joining is lobby-only already (`joining_closed`).
 - What it does not stop: someone in the pub passing the room code on before Quiz Start. The host can remove teams in the lobby.
 

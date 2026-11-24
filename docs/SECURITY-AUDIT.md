@@ -110,7 +110,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-03 · Medium · A flood of unpaired display sockets breaks pairing and can hand the TV's code to someone else
 
-- **Status:** fixed in the audit Batch 1 PR, except the per-display unpair (`display.unpair { id }`), left for Batch 2 with SA-11 (D5). Codes are never evicted or moved; 20 waiting in total and 5 per IP; 6 digits, expire after 10 minutes and are re-sent at once (D2); `display.pair` returns ip and connectedFor and the console shows them; host updates coalesced to one per 250 ms; pairing writes commit after the file write (code review LI-014). Tests: `tests/server/ws-limits.test.ts`, `tests/display/pairing.test.ts`. TECH-SPEC 12.6.
+- **Status:** fixed in the audit Batch 1 PR; the per-display unpair (`display.unpair { id }`) followed in the audit Batch 2 PR with SA-11. Codes are never evicted or moved; 20 waiting in total and 5 per IP; 6 digits, expire after 10 minutes and are re-sent at once (D2); `display.pair` returns ip and connectedFor and the console shows them; host updates coalesced to one per 250 ms; pairing writes commit after the file write (code review LI-014). Tests: `tests/server/ws-limits.test.ts`, `tests/display/pairing.test.ts`. TECH-SPEC 12.6.
 - **Verified:** yes
 - **Where:** `src/server/display/pairing.ts` `codeFor` (lines 62-75, the eviction at 66-71), `claim` (lines 81-91), `PAIR_CODE_DIGITS = 4`; `src/server/display/index.ts` (the authoriser at lines 77-81; a host broadcast on every display connect and disconnect at lines 82-87); `src/server/ws.ts` (no connection cap).
 - **What happens:** every unpaired display socket holds one of 10,000 pairing codes. When 5,000 are held, `codeFor` deletes the oldest half "rather than loop for a free code". The real TV's entry is among the oldest. Its code is then free and is given to a later socket, while the TV still shows it (the TV only gets a new code when the next state is broadcast, and in the idle phase there may be none).
@@ -155,7 +155,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-06 · Low (Medium if the port is reachable directly) · `CF-Connecting-IP` is trusted from any peer
 
-- **Status:** open (REVIEW finding 7)
+- **Status:** fixed in the audit Batch 2 PR. `clientIp(header, peer)` believes the header only from a loopback peer and only when it parses as an IP; start warns when the bind is open and the public URL is https. Live: 6 wrong logins with 6 header values from a non-loopback peer now give five `401` and a `429` (on main: all `401`). Tests: `tests/server/audit-batch2.test.ts`. TECH-SPEC 12.2. Closes REVIEW finding 7.
 - **Verified:** yes
 - **Where:** `src/server/app.ts` `clientIp` (lines 127-129).
 - **What happens:** the header is believed whoever sends it. Every per-IP limit hangs on it: login, setup code, and since PR #20 the rejoin limit.
@@ -180,7 +180,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-08 · Low · Host login: per-IP limit only, and no cap on password hashing at once
 
-- **Status:** open (extends REVIEW finding 8)
+- **Status:** fixed in the audit Batch 2 PR. At most 2 password hashes at once with 8 waiting, then `429 busy` (not a wrong try); blocks double from 1 to 15 minutes and reset on a good sign-in; past 10,000 keys the oldest are dropped, not everyone. No global lock-out. Confirmed on main: after 10,001 other keys an IP's fifth failure did not block it, and a second block was again 1 minute. Hint "use a passphrase" on the setup page (D4). The Cloudflare rule on `/api/auth/*` goes in the run sheet (Release thread). Tests: `tests/server/audit-batch2.test.ts`. TECH-SPEC 12.1, 12.2. Closes the `RateLimiter` part of REVIEW finding 8.
 - **Verified:** yes
 - **Where:** `src/server/auth.ts` `RateLimiter` (lines 44-70; `failures.clear()` at line 64; `blockedUntil` is never pruned); `src/server/auth-routes.ts` login (lines 37-51).
 - **What happens:** the only brake on password guessing is 5 failures a minute per client IP. Guesses from many addresses are not slowed at all. Each guess runs argon2id with Bun's defaults (`m=65536,t=2,p=1`: about 100 ms of CPU and 64 MiB of memory); nothing in Lock-In limits how many run at once. When the limiter holds 10,000 keys it forgets every failure count.
@@ -195,7 +195,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-09 · Low · An exception in a timer ends the process
 
-- **Status:** open
+- **Status:** fixed in the audit Batch 2 PR. The scheduler catches and logs a failing job and always re-arms; every timer and interval runs through `safely()`; a lock that cannot be saved is retried every 2 s; `serve` logs uncaught errors and exits 1. Confirmed on main: a job that threw ended the process with exit code 1 before the next job ran. The systemd unit goes in the run sheet (Release thread). Tests: `tests/server/audit-batch2.test.ts`. TECH-SPEC 12.4.
 - **Verified:** yes for the runtime behaviour, by reading for the paths
 - **Where:** `src/server/night/scheduler.ts` `runDue` (lines 42-51: a job that throws skips `arm()`), `arm` (lines 60-66); the engine's timer jobs (`fireLock`, `fireLastSeconds`, `fireLobbyLine`, `fireFinal`, lines 421-450 of `engine.ts`), each of which calls `run()`, which writes to SQLite and then builds and sends views; the coalescing timer in `src/server/night/index.ts` (line 112). No `uncaughtException` or `unhandledRejection` handler exists in `src/`.
 - **What happens:** commands are wrapped in `try`/`catch` by the hub. Timer callbacks are not. On Bun 1.4.4 an exception thrown inside `setTimeout` prints the error and exits with code 1. So a failed write (disk full, database busy past 5 s) or any bug in view building, reached from the lock timer, stops the server in the middle of a question. State is durable, so a restart recovers, but nothing in the repo restarts it yet (REVIEW finding 1).
@@ -208,7 +208,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-10 · Low · The data folder and database are readable by every user on the server
 
-- **Status:** open
+- **Status:** fixed in the audit Batch 2 PR. `serve` sets umask 077; the data folder and subfolders are made 0700 and an owned folder is set to 0700 at start; `lockin.db`, `-wal` and `-shm` are set to 0600; `writeTextAtomic` removes a stale temp file and ends with the asked mode. Confirmed on main: `lockin.db` and `lockin.db-wal` were 0644 and `quizzes/` 0755. Tests: `tests/server/audit-batch2.test.ts`. TECH-SPEC 12.4.
 - **Verified:** yes
 - **Where:** `src/server/config.ts` `ensureDataDir` (lines 131-136, default mode); `src/server/db.ts` `openDb`; `src/server/files.ts` `writeTextAtomic` (lines 15-20: a fixed `<name>.tmp`, and `mode` only applies when the temp file is new).
 - **Evidence:** after a first start the data folder was `drwxr-xr-x` and `lockin.db` `-rw-r--r--`. `auth.json`, `setup-code` and `displays.json` are `0600` as intended. The database holds rejoin codes in plain text (a team takeover for any local user), session and team token hashes, and the quiz snapshot with every answer. `quizzes/*/quiz.json` (the answers) is world-readable too.
@@ -217,7 +217,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-11 · Low · The display's pairing token travels in a URL, never expires and cannot be revoked singly
 
-- **Status:** open
+- **Status:** fixed in the audit Batch 2 PR (with D5). The display fetches the QR with `Authorization: Bearer <token>` and shows it as a `data:` image; `?d=` is no longer accepted. Pairings carry an id and `lastSeenAt`; unused for 90 days they are refused at hello and dropped; `display.unpair { id }` and a per-display list on the console. D5: a display opened from the signed-in console is paired by the session, with no stored token, and signing out unpairs it. Real browser (`tests/e2e/audit-batch2-browser.ts`): none of the TV page's requests carried the token. Tests: `tests/display/pairing.test.ts`, `tests/qr/routes.test.ts`. TECH-SPEC 12.6.
 - **Verified:** by reading
 - **Where:** `public/display/display.mjs` line 290 (`/qr/join.svg?r=<room>&d=<token>`); `src/server/qr/index.ts` lines 39-44; `src/server/display/pairing.ts` (`issue`, `unpairAll`; no expiry, no last-used time); `src/server/display/index.ts` lines 77-81 (a display opened from a signed-in browser is issued a stored token, which stays in that browser's `localStorage` after the host signs out).
 - **What happens:** the token is a long-lived bearer secret that shows the room code and every question as it is asked. In a query string it ends up in proxy and access logs and in browser history. `Referrer-Policy: no-referrer` stops it leaking by referrer, which is good.
@@ -229,7 +229,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ### SA-12 · Low · A host socket outlives a session that ends by expiry
 
-- **Status:** open
+- **Status:** fixed in the audit Batch 2 PR. A once-a-minute sweep sends `bye signed_out` to host sockets whose session ended and deletes ended rows; host socket messages renew the session; a session ends 30 days after sign-in however much it is used. Tests (fake clock): `tests/server/audit-batch2.test.ts`. TECH-SPEC 12.2.
 - **Verified:** by reading
 - **Where:** `src/server/ws.ts` (`runCommand` re-checks the session at lines 274-279; `broadcastState` at 163-165 does not); `src/server/auth.ts` `checkSession` (lines 166-183: sliding 7 days, renewed only by HTTP requests; expired rows are deleted only when their cookie is presented again).
 - **What happens:** `signOut` closes host sockets when a session is deleted (logout, password reset). When a session simply expires, an open host socket keeps receiving host views, which carry the answers, until it sends a command. Sessions slide forever with no absolute limit, and the table only shrinks when an expired cookie comes back.
@@ -375,7 +375,7 @@ Nothing here lets a stranger become the host, run a host command, read answers b
 
 ## Decisions for Cas
 
-Cas agreed all six recommendations on 2026-11-24 (recorded in NOTES.md). D1, D2 and D3 are built in the audit Batch 1 PR; D4, D5 and D6 come later.
+Cas agreed all six recommendations on 2026-11-24 (recorded in NOTES.md). D1, D2 and D3 are built in the audit Batch 1 PR; D4 and D5 in the audit Batch 2 PR; D6 comes later.
 
 | # | Decision | Recommendation |
 |---|---|---|

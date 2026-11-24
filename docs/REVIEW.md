@@ -54,6 +54,17 @@ Cas commissioned an external security audit and code review of main @ 8060221. T
 | new | **Fixed** (LI-014) | Pairing writes change memory only after `displays.json` is written. |
 | 1-3, 7-9, 11-17 | Open | Unchanged. Audit Batch 2 and 3 (SA-06, SA-08 to SA-21) and D4 to D6 come later. |
 
+### Status after the audit Batch 2 PR (2026-11-24)
+
+This PR fixes audit Batch 2 (SA-06, SA-08 to SA-12; SA-07 was done in Batch 1), decisions D4 and D5, and the per-display unpair left over from SA-03.
+
+| # | Status | What changed |
+|---|---|---|
+| 7 | **Fixed** (SA-06) | `CF-Connecting-IP` is believed only from a loopback peer and only when it is an IP address. Start warns when the port is open to the network with an https public address. |
+| 8 | **Fixed** (SA-08) | `RateLimiter` drops the oldest keys instead of clearing everyone, blocks double up to 15 minutes, and password hashing is capped at 2 at once with 8 waiting. |
+| new | **Fixed** (SA-09, SA-10, SA-11, SA-12, D4, D5) | Timers can no longer end the process; the data folder and database are private to the server's user; the display's token stays out of URLs, pairings expire after 90 days unused and can be unpaired one by one; a console-opened display is paired by the session; host sessions end on time even with a socket open, and after 30 days at most. |
+| 1-3, 9, 11-17 | Open | Unchanged. Audit Batch 3 (SA-13 to SA-21) and D6 come later. Finding 1 (run sheet) now also carries the systemd unit (SA-09) and the Cloudflare rule on `/api/auth/*` (SA-08). |
+
 ## How this was checked
 
 | Check | Result |
