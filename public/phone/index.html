@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#17191b">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lock-In">
+<meta name="format-detection" content="telephone=no">
+<title>Lock-In</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/static/logo/lockin-mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/phone/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/static/shared/tokens.css">
+<link rel="stylesheet" href="/theme.css" id="theme-css">
+<link rel="stylesheet" href="/static/shared/base.css">
+<link rel="stylesheet" href="/static/phone/phone.css">
+<link rel="modulepreload" href="/vendor/arrow/index.mjs">
+</head>
+<body class="phone">
+<div id="app"><p class="boot">Loading the quiz&hellip;</p></div>
+<script src="/static/shared/clock.js"></script>
+<script src="/static/shared/ws-client.js"></script>
+<script src="/static/shared/view.js"></script>
+<script type="module" src="/static/phone/app.mjs"></script>
+</body>
+</html>
