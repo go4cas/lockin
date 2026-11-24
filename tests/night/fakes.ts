@@ -13,7 +13,8 @@ import type {
 import { openDb } from "../../src/server/db.ts";
 import { Engine, type Actor } from "../../src/server/night/engine.ts";
 import { ClockScheduler } from "../../src/server/night/scheduler.ts";
-import { fileSources } from "../../src/server/night/sources.ts";
+import { fileSources, venueFrom } from "../../src/server/night/sources.ts";
+import { BrandingStore } from "../../src/server/branding/store.ts";
 import { FakeClock } from "../helpers/fake-clock.ts";
 
 // --- Rules: a small, literal implementation of TECH-SPEC 8 -------------------------
@@ -216,17 +217,17 @@ export interface Rig {
   close(): void;
 }
 
-export function rig(opts: { dataDir?: string; clock?: FakeClock; rules?: Rules | undefined; copy?: ReturnType<typeof fakeCopy>; log?: (m: string) => void } = {}): Rig {
+export function rig(opts: { dataDir?: string; clock?: FakeClock; rules?: Rules; copy?: ReturnType<typeof fakeCopy>; log?: (m: string) => void } = {}): Rig {
   const dataDir = opts.dataDir ?? mkdtempSync(join(tmpdir(), "lockin-night-"));
   const clock = opts.clock ?? new FakeClock();
   const db = openDb(join(dataDir, "lockin.db"));
   const scheduler = new ClockScheduler(clock, opts.log);
   const copy = opts.copy ?? fakeCopy();
   const saved: [string, string, string][] = [];
-  const rules = "rules" in opts ? opts.rules : fakeRules;
+  const rules = opts.rules ?? fakeRules;
   const engine = new Engine({
-    db, clock, scheduler, sources: fileSources(dataDir), rules: () => rules, copy: () => copy,
-    saveAcceptedAnswer: () => (quizId, qid, t) => { saved.push([quizId, qid, t]); }, publicUrl: "https://quiz.example.com",
+    db, clock, scheduler, sources: fileSources(dataDir, venueFrom(new BrandingStore(dataDir))), rules, copy,
+    saveAcceptedAnswer: (quizId, qid, t) => { saved.push([quizId, qid, t]); }, publicUrl: "https://quiz.example.com",
     log: opts.log,
   });
   const events: Rig["events"] = [];

@@ -248,7 +248,7 @@ describe("console code", () => {
 
   test("Arrow comes from the vendored path only", () => {
     const imports = [...code.matchAll(/from "([^"]+)"/g)].map((m) => m[1]!);
-    for (const i of imports) expect(i === "/vendor/arrow/index.mjs" || i.startsWith("./")).toBe(true);
+    for (const i of imports) expect(i === "/vendor/arrow/index.mjs" || i === "/static/shared/parts.mjs" || i.startsWith("./")).toBe(true);
   });
 });
 

@@ -1,13 +1,12 @@
 // The App: what every server module's register(app) receives (TECH-SPEC 3.2).
-// createApp() wires config, database, auth, HTTP and WebSocket together and
-// calls every module's register(), so build threads never edit this file or
-// main.ts. startServer() listens.
+// createApp() is the composition root: it builds config, database, auth, HTTP,
+// WebSocket and every shared service (services.ts, code review LI-020), then calls
+// each module's register(). startServer() listens.
 
 import type { Database } from "bun:sqlite";
 import { isIP } from "node:net";
 import { join } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
-import type { CopyPicker, Rules } from "../shared/rules-api.ts";
 import { Auth, RateLimiter, type Clock, type PasswordHasher } from "./auth.ts";
 import { registerAuthRoutes } from "./auth-routes.ts";
 import { ensureDataDir, isLocalDevUrl, type Config } from "./config.ts";
@@ -21,27 +20,12 @@ import { register as registerDisplay } from "./display/index.ts";
 import { register as registerNight } from "./night/index.ts";
 import { register as registerPhone } from "./phone/index.ts";
 import { register as registerQr } from "./qr/index.ts";
-import type { DisplayPairing } from "./display/pairing.ts";
 import { register as registerQuizzes } from "./quizzes/index.ts";
-import { register as registerRules } from "./rules/index.ts";
+import { createServices, type ServiceOverrides, type Services } from "./services.ts";
+
+export type { Services } from "./services.ts";
 
 export const VERSION: string = pkg.version;
-
-/**
- * Services one module offers another. A module sets its own entry in its
- * register(); a module that uses another's entry looks it up when it needs it
- * (not during register), so register order does not matter.
- */
-export interface Services {
-  /** B2: marking, scoring and positions (TECH-SPEC 8). */
-  rules?: Rules;
-  /** B4: copy lines (TECH-SPEC 8.6). */
-  copyPicker?: CopyPicker;
-  /** B3: called by B1 when the host accepts a typed answer while marking (TECH-SPEC 5.2, B1). */
-  quizStore?: { saveAcceptedAnswer(quizId: string, questionId: string, text: string): void | Promise<void> };
-  /** Display pairing (REVIEW finding 4): set by the display module. */
-  displayPairing?: DisplayPairing;
-}
 
 export interface App {
   readonly version: string;
@@ -71,6 +55,8 @@ export interface AppOptions {
   log?: (message: string) => void;
   /** Password hashing (tests inject a fake to count what runs at once, SA-08). */
   hasher?: PasswordHasher;
+  /** Test doubles for the rules and the copy picker (LI-020: explicit, never swapped after start). */
+  services?: ServiceOverrides;
 }
 
 interface InternalApp extends App {
@@ -92,6 +78,8 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
   const hub = new Hub({ clock, sessionAlive: (h) => auth.sessionAlive(h), touchSession: (h) => auth.touchSession(h), log, security });
   auth.onSessionsDeleted = (hashes) => hub.signOut(hashes);
   const router = new Router();
+  const files = opts.files ?? diskSource();
+  const { services, ready } = createServices({ dataDir: config.dataDir, db, clock, files, log }, opts.services);
 
   const app: InternalApp = {
     version: VERSION,
@@ -100,8 +88,8 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
     clock,
     auth,
     ws: hub,
-    files: opts.files ?? diskSource(),
-    services: {},
+    files,
+    services,
     publicUrl: config.publicUrl,
     router,
     limiter: new RateLimiter(clock),
@@ -119,8 +107,14 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
   registerAuthRoutes(app, app.limiter);
   registerStatic(app);
 
-  // Every module, in the build plan's order. Each registers its own routes and services.
-  registerRules(app);
+  // Start-up (4.4): read the copy pools and both branding files now, so problems show in the log at start.
+  app.onStart(async () => {
+    await ready;
+    services.branding.theme();
+    services.branding.venue();
+  });
+
+  // Every module registers its own routes and hooks; the services above are already built.
   registerQuizzes(app);
   registerBranding(app);
   registerNight(app);
@@ -128,6 +122,7 @@ export function createApp(config: Config, opts: AppOptions = {}): InternalApp {
   registerDisplay(app);
   registerPhone(app);
 
+  hub.assertWired();   // LI-020: a missing plug-in fails here, not as a fail-open default later
   return app;
 }
 

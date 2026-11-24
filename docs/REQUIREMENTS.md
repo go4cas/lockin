@@ -212,7 +212,7 @@ Done when:
 As a venue, I want the app to talk in a cheeky, warm host voice, so that the night feels like a pub quiz and not a test.
 
 Done when:
-- Each moment that has a pool in `docs/brand/copy.en.json` shows one random line from that pool, never the same line twice in a row.
+- Each moment that has a pool in `assets/copy.en.json` shows one random line from that pool, never the same line twice in a row.
 - Placeholders `{team}`, `{pub}`, `{round}`, `{n}` and `{seconds}` are filled in, and a line whose placeholder has no value is skipped.
 - A venue theme file can replace or add to any pool (editing pools in the branding screen is Launch).
 - No line gives away an answer.

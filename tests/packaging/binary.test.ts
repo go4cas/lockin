@@ -14,9 +14,9 @@ const canRun = process.platform === "linux" && process.arch === "x64";
 /** The /static URL each embedded file is served at, or null if no static route serves it. */
 function staticUrl(path: string): string | null {
   if (path.startsWith("public/")) return `/static/${path.slice("public/".length)}`;
-  if (path === "docs/design/tokens.css") return "/static/shared/tokens.css";
-  if (path.startsWith("docs/design/fonts/")) return `/static/fonts/${path.slice("docs/design/fonts/".length)}`;
-  if (path.startsWith("docs/design/logo/")) return `/static/logo/${path.slice("docs/design/logo/".length)}`;
+  if (path === "assets/tokens.css") return "/static/shared/tokens.css";
+  if (path.startsWith("assets/fonts/")) return `/static/fonts/${path.slice("assets/fonts/".length)}`;
+  if (path.startsWith("assets/logo/")) return `/static/logo/${path.slice("assets/logo/".length)}`;
   return null;
 }
 
@@ -25,12 +25,20 @@ describe("what gets embedded", () => {
   test("public/, vendored Arrow, copy, tokens, fonts and logo", () => {
     expect(paths).toContain("public/shared/ws-client.js");
     expect(paths).toContain("public/vendor/arrow/index.mjs");
-    expect(paths).toContain("docs/brand/copy.en.json");
-    expect(paths).toContain("docs/design/tokens.css");
-    expect(paths.some((p) => /^docs\/design\/fonts\/.+\.woff2$/.test(p))).toBe(true);
-    expect(paths.some((p) => /^docs\/design\/fonts\/OFL-.+\.txt$/.test(p))).toBe(true);
-    expect(paths.some((p) => p.startsWith("docs/design/logo/"))).toBe(true);
-    expect(EMBED_ROOTS).toHaveLength(5);
+    expect(paths).toContain("assets/copy.en.json");
+    expect(paths).toContain("assets/tokens.css");
+    expect(paths.some((p) => /^assets\/fonts\/.+\.woff2$/.test(p))).toBe(true);
+    expect(paths.some((p) => /^assets\/fonts\/OFL-.+\.txt$/.test(p))).toBe(true);
+    expect(paths.some((p) => p.startsWith("assets/logo/"))).toBe(true);
+    expect(EMBED_ROOTS).toEqual(["public", "assets"]);
+  });
+  test("nothing from docs/ ships, so design notes never change the binary (LI-021)", () => {
+    expect(paths.filter((p) => !p.startsWith("public/") && !p.startsWith("assets/"))).toEqual([]);
+  });
+  test("every bundled font ships with its licence", () => {
+    const families = new Set(paths.filter((p) => /^assets\/fonts\/.+\.woff2$/.test(p)).map((p) => p.slice("assets/fonts/".length).replace(/(-\d{3})?\.woff2$/, "")));
+    expect(families.size).toBeGreaterThan(0);
+    for (const f of families) expect(paths).toContain(`assets/fonts/OFL-${f}.txt`);
   });
   test("no hidden files", () => {
     expect(paths.filter((p) => p.split("/").some((seg) => seg.startsWith(".")))).toEqual([]);

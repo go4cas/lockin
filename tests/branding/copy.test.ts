@@ -1,6 +1,6 @@
 // CopyPicker (TECH-SPEC 5.5, 8.6, S-10).
 import { describe, expect, test } from "bun:test";
-import copyFile from "../../docs/brand/copy.en.json" with { type: "json" };
+import copyFile from "../../assets/copy.en.json" with { type: "json" };
 import { createCopyPicker, fillLine, mergePools, poolsFromCopyFile, type Pools } from "../../src/server/branding/copy.ts";
 import { startTestServer } from "../helpers/server.ts";
 
@@ -113,7 +113,7 @@ describe("the server's copy picker", () => {
   test("is app.services.copyPicker and follows the saved theme's copy and name", async () => {
     const s = await startTestServer();
     try {
-      const picker = s.app.services.copyPicker!;
+      const picker = s.app.services.copyPicker;
       expect(picker.pick("team_joined", { team: "Quizzly Bears" }, {})!.text).toContain("Quizzly Bears");
       const cookie = await s.signIn();
       const res = await s.fetch("/api/theme", {

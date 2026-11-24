@@ -1,0 +1,509 @@
+[
+  {
+    "step": "idle",
+    "phase": "idle",
+    "can": [
+      "night.open"
+    ],
+    "team": {
+      "team.join": "room_code",
+      "team.rejoin": "bad_code",
+      "joker.play": "wrong_phase",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "lobby, no teams",
+    "phase": "lobby",
+    "can": [
+      "night.update",
+      "night.close",
+      "team.rename",
+      "team.remove",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "ok",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "lobby, two teams",
+    "phase": "lobby",
+    "can": [
+      "night.update",
+      "night.close",
+      "quiz.start",
+      "team.rename",
+      "team.remove",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "ok",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "round 1 intro",
+    "phase": "round_intro",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "round.start",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "round 1, nothing shown",
+    "phase": "asking",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "question.next",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "round 1, question 1 open",
+    "phase": "asking",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "timer.start",
+      "lock",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "round 1, question 1 timer running",
+    "phase": "asking",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "timer.pause",
+      "timer.add",
+      "lock",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "round 1, question 1 timer paused",
+    "phase": "asking",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "timer.resume",
+      "timer.add",
+      "lock",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "round 1, question 1 locked",
+    "phase": "asking",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "question.next",
+      "lock",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "round 1, question 2 open",
+    "phase": "asking",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "timer.start",
+      "lock",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "round 1, all locked",
+    "phase": "asking",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "round.finish",
+      "lock",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "round 1 marking",
+    "phase": "marking",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "mark.group",
+      "mark.team",
+      "reveal.start",
+      "leaderboard.show",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "round 1 reveal",
+    "phase": "reveal",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "mark.group",
+      "mark.team",
+      "reveal.next",
+      "leaderboard.show",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "round 1 leaderboard (halftime round)",
+    "phase": "leaderboard",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "round.next",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "halftime",
+    "phase": "halftime",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "round.next",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "round 2 intro",
+    "phase": "round_intro",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "round.start",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "round 2 leaderboard",
+    "phase": "leaderboard",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "round.next",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "round 3 intro",
+    "phase": "round_intro",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "round.start",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "round 3 leaderboard",
+    "phase": "leaderboard",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "mark.group",
+      "mark.team",
+      "sd.start",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "ok",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "sudden death, between questions",
+    "phase": "sudden_death",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "mark.group",
+      "mark.team",
+      "sd.ask",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "sudden death, question open",
+    "phase": "sudden_death",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "timer.start",
+      "lock",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "sudden death, question locked",
+    "phase": "sudden_death",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "lock",
+      "mark.group",
+      "mark.team",
+      "sd.reveal",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "sudden death, revealed and decided",
+    "phase": "sudden_death",
+    "can": [
+      "night.update",
+      "quiz.end",
+      "mark.group",
+      "mark.team",
+      "team.rename",
+      "team.moveCode",
+      "night.newRoomCode"
+    ],
+    "team": {
+      "team.join": "joining_closed",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "ok"
+    }
+  },
+  {
+    "step": "ended, winner showing",
+    "phase": "ended",
+    "can": [
+      "night.update",
+      "night.close",
+      "final.show",
+      "team.rename",
+      "team.moveCode"
+    ],
+    "team": {
+      "team.join": "wrong_phase",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "ended, final standings",
+    "phase": "ended",
+    "can": [
+      "night.update",
+      "night.close",
+      "team.rename",
+      "team.moveCode"
+    ],
+    "team": {
+      "team.join": "wrong_phase",
+      "team.rejoin": "ok",
+      "joker.play": "wrong_phase",
+      "answer.submit": "wrong_phase"
+    }
+  },
+  {
+    "step": "closed",
+    "phase": "idle",
+    "can": [
+      "night.open"
+    ],
+    "team": {
+      "team.join": "room_code",
+      "team.rejoin": "bad_code",
+      "joker.play": "wrong_phase",
+      "answer.submit": "wrong_phase"
+    }
+  }
+]

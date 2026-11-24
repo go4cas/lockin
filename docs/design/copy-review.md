@@ -1,6 +1,6 @@
 # Copy pool review
 
-`docs/brand/copy.en.json` checked against every screen in [screens.md](screens.md). Each pool now has a place to appear, a rule for when, and lines that fit. Changes are in the same PR as this file.
+`assets/copy.en.json` checked against every screen in [screens.md](screens.md). Each pool now has a place to appear, a rule for when, and lines that fit. Changes are in the same PR as this file.
 
 ## General rules (for S-10)
 

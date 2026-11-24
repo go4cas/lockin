@@ -139,6 +139,8 @@ tests/load/, tests/e2e/                         B9
 
 Each server module exposes one `register(app: App)` function from its `index.ts`. B0 creates every module folder with an empty `register`, and `main.ts` already calls all of them, so no build thread edits `main.ts`.
 
+Shared services are built once per app by the composition root, `createServices()` in `src/server/services.ts`, before any module registers (code review LI-020): the rules, the copy picker, the branding store, the quiz store and display pairing. A module reaches them through `app.services`; all are required and read-only. Tests swap the rules and the copy picker through `AppOptions.services` when the app is built. The socket hub's four plug-ins (command handler, view provider, team token resolver, display authoriser) are checked by `hub.assertWired()` at the end of `createApp()`, so a missing one fails at start, not as a fail-open default.
+
 ### 3.3 Browser baselines
 
 | Page | Must run on | So it may use |
@@ -217,7 +219,9 @@ Precedence: command-line flag, then environment variable, then `config.json` in 
 ### 4.6 Packaging
 
 - `bun run build` (B8) runs `bun build --compile --target=bun-linux-x64`, producing `dist/lockin-linux-x64`.
-- Everything in `public/` (including the vendored Arrow in `public/vendor/`; `.mjs` files are served as `text/javascript`, which module scripts require), `docs/brand/copy.en.json`, `docs/design/tokens.css`, bundled fonts and the default theme assets are **embedded in the binary** through a generated `src/server/embedded.ts` (a map from URL path to a file imported `with { type: "file" }`). In development (`bun run dev`) the same paths are served from disk.
+- Everything in `public/` (including the vendored Arrow in `public/vendor/`; `.mjs` files are served as `text/javascript`, which module scripts require), `assets/copy.en.json`, `assets/tokens.css`, bundled fonts and the default theme assets are **embedded in the binary** through a generated `src/server/embedded.ts` (a map from URL path to a file imported `with { type: "file" }`). In development (`bun run dev`) the same paths are served from disk.
+
+- Runtime files that are not page code live in `assets/` (copy pools, default tokens, bundled fonts with their OFL licences, the Lock-In logo); the binary embeds exactly `public/` and `assets/`, so editing design notes or wireframes in `docs/` never changes what ships (code review LI-021). Their public URLs (`/static/shared/tokens.css`, `/static/fonts/…`, `/static/logo/…`) are unchanged. The three copies of the derived-token code (`docs/design/tools/derive.ts`, `src/server/branding/derive.ts`, `public/host/brand/derive.js`) stay hand-kept and are held equal by `tests/branding/derive.test.ts`; the service worker's shell list is checked against the files and the current Arrow chunk by `tests/phone/routes.test.ts`.
 
 ### 4.7 Development
 
@@ -319,11 +323,11 @@ Rules:
 - **Forward compatibility.** An unknown `media.kind` or `answer.type` makes the quiz "not ready" with a message naming it; it never crashes the server. A breaking change bumps `format` to `lockin.quiz/2` and the server reads both.
 - **Images (H-03).** The builder resizes images **in the browser** (canvas) to at most 1920×1080 and re-encodes them as JPEG (quality 0.85) or keeps PNG when the image has transparency, so the server needs no image library. The server checks the file's first bytes (JPEG, PNG or WebP), caps uploads at 5 MB, and names the file after the question id plus 16 hex characters of the content's SHA-256 (`q-ab12cd34-9f3a07c2d1e4b5a6.jpg`). An existing file at that name is reused only when its bytes are identical; otherwise a numbered name (`…-2.jpg`) is used. Older 4-character names stay valid. Each draft save removes builder-made pictures (`q-…-<hex>.<ext>`) that no question refers to and that are over an hour old, so an upload whose save is still on its way is kept; a quiz in use by a night cannot be saved, so a running night never loses a picture (code review LI-004, audit SA-20).
 - **Accepted answers added while marking (H-10)** are appended to `accepted` in the quiz file and in the running night's snapshot. The file stops growing at 50 (the snapshot keeps any further ones for that night's marking).
-- **One set of limits (code review LI-009).** `QUIZ_LIMITS`, the id patterns and `validateSettings` in `formats.ts` are used by both readiness and the builder's draft check (`src/server/quizzes/draft.ts`), so a ready quiz always opens and saves in the builder. A draft may be incomplete (empty text, no correct option, unknown kinds), but never beyond a limit. A hand-made file with more than 50 accepted answers is not ready, with a message saying so (before, it played but the builder refused it).
+- **One set of limits (code review LI-009).** `QUIZ_LIMITS`, the id patterns and `validateSettings` in `formats.ts` are used by both readiness and the builder's draft check (`src/server/quizzes/draft.ts`), so a ready quiz always opens and saves in the builder. A draft may be incomplete (empty text, no correct option, unknown kinds), but never beyond a limit. A hand-made file with more than 50 accepted answers is not ready, with a message saying so (before, it played but the builder refused it). The builder's side has its own type, `QuizDraft` (with `DraftQuestion`, `DraftAnswer` and `FutureAnswer` for an answer type from a newer version): numbers may be `null`, text `""`, `correct` `-1`. The quiz store reads and writes `QuizDraft`; only `validateQuiz` produces a `QuizFile`, which is what the engine takes.
 
 ### 5.3 Theme file: `theme/theme.json`
 
-The theme file stores the venue's **branding inputs**, not raw CSS. Design defines the inputs and how they expand into CSS custom properties (`docs/design/branding.md`, `docs/design/tokens.css`). Every field is optional; `null` or a missing field means "use the default theme".
+The theme file stores the venue's **branding inputs**, not raw CSS. Design defines the inputs and how they expand into CSS custom properties (`docs/design/branding.md`, `assets/tokens.css`). Every field is optional; `null` or a missing field means "use the default theme".
 
 ```ts
 // src/shared/formats.ts (contract)
@@ -348,7 +352,7 @@ export type FontRef = { bundled: string }      // display: "caveat-brush" (defau
 ```
 
 - **`GET /theme.css`** is generated from the theme file: resolved `--brand-*` custom properties (derived colours such as surfaces, muted text, text-on-accent and lines are computed on the server as sRGB mixes using Design's formulas, because old TV engines have no `color-mix()`) and `@font-face` rules for uploaded fonts. Pages load `/static/shared/tokens.css` (the default theme) and then `/theme.css` on top.
-- Theme asset files are served from `/theme/assets/<file>`. Bundled fonts are the WOFF2 files in `docs/design/fonts/` (OFL licensed, licences shipped alongside), embedded in the binary and served from `/static/fonts/<id>.woff2`.
+- Theme asset files are served from `/theme/assets/<file>`. Bundled fonts are the WOFF2 files in `assets/fonts/` (OFL licensed, licences shipped alongside), embedded in the binary and served from `/static/fonts/<id>.woff2`.
 - Every view carries `venue.themeVersion` (a hash of `theme.json`); when it changes, pages reload `/theme.css?v=<version>` (H-16 "from the next screen they show").
 - Readability warnings (H-16) are computed on the branding screen with the contrast rules in `docs/design/`.
 - Theme export and import (H-22, Launch) will zip `theme/`; nothing in the format stops that.
@@ -377,7 +381,7 @@ Unknown panel names are ignored, so more panels can be added later (H-17).
 
 ### 5.5 Copy pools
 
-- The default pools are `docs/brand/copy.en.json` (embedded in the binary). The theme's `copy` replaces or adds to any pool by key.
+- The default pools are `assets/copy.en.json` (embedded in the binary). The theme's `copy` replaces or adds to any pool by key.
 - The engine asks for lines by **pool key**. Keys used by the engine (Design's copy review, `docs/design/copy-review.md`): `lobby`, `team_joined`, `round_start`, `last_seconds`, `locked`, `all_locked`, `no_answer`, `joker_played`, `reveal`, `lead_change`, `big_climb`, `close_race`, `halftime`, `tie_breaker`, `sudden_death`, `sudden_death_again` (everyone right or everyone wrong, next question follows), `sudden_death_won` (`{team}` took the place), `sudden_death_shared` (still tied after the maximum), `winner`, `winner_shared` (`{team}` is the names joined as "A, B and C"), `last_place`, `goodbye`. The old `tiebreak` pool is gone. A missing pool gives no line (the screen shows without one).
 - **Selection rules:** a line containing `{n}` is skipped when `n < 2`. A leaderboard shows at most one line, chosen in this order: `tie_breaker` (only when the tie breaker decided 1st place), `lead_change` (1st place changed hands), `close_race` (top two within 1 point), `big_climb` (a team rose 3 or more places since the last leaderboard).
 - Lines are picked on the server (B4's `CopyPicker`, section 8.6), so the display and phones agree and "never the same line twice in a row" holds per pool for the whole night.
@@ -521,7 +525,9 @@ any phase after lobby ─quiz.end {early:true}─▶ ended
 
 ### 7.2 Commands
 
-All commands go over the WebSocket as `{ t: "cmd", id, name, args }` (section 10). The engine rejects a command that is not allowed in the current phase with `wrong_phase`. "Host" commands need a host connection.
+All commands go over the WebSocket as `{ t: "cmd", id, name, args }` (section 10). The engine rejects a command that is not allowed in the current phase with `wrong_phase`. "Host" commands need a host connection. Who may send each command is in one registry, `COMMANDS` in `src/shared/protocol.ts`; `CommandArgs` and `CommandResults` there type every command's arguments and ack result, and `LockInClient.cmd` (`src/shared/client-api.ts`, the browser's `window.LockIn`) uses them, so page code that sends a wrong argument or reads a wrong result field fails `bun run typecheck` (code review LI-019). The server still parses every argument at run time.
+
+In the engine (`src/server/night/`), `commands.ts` has one entry per engine command (its handler, an optional pre-check that changes nothing, and whether views may be coalesced) and `guards.ts` has one exhaustive switch saying where each command may run; both are keyed by every command name, so a new command that is left out fails typecheck. Handlers live by area (`flow.ts`, `teams.ts`, `timer.ts`, `answers.ts`, `marking.ts`, `sudden-death.ts`) and change the night only through a unit of work (`work.ts`) that the engine creates inside its single commit boundary; views read the night through the readonly `NightReader` selectors. `tests/night/command-matrix.test.ts` pins which commands are allowed at each step of a whole night in both lock modes (code review LI-016).
 
 | Command | Args | Allowed in | Effect |
 |---|---|---|---|
@@ -725,7 +731,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `GET /display` | B6 | Display |
 | `GET /host`, `/host/*` | B0 shell; sub-pages per 3.2 | Host console; redirects to `/host/login` or `/host/setup` when needed |
 | `GET /static/*` | B0 | Files from `public/` (embedded in the binary) |
-| `GET /static/shared/tokens.css` | B0 | The default theme, from `docs/design/tokens.css` |
+| `GET /static/shared/tokens.css` | B0 | The default theme, from `assets/tokens.css` |
 | `GET /theme.css` | B4 | Venue theme (5.3) |
 | `GET /theme/assets/:file` | B4 | Theme assets |
 | `GET /manifest.webmanifest` | B7 | Web app manifest with venue name and logo |
@@ -1179,7 +1185,7 @@ Done when:
 - `src/shared/protocol.ts`, `formats.ts` and `rules-api.ts` contain the contract types from sections 5, 8 and 10 exactly, plus `validateQuiz`, `validateTheme` and `validateVenue` with tests for valid and invalid files, and plain-English problem messages.
 - `bun run dev` and `lockin serve --public-url …` start the server; it refuses to start without a public URL; config precedence (4.2) and data folder creation work, with tests.
 - `lockin.db` is created with the schema in 6.2 through a migration runner that records `schema_version`; a test opens a fresh database and checks every table.
-- HTTP router, static serving of `public/` and `docs/design/tokens.css` (or a placeholder until Design merges), security headers (12.4) and `GET /api/ping` work.
+- HTTP router, static serving of `public/` and `assets/tokens.css` (or a placeholder until Design merges), security headers (12.4) and `GET /api/ping` work.
 - Host auth (12.1, 12.2) works: setup only with the setup code, login, logout, rate limit, session cookie, `lockin reset-password` and `lockin setup-code`; tests cover each.
 - `/ws` accepts `hello` for each role, rejects a `host` hello without a session, answers `ping` with `pong`, enforces the 5 s hello timeout, and routes `cmd` to a registered handler (with a stub that answers `wrong_phase` until B1 lands).
 - `public/shared/ws-client.js` (reconnecting client with backoff, hello, ack tracking, `seq` ordering) and `clock.js` (offset) exist, follow the display baseline, and are tested against the server.

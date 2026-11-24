@@ -2,7 +2,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { saveAcceptedAnswer } from "../../src/server/quizzes/index.ts";
 import { checkDraft } from "../../src/server/quizzes/draft.ts";
 import { slugify, sniffImage } from "../../src/server/quizzes/store.ts";
 import type { QuizFile } from "../../src/shared/formats.ts";
@@ -246,7 +245,7 @@ describe("GET and PUT /api/quizzes/:id (H-02)", () => {
       { id: "q-aaaaaaaa", text: "Hum it", media: { kind: "audio", file: "q-aaaaaaaa.mp3" }, answer: { type: "hum", tune: "x" } }] }] });
     expect(draft.ok).toBe(true);
     if (draft.ok) {
-      const q = (draft.quiz.rounds as { questions: Record<string, unknown>[] }[])[0]!.questions[0]!;
+      const q = draft.quiz.rounds[0]!.questions[0]!;
       expect(q.answer).toEqual({ type: "hum", tune: "x" });
       expect(q.media).toEqual({ kind: "audio", file: "q-aaaaaaaa.mp3" });
     }
@@ -393,9 +392,9 @@ describe("saveAcceptedAnswer (for B1, H-10)", () => {
     const qid = q.rounds[2]!.questions[3]!.id;
     s.app.db.run("INSERT INTO nights (id, quiz_id, quiz_title, quiz_snapshot, room_code, status, opened_at, state) VALUES ('n-acc', ?, 'T', '{}', 'BCDG', 'open', 0, '{}')", [q.id]);
     try {
-      await s.app.services.quizStore!.saveAcceptedAnswer(q.id, qid, "  Spielberg ");
-      await s.app.services.quizStore!.saveAcceptedAnswer(q.id, qid, "spielberg");
-      saveAcceptedAnswer(q.id, qid, "Steven Spielberg");
+      await s.app.services.quizStore.saveAcceptedAnswer(q.id, qid, "  Spielberg ");
+      await s.app.services.quizStore.saveAcceptedAnswer(q.id, qid, "spielberg");
+      await s.app.services.quizStore.saveAcceptedAnswer(q.id, qid, "Steven Spielberg");
     } finally {
       s.app.db.run("UPDATE nights SET status = 'ended' WHERE id = 'n-acc'");
     }
@@ -408,9 +407,9 @@ describe("saveAcceptedAnswer (for B1, H-10)", () => {
     const q = complete(await create("Accepting 2"));
     q.rounds[0]!.questions[0]!.answer = { type: "number", value: 3 };
     const saved = (await (await save(q)).json()).quiz;
-    s.app.services.quizStore!.saveAcceptedAnswer("gone", "q-aaaaaaaa", "x");
-    s.app.services.quizStore!.saveAcceptedAnswer(q.id, q.rounds[0]!.questions[0]!.id, "3");
-    s.app.services.quizStore!.saveAcceptedAnswer(q.id, "q-zzzzzzzz", "x");
+    s.app.services.quizStore.saveAcceptedAnswer("gone", "q-aaaaaaaa", "x");
+    s.app.services.quizStore.saveAcceptedAnswer(q.id, q.rounds[0]!.questions[0]!.id, "3");
+    s.app.services.quizStore.saveAcceptedAnswer(q.id, "q-zzzzzzzz", "x");
     expect(readQuiz(q.id)).toEqual(saved);
     expect(s.logs.some((l) => l.includes("Accepted answer not saved"))).toBe(true);
   });

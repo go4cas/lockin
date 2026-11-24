@@ -2,7 +2,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { branding } from "../../src/server/branding/index.ts";
 import { startTestServer, type TestServer } from "../helpers/server.ts";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82]);
@@ -76,7 +75,7 @@ describe("theme", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.version).not.toBe(before.version);
-    expect(branding(s.app).themeVersion()).toBe(body.version);
+    expect(s.app.services.branding.themeVersion()).toBe(body.version);
     expect(body.theme.colours.background).toBe("#1c140f");
 
     const file = readFileSync(join(s.dataDir, "theme", "theme.json"), "utf8");
@@ -102,7 +101,7 @@ describe("theme", () => {
 
   test("onThemeChange tells other modules about a save", async () => {
     const seen: string[] = [];
-    branding(s.app).onThemeChange((_t, v) => seen.push(v));
+    s.app.services.branding.onThemeChange((_t, v) => seen.push(v));
     const res = await (await putTheme({ format: "lockin.theme/1", name: "Listener Test" })).json();
     expect(seen).toEqual([res.version]);
   });
@@ -233,7 +232,7 @@ describe("venue settings (5.4)", () => {
     expect(await res.json()).toEqual(saved);
     expect(JSON.parse(readFileSync(join(s.dataDir, "venue.json"), "utf8"))).toEqual(saved);
     expect(await (await s.fetch("/api/venue", { cookie })).json()).toEqual(saved);
-    expect(branding(s.app).venue()).toEqual(saved as never);
+    expect(s.app.services.branding.venue()).toEqual(saved as never);
   });
 
   test("bad values and two prizes for one place are refused", async () => {
@@ -265,12 +264,12 @@ describe("files on disk are the source of truth (S-09, 4.4)", () => {
   test("a theme copied in by hand is picked up without a restart", async () => {
     const t = await startTestServer();
     try {
-      const v1 = branding(t.app).themeVersion();
+      const v1 = t.app.services.branding.themeVersion();
       mkdirSync(join(t.dataDir, "theme"), { recursive: true });
       writeFileSync(join(t.dataDir, "theme", "theme.json"), JSON.stringify({ format: "lockin.theme/1", name: "Copied In", colours: { accent: "#123456" } }));
       expect(await (await t.fetch("/theme.css")).text()).toContain("--brand-accent: #123456;");
-      expect(branding(t.app).venueName()).toBe("Copied In");
-      expect(branding(t.app).themeVersion()).not.toBe(v1);
+      expect(t.app.services.branding.venueName()).toBe("Copied In");
+      expect(t.app.services.branding.themeVersion()).not.toBe(v1);
     } finally { await t.stop(); }
   });
 });

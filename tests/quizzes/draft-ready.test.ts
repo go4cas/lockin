@@ -2,7 +2,8 @@
 // must agree on the shape and limits of a quiz file. A quiz that is ready to play must
 // open and save in the builder; the only extra thing readiness asks for is completeness.
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_QUIZ_SETTINGS, QUIZ_FORMAT, QUIZ_LIMITS, validateQuiz, type QuizFile } from "../../src/shared/formats.ts";
+import { DEFAULT_QUIZ_SETTINGS, QUIZ_FORMAT, QUIZ_LIMITS, validateQuiz, type QuizDraft, type QuizFile } from "../../src/shared/formats.ts";
+import { newQuiz } from "../../src/server/quizzes/draft.ts";
 import { checkDraft } from "../../src/server/quizzes/draft.ts";
 
 const base = (accepted: string[]): QuizFile => ({
@@ -97,5 +98,39 @@ describe("every ready quiz can be saved by the builder", () => {
       "rounds.0.questions.1.answer.options", "rounds.0.questions.2.answer.value",
       "rounds.0.questions.3.media.kind", "rounds.0.questions.3.answer.type",
     ]);
+  });
+});
+
+describe("QuizDraft is its own type (LI-009)", () => {
+  // Typechecked, never called: a draft is not a playable quiz until validateQuiz says so.
+  function typesOnly(draft: QuizDraft, file: QuizFile): void {
+    // @ts-expect-error a draft cannot be passed where a ready quiz is needed
+    const asReady: QuizFile = draft;
+    const asDraft: QuizDraft = file;   // every ready quiz is a valid draft
+    const a = draft.rounds[0]!.questions[0]!.answer;
+    if (a.type === "number") {
+      // @ts-expect-error an unfinished number answer may be null
+      const n: number = a.value;
+      void n;
+    }
+    void asReady; void asDraft;
+  }
+  void typesOnly;
+
+  test("a new quiz is a draft with empty questions, and not ready until validateQuiz passes", () => {
+    const d = newQuiz("fresh", "Fresh", "2026-11-24T10:00:00.000Z");
+    expect(d.rounds).toHaveLength(6);
+    expect(d.rounds[0]!.questions[0]!.text).toBe("");
+    expect(saves(d)).toBe(true);
+    expect(ready(d)).toBe(false);
+  });
+
+  test("an incomplete number answer saves as null and is not ready", () => {
+    const d = base(["x"]) as QuizDraft;
+    d.rounds[0]!.questions[0]!.answer = { type: "number", value: null };
+    const checked = checkDraft(d);
+    expect(checked.ok).toBe(true);
+    if (checked.ok) expect(checked.quiz.rounds[0]!.questions[0]!.answer).toEqual({ type: "number", value: null });
+    expect(ready(d)).toBe(false);
   });
 });

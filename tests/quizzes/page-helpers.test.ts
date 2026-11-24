@@ -1,6 +1,6 @@
 // B3 browser helpers that have no DOM: readiness labels, problem grouping, image sizing.
 import { describe, expect, test } from "bun:test";
-import { groupProblems, readinessLabel } from "../../public/host/build/api.js";
+import { ApiError, groupProblems, isOffline, readinessLabel } from "../../public/host/build/api.js";
 import { fitSize } from "../../public/host/build/image.js";
 
 describe("readinessLabel", () => {
@@ -35,5 +35,14 @@ describe("fitSize (H-03: at most 1920 x 1080, never upscaled)", () => {
     expect(fitSize(3840, 1080)).toEqual({ w: 1920, h: 540 });
     expect(fitSize(800, 600)).toEqual({ w: 800, h: 600 });
     expect(fitSize(1080, 1920)).toEqual({ w: 608, h: 1080 });
+  });
+});
+
+describe("isOffline (autosave retry, code review LI-019)", () => {
+  test("the retry follows the error code, not the English message", () => {
+    expect(isOffline(new ApiError(0, "offline", "Can't reach the server."))).toBe(true);
+    expect(isOffline(new ApiError(0, "offline", "Any other wording at all"))).toBe(true);
+    expect(isOffline(new ApiError(500, "server_error", "Can't reach the server."))).toBe(false);
+    expect(isOffline(new Error("Can't reach the server."))).toBe(false);
   });
 });

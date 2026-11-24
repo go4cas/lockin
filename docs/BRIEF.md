@@ -58,7 +58,7 @@ This list is raw material for the Requirements thread, not a commitment.
 - **Signature moment:** when the timer ends, a padlock snaps shut on the TV and every phone shows "Answers locked".
 - **Logo idea:** a padlock whose shackle is a question mark, with the keyhole as its dot.
 - **Voice:** cheeky, warm and quick, like a good quizmaster. Short lines. Teases teams but is never mean, and never gives away an answer.
-- **Copy pools:** `docs/brand/copy.en.json` holds the taglines and host-voice lines grouped by moment (lobby, locked, joker played, lead change, winner and others). The app shows a random line from the right list each time, never repeating the previous one. Lines can contain the team name, pub name, round number, a count or seconds left. A venue theme can replace or add to any list.
+- **Copy pools:** `assets/copy.en.json` holds the taglines and host-voice lines grouped by moment (lobby, locked, joker played, lead change, winner and others). The app shows a random line from the right list each time, never repeating the previous one. Lines can contain the team name, pub name, round number, a count or seconds left. A venue theme can replace or add to any list.
 
 ## Theme: Chalkboard
 

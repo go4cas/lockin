@@ -1,12 +1,11 @@
-// What the engine reads from the data folder: quizzes (5.2), the venue file
-// (5.4) and the theme's name and version (5.3). These are read straight from
-// the files, read-only, so the engine works before B3 and B4 merge; writing
-// those files stays with B3 and B4.
+// What the engine reads: quizzes (5.2) and their pictures straight from the data
+// folder, read-only, and the venue (5.3, 5.4) through B4's branding store, the one
+// reader of the theme and venue files (code review LI-020).
 
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { validateQuiz, validateTheme, validateVenue, defaultVenue, type QuizFile, type Problem, type VenueFile } from "../../shared/formats.ts";
+import { validateQuiz, type QuizFile, type Problem, type VenueFile } from "../../shared/formats.ts";
+import type { BrandingStore } from "../branding/store.ts";
 
 export type QuizLoad = { ok: true; quiz: QuizFile } | { ok: false; code: "not_found" | "quiz_not_ready"; problems: Problem[] };
 
@@ -29,7 +28,13 @@ export interface Sources {
 const QUIZ_ID = /^[a-z0-9-]{1,60}$/;
 const SAFE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
-export function fileSources(dataDir: string): Sources {
+/** The venue as the engine sees it, from the branding store (the store's name is null when unset). */
+export function venueFrom(branding: Pick<BrandingStore, "venueName" | "themeVersion" | "venue">): () => VenueInfo {
+  return () => ({ name: branding.venueName() ?? DEFAULT_VENUE_NAME, themeVersion: branding.themeVersion(), venue: branding.venue() });
+}
+
+/** Quizzes and pictures from the data folder; the venue from `venueInfo`. */
+export function fileSources(dataDir: string, venueInfo: () => VenueInfo): Sources {
   const quizDir = (id: string) => join(dataDir, "quizzes", id);
   return {
     loadQuiz(quizId) {
@@ -48,28 +53,7 @@ export function fileSources(dataDir: string): Sources {
       });
       return v.ok ? { ok: true, quiz: v.quiz } : { ok: false, code: "quiz_not_ready", problems: v.problems };
     },
-    venueInfo() {
-      let venue = defaultVenue();
-      const venuePath = join(dataDir, "venue.json");
-      if (existsSync(venuePath)) {
-        try {
-          const v = validateVenue(JSON.parse(readFileSync(venuePath, "utf8")));
-          if (v.ok) venue = v.value;
-        } catch { /* unreadable: defaults */ }
-      }
-      let name = DEFAULT_VENUE_NAME;
-      let themeVersion = "default";
-      const themePath = join(dataDir, "theme", "theme.json");
-      if (existsSync(themePath)) {
-        try {
-          const text = readFileSync(themePath, "utf8");
-          themeVersion = createHash("sha256").update(text).digest("hex").slice(0, 12);
-          const t = validateTheme(JSON.parse(text));
-          if (t.ok && t.value.name) name = t.value.name;
-        } catch { /* unreadable: defaults */ }
-      }
-      return { name, themeVersion, venue };
-    },
+    venueInfo,
     mediaPath(quizId, file) {
       if (!QUIZ_ID.test(quizId) || !SAFE_FILE.test(file)) return null;
       const p = join(quizDir(quizId), "media", file);

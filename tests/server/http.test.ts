@@ -64,7 +64,7 @@ describe("static files (TECH-SPEC 9.1, 4.5)", () => {
     expect(again.status).toBe(304);
   });
 
-  test("/static/shared/tokens.css is Design's docs/design/tokens.css", async () => {
+  test("/static/shared/tokens.css is Design's assets/tokens.css", async () => {
     const res = await s.fetch("/static/shared/tokens.css");
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(readFileSync(TOKENS_PATH, "utf8"));
@@ -75,7 +75,7 @@ describe("static files (TECH-SPEC 9.1, 4.5)", () => {
     const byId = await s.fetch("/static/fonts/caveat-brush.woff2");
     expect(byId.status).toBe(200);
     expect(byId.headers.get("content-type")).toBe("font/woff2");
-    expect(new Uint8Array(await byId.arrayBuffer())).toEqual(new Uint8Array(readFileSync("docs/design/fonts/caveat-brush-400.woff2")));
+    expect(new Uint8Array(await byId.arrayBuffer())).toEqual(new Uint8Array(readFileSync("assets/fonts/caveat-brush-400.woff2")));
     expect((await s.fetch("/static/fonts/atkinson-hyperlegible-700.woff2")).status).toBe(200);
     expect((await s.fetch("/static/fonts/OFL-caveat-brush.txt")).status).toBe(200);
     const logo = await s.fetch("/static/logo/lockin-mark.svg");
@@ -91,7 +91,7 @@ describe("static files (TECH-SPEC 9.1, 4.5)", () => {
     expect(safeRelative("a/../b")).toBeNull();
     expect(safeRelative("a\\b")).toBeNull();
     expect(safeRelative("shared/base.css")).toBe("shared/base.css");
-    expect(staticPath("fonts/caveat-brush-400.woff2", diskSource())).toBe("docs/design/fonts/caveat-brush-400.woff2");
+    expect(staticPath("fonts/caveat-brush-400.woff2", diskSource())).toBe("assets/fonts/caveat-brush-400.woff2");
   });
 
   test("missing files are 404", async () => {

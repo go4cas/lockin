@@ -53,7 +53,7 @@
   nav.appendChild(out);
 
   // "Powered by Lock-In", linked to the source (AGPL-3.0 section 13; the address is in shared/source.js).
-  const source = /** @type {any} */ (window).LockIn && /** @type {any} */ (window).LockIn.SOURCE_URL;
+  const source = window.LockIn && window.LockIn.SOURCE_URL;
   if (source) {
     const credit = document.createElement("footer");
     credit.className = "host-credit";

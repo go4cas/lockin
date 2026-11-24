@@ -18,10 +18,8 @@ afterEach(async () => {
 
 async function server(opts: { dataDir?: string; clock?: FakeClock } = {}) {
   const clock = opts.clock ?? new FakeClock();
-  const s = await startTestServer({ clock, dataDir: opts.dataDir, keepData: !!opts.dataDir });
+  const s = await startTestServer({ clock, dataDir: opts.dataDir, keepData: !!opts.dataDir, services: { rules: fakeRules, copyPicker: fakeCopy() } });
   servers.push(s);
-  s.app.services.rules = fakeRules;
-  s.app.services.copyPicker = fakeCopy();
   const { scheduler } = engines.get(s.app)!;
   /** Moves fake time on and runs due timers (the lock, last-seconds line). */
   const advance = (ms: number) => { clock.advance(ms); scheduler.runDue(); };

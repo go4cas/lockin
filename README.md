@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/design/logo/lockin-mark.svg">
-    <img src="docs/design/logo/lockin-mark-on-light.svg" alt="Lock-In logo: a padlock with a question mark" width="100">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/lockin-mark.svg">
+    <img src="assets/logo/lockin-mark-on-light.svg" alt="Lock-In logo: a padlock with a question mark" width="100">
   </picture>
 </p>
 
@@ -55,7 +55,7 @@ Open `http://localhost:8080/host` for the host console. On first start the serve
 
 Lock-In is free software under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). Any pub can run it, changed or not. If you run a changed version as a service for other people, you must offer them its source code under the same licence. The "Powered by Lock-In" credit on the phone and the host console links to the source; if you run a changed copy, point that link at your copy's source by changing the one line in `public/shared/source.js`. A venue's own theme, logo and quiz packs are its data, not part of Lock-In, so the licence does not cover them.
 
-The bundled fonts keep their own licence (SIL Open Font License), in a file beside each font in `docs/design/fonts/`.
+The bundled fonts keep their own licence (SIL Open Font License), in a file beside each font in `assets/fonts/`.
 
 ## Security
 

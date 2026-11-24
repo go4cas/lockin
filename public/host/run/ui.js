@@ -2,6 +2,7 @@
 // Small reusable pieces for the Run night console (TECH-SPEC 3.4): command buttons,
 // pills, team dots and the dialog frame. Text always goes through ${} slots (12.4).
 import { html, watch } from "/vendor/arrow/index.mjs";
+import { pool, retained } from "/static/shared/parts.mjs";
 import { closeDialog, enabled, openDialog, page, send, ui } from "./state.js";
 
 /** @typedef {import("../../../src/shared/protocol").CommandName} CommandName */
@@ -105,21 +106,8 @@ export function label(text) {
 // pieces are always there and toggled with `hidden`, and screens and dialogs are built
 // once and then hidden and shown (mountParts).
 
-/**
- * A list as a pool of rows that only grows: row i shows item i, spare rows hide
- * themselves (each row template must set `hidden` when get() is undefined).
- * @template T
- * @param {() => T[]} items
- * @param {(get: () => T | undefined, i: number) => any} render
- */
-export function pool(items, render) {
-  let size = 0;
-  return () => {
-    const n = items().length;
-    if (n > size) size = n;
-    return Array.from({ length: size }, (_, i) => render(() => items()[i], i).key(String(i)));
-  };
-}
+/** Row pools (shared with the phone, see public/shared/parts.mjs). */
+export { pool };
 
 /**
  * Shows one of several parts (screens, dialogs) in `holder`. Each part is built once,
@@ -132,27 +120,15 @@ export function pool(items, render) {
  * @param {(name: string, box: HTMLElement) => void} [onShow]
  */
 export function mountParts(holder, parts, current, onShow) {
-  /** @type {Record<string, HTMLElement>} */
-  const boxes = {};
-  let showing = "";
+  const boxes = retained(holder, "part", "part");
   watch(current, () => {
     queueMicrotask(() => {
       const name = current();
-      if (name === showing) return;
-      const old = showing ? boxes[showing] : undefined;
-      if (old) old.hidden = true;
-      showing = name;
-      if (!name || !parts[name]) return;
-      let box = boxes[name];
-      if (!box) {
-        box = boxes[name] = document.createElement("div");
-        box.className = "part";
-        box.dataset.part = name;
-        holder.appendChild(box);
-        parts[name]()(box);
-      }
-      box.hidden = false;
-      if (onShow) onShow(name, box);
+      if (name === boxes.showing()) return;
+      const build = name ? parts[name] : undefined;
+      const box = build ? boxes.ensure(name, (b) => build()(b)) : null;
+      boxes.show(name);
+      if (box && onShow) onShow(name, box);
     });
   });
 }

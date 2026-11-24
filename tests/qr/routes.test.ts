@@ -49,7 +49,7 @@ describe("/qr/join.svg (console and paired displays only: REVIEW finding 4)", ()
     try {
       expect((await s.fetch("/qr/join.svg")).status).toBe(404);
       expect((await s.fetch("/qr/join.svg", { headers: { Authorization: "Bearer not-a-token" } })).status).toBe(404);
-      const { token } = s.app.services.displayPairing!.issue();
+      const { token } = s.app.services.displayPairing.issue();
       expect(await qrText(await s.fetch("/qr/join.svg", { headers: { Authorization: `Bearer ${token}` } }))).toBe(`${TEST_PUBLIC_URL}/j/GHJK`);
       // The token no longer works in the URL, where it would end up in logs and history.
       expect((await s.fetch(`/qr/join.svg?d=${encodeURIComponent(token)}`)).status).toBe(404);

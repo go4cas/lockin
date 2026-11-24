@@ -18,10 +18,8 @@ afterEach(async () => {
 
 async function setup() {
   const clock = new FakeClock();
-  const s = await startTestServer({ clock });
+  const s = await startTestServer({ clock, services: { rules: fakeRules, copyPicker: fakeCopy() } });
   servers.push(s);
-  s.app.services.rules = fakeRules;
-  s.app.services.copyPicker = fakeCopy();
   writeQuiz(s.dataDir, makeQuiz("pairing", [[q(text("Fleetwood Mac"), { text: "Who made Rumours?" }), q(text("Abbey Road"))]], { timerSeconds: 30 }));
   const cookie = await s.signIn();
   const host = await client(s, "host", cookie);
@@ -109,7 +107,7 @@ describe("display pairing (REVIEW finding 4)", () => {
     const tv = await client(s, "display", cookie);
     expect(tv.received.some((m) => m.t === "paired")).toBe(false);   // no token to keep
     expect(view<DisplayView>(tv).night!.roomCode).toBe(roomCode);
-    expect(s.app.services.displayPairing!.pairedCount).toBe(0);     // nothing stored
+    expect(s.app.services.displayPairing.pairedCount).toBe(0);     // nothing stored
     await settle();
     expect(view<HostView>(host).displays).toMatchObject({ paired: 0, connected: 1, bySession: 1, list: [] });
     // its QR comes by the session cookie
@@ -148,7 +146,7 @@ describe("display pairing (REVIEW finding 4)", () => {
     expect(view<DisplayView>(b).night!.roomCode).toBe(roomCode);
     expect(view<HostView>(host).displays!.list!.map((d) => d.id)).toEqual([rb.id]);
     // its token is dead, also after a restart
-    expect(s.app.services.displayPairing!.isPaired(tokenA)).toBe(false);
+    expect(s.app.services.displayPairing.isPaired(tokenA)).toBe(false);
     expect(new DisplayPairing(s.dataDir, s.app.clock).isPaired(tokenA)).toBe(false);
     expect(await errCode(host, "display.unpair", { id: ra.id })).toBe("not_found");
     expect(await errCode(host, "display.unpair", { id: "nope" })).toBe("bad_args");
@@ -175,7 +173,7 @@ describe("display pairing (REVIEW finding 4)", () => {
     expect(everything(stale)).not.toContain(roomCode);
     const fresh = await client(s, "display", undefined, usedToken);
     expect(view<DisplayView>(fresh).night!.roomCode).toBe(roomCode);
-    expect(s.app.services.displayPairing!.pairedCount).toBe(1);
+    expect(s.app.services.displayPairing.pairedCount).toBe(1);
     expect(new DisplayPairing(s.dataDir, clock).isPaired(oldToken)).toBe(false);
   });
 

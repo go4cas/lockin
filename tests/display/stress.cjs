@@ -1,6 +1,6 @@
 // Stress check for the display (B6): 400 random view changes, 0 to 30 ms apart,
 // per seed (questions, options, pictures and standings shuffled), then five known
-// views whose text must be on screen. Fails on any page error. A Playwright tool,
+// views whose text must be on screen, then the bounded error recovery. Fails on any page error. A Playwright tool,
 // not a bun test (like screenshots.cjs).
 //
 //   bun run fixtures --port 8091 &
@@ -35,11 +35,42 @@ async function run(views, b, s) {
  return { seed: s, errors: errs.length, kinds: [...new Set(errs)], bad };
 }
 
+// Error recovery (code review LI-017): a rendering error remounts the display once from its
+// last view; an unrelated error does nothing; an error that keeps coming back stops after 3
+// remounts a minute instead of looping. The errors are dispatched as error events with a
+// script's file name, which is what the display's listener reads.
+async function recoveryCheck(views, b) {
+  const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.route(/\/vendor\//, (r) => r.fulfill({ path: path.join(ROOT, "public", new URL(r.request().url()).pathname), contentType: "text/javascript" }));
+  await p.route(/\/(qr|media)\//, (r) => r.fulfill({ body: "<svg xmlns='http://www.w3.org/2000/svg'/>", contentType: "image/svg+xml" }));
+  await p.goto(BASE + "/display?fixture=display%2Freveal"); await p.waitForTimeout(1200);
+  const tree = () => p.evaluate(() => { const el = document.getElementById("display").firstElementChild; if (!el.dataset.mark) el.dataset.mark = String(Math.random()); return el.dataset.mark; });
+  const fire = (file) => p.evaluate((f) => window.dispatchEvent(new ErrorEvent("error", { message: "test", filename: f ? location.origin + f : "" })), file);
+  const text = () => p.evaluate(() => document.getElementById("display").innerText.replace(/\s+/g, " "));
+  const bad = [];
+  const t0 = await tree();
+  await fire(""); await fire("/static/shared/ws-client.js"); await p.waitForTimeout(300);
+  if ((await tree()) !== t0) bad.push("an unrelated error remounted the display");
+  await fire("/vendor/arrow/chunks/internal.mjs"); await p.waitForTimeout(400);
+  const t1 = await tree();
+  if (t1 === t0) bad.push("a rendering error did not remount the display");
+  if (!(await text()).includes("Aretha Franklin")) bad.push("the remounted display lost its view");
+  for (let i = 0; i < 20; i++) { await fire("/static/display/display.mjs"); await p.waitForTimeout(80); }
+  await p.waitForTimeout(300);
+  const stats = await p.evaluate(() => window.LockInDisplayRecovery);
+  if (!stats || stats.recent !== 3 || stats.skipped < 15) bad.push("remounts were not bounded: " + JSON.stringify(stats));
+  if (!(await text()).includes("Aretha Franklin")) bad.push("the display lost its view after repeated errors");
+  await p.close();
+  return { check: "recovery", errors: errs.length, kinds: [...new Set(errs)], bad };
+}
+
 (async () => {
   const views = {}; for (const n of names) views[n] = await grab(n);
   const b = await chromium.launch();
   const results = [];
   for (const s of SEEDS) results.push(await run(views, b, s));
+  results.push(await recoveryCheck(views, b));
   await b.close();
   for (const r of results) console.log(JSON.stringify(r));
   process.exitCode = results.some((r) => r.errors || r.bad.length) ? 1 : 0;

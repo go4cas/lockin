@@ -17,10 +17,11 @@ const EMBEDDED_TS = "src/server/embedded.ts";
 /**
  * What the binary carries, as repo-relative paths (the keys the server's
  * FileSource reads, see src/server/static.ts): everything in public/
- * (including the vendored Arrow), the copy pools, the default theme's tokens,
- * the bundled fonts with their licences, and the Lock-In logo.
+ * (including the vendored Arrow) and everything in assets/ (the copy pools,
+ * the default theme's tokens, the bundled fonts with their licences, and the
+ * Lock-In logo). Nothing in docs/ ships (code review LI-021).
  */
-export const EMBED_ROOTS = ["public", "docs/brand/copy.en.json", "docs/design/tokens.css", "docs/design/fonts", "docs/design/logo"];
+export const EMBED_ROOTS = ["public", "assets"];
 
 /** Every file to embed, sorted, skipping hidden files and folders. */
 export function embeddedPaths(root: string = ROOT): string[] {

@@ -5,22 +5,12 @@ import { join } from "node:path";
 import type { App } from "../app.ts";
 import { UPLOAD_CSP, errorResponse, json, BodyTooLarge, readFormBody, readJsonBody } from "../http.ts";
 import { contentType, serveFile, type FileSource } from "../static.ts";
-import { MAX_IMAGE_BYTES, QuizError, QuizStore } from "./store.ts";
+import { MAX_IMAGE_BYTES, QuizError } from "./store.ts";
 
 export { QuizStore, QuizError } from "./store.ts";
 
 /** Largest quiz JSON body accepted by PUT (a full 20 x 30 quiz is well under this). */
 const MAX_QUIZ_BODY = 2_000_000;
-
-let current: QuizStore | null = null;
-
-/**
- * B1's hook (TECH-SPEC 5.2, B1): appends an answer accepted while marking to
- * the quiz file. Also available as app.services.quizStore.
- */
-export function saveAcceptedAnswer(quizId: string, questionId: string, text: string): void {
-  current?.saveAcceptedAnswer(quizId, questionId, text);
-}
 
 function fail(e: unknown): Response {
   if (e instanceof QuizError) {
@@ -41,15 +31,8 @@ const dataFiles: FileSource = {
 };
 
 export function register(app: App): void {
-  const inUse = app.db.query<{ one: number }, [string]>("SELECT 1 AS one FROM nights WHERE quiz_id = ? AND status = 'open' LIMIT 1");
-  const store = new QuizStore({
-    dir: join(app.config.dataDir, "quizzes"),
-    now: () => app.clock.now(),
-    inUse: (id) => inUse.get(id) !== null,
-    log: app.log,
-  });
-  current = store;
-  app.services.quizStore = { saveAcceptedAnswer: (q, id, text) => store.saveAcceptedAnswer(q, id, text) };
+  // The store is built by the composition root (services.ts, LI-020); B1 reaches saveAcceptedAnswer there too.
+  const store = app.services.quizStore;
   const host = { host: true };
 
   app.route("GET", "/api/quizzes", () => json({ quizzes: store.list() }), host);

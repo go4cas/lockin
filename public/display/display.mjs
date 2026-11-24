@@ -11,6 +11,7 @@ import {
   boardLayout, byId, choiceIndex, clockTime, countdownText, endStage, footerLine, movement, holdingPanels, letter,
   lockShouldSnap, ordinal, pageBrand, questionSize, revealProgress, screenFor, themeReloadDue, timerNow, wonTieBreak,
 } from "./logic.mjs";
+import { recovery } from "/static/shared/parts.mjs";
 
 /** @typedef {import("../../src/shared/protocol").DisplayView} DisplayView */
 /** @typedef {import("../../src/shared/protocol").TeamChip} TeamChip */
@@ -44,7 +45,7 @@ if (!W.LockInDisplayUnsupported) start();
  */
 function start() {
   const root = /** @type {HTMLElement} */ (document.getElementById("display"));
-  /** @type {any} */ let client = null;
+  /** @type {import("../../src/shared/client-api").LockInClient | null} */ let client = null;
   /** @type {DisplayView | null} */ let lastView = null;
   let status = "connecting";
   let connections = 0;
@@ -54,12 +55,22 @@ function start() {
   /** @type {ReturnType<typeof createDisplay>} */
   let display = createDisplay(root, now);
 
+  // Remount only for errors from rendering code (Arrow and the display's own modules), at
+  // most 3 times a minute, so an error that comes straight back can't loop (code review
+  // LI-017). The old tree is disposed first: its timers and QR fetch stop touching the page.
+  const recover = recovery({ limit: 3, windowMs: 60_000, sources: ["/vendor/arrow/", "/static/display/", "/static/shared/parts.mjs"] });
   let remounting = false;
-  window.addEventListener("error", function () {
-    if (remounting) return;
+  window.addEventListener("error", function (e) {
+    if (remounting || !recover.isRenderError(e, window.location.origin)) return;
+    if (!recover.allow()) {
+      W.LockInDisplayRecovery = recover.stats();
+      return;
+    }
     remounting = true;
+    W.LockInDisplayRecovery = recover.stats();
     setTimeout(function () {
       remounting = false;
+      display.dispose();
       while (root.firstChild) root.removeChild(root.firstChild);
       display = createDisplay(root, now);
       display.setStatus(status);
@@ -888,12 +899,20 @@ function createDisplay(root, now) {
   app(root);
   void FLASH_MS;
 
+  let disposed = false;
   return {
-    receive,
+    /** @param {DisplayView} view @param {boolean} animate */
+    receive: function (view, animate) { if (!disposed) receive(view, animate); },
     /** @param {boolean} reconnect */
     welcome: function (reconnect) { freshConnection = reconnect; },
     /** @param {string} s */
-    setStatus: function (s) { if (page.status !== s) page.status = s; },
-    tick: function () { page.now = now(); update(); },
+    setStatus: function (s) { if (!disposed && page.status !== s) page.status = s; },
+    tick: function () { if (!disposed) { page.now = now(); update(); } },
+    /** Before a remount: stops this tree's pending swap and late QR answers changing anything. */
+    dispose: function () {
+      disposed = true;
+      if (pending) { clearTimeout(pending); pending = null; }
+      qrKey = "\u0000disposed";
+    },
   };
 }

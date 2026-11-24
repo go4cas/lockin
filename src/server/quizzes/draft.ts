@@ -9,7 +9,7 @@
 
 import {
   DEFAULT_QUIZ_SETTINGS, MEDIA_FILE, QUESTION_ID, QUIZ_FORMAT, QUIZ_LIMITS, ROUND_ID, validateSettings,
-  type Problem, type QuizFile, type QuizSettings,
+  type DraftAnswer, type DraftMedia, type DraftQuestion, type DraftRound, type FutureAnswer, type Problem, type QuizDraft, type QuizSettings,
 } from "../../shared/formats.ts";
 
 // The ids, file names, limits and settings rules are the ones readiness uses (LI-009).
@@ -32,18 +32,18 @@ export function newId(prefix: "r-" | "q-"): string {
 }
 
 /** An empty question, as the default shape and the builder's "Add question" make it. */
-export function emptyQuestion(): Obj {
+export function emptyQuestion(): DraftQuestion {
   return { id: newId("q-"), text: "", answer: { type: "text", accepted: [""] } };
 }
 
 /** A new quiz: 6 rounds of 5 empty questions and default settings (H-02). */
-export function newQuiz(id: string, title: string, updatedAt: string): QuizFile {
-  const rounds = Array.from({ length: 6 }, () => ({
+export function newQuiz(id: string, title: string, updatedAt: string): QuizDraft {
+  const rounds: DraftRound[] = Array.from({ length: 6 }, () => ({
     id: newId("r-"),
     title: "",
     questions: Array.from({ length: 5 }, emptyQuestion),
   }));
-  return { format: QUIZ_FORMAT, id, title, updatedAt, settings: { ...DEFAULT_QUIZ_SETTINGS }, rounds, suddenDeath: [] } as unknown as QuizFile;
+  return { format: QUIZ_FORMAT, id, title, updatedAt, settings: { ...DEFAULT_QUIZ_SETTINGS }, rounds, suddenDeath: [] };
 }
 
 /**
@@ -51,7 +51,7 @@ export function newQuiz(id: string, title: string, updatedAt: string): QuizFile 
  * or the problems that stop it being saved. `id` and `updatedAt` are not
  * checked here: the server sets them.
  */
-export function checkDraft(v: unknown): { ok: true; quiz: Obj } | { ok: false; problems: Problem[] } {
+export function checkDraft(v: unknown): { ok: true; quiz: QuizDraft } | { ok: false; problems: Problem[] } {
   const problems: Problem[] = [];
   const add = (path: string, message: string) => problems.push({ path, message });
   if (!isObj(v)) return { ok: false, problems: [{ path: "", message: "The quiz is not a JSON object." }] };
@@ -64,7 +64,7 @@ export function checkDraft(v: unknown): { ok: true; quiz: Obj } | { ok: false; p
   const settings = checkSettings(v.settings, add);
   const seen = new Set<string>();
 
-  const rounds: Obj[] = [];
+  const rounds: DraftRound[] = [];
   if (!Array.isArray(v.rounds)) add("rounds", "The rounds must be a list.");
   else if (v.rounds.length > L.rounds) add("rounds", `A quiz can have at most ${L.rounds} rounds.`);
   else v.rounds.forEach((r, i) => {
@@ -75,17 +75,18 @@ export function checkDraft(v: unknown): { ok: true; quiz: Obj } | { ok: false; p
     else seen.add(r.id);
     const rt = r.title === undefined ? "" : r.title;
     if (!str(rt, L.roundTitleChars)) add(`${path}.title`, `${label}'s title can be at most ${L.roundTitleChars} characters.`);
-    const questions: Obj[] = [];
+    const questions: DraftQuestion[] = [];
     if (!Array.isArray(r.questions)) add(`${path}.questions`, `${label}'s questions must be a list.`);
     else if (r.questions.length > L.questionsPerRound) add(`${path}.questions`, `${label} can have at most ${L.questionsPerRound} questions.`);
     else r.questions.forEach((q, j) => {
       const out = checkQuestion(q, `${path}.questions.${j}`, `${label}, question ${j + 1}`, seen, add);
       if (out) questions.push(out);
     });
-    rounds.push({ id: r.id, title: rt, questions });
+    // Pushed even when a check failed: any problem refuses the whole draft below.
+    rounds.push({ id: r.id as string, title: rt as string, questions });
   });
 
-  const suddenDeath: Obj[] = [];
+  const suddenDeath: DraftQuestion[] = [];
   const sd = v.suddenDeath === undefined ? [] : v.suddenDeath;
   if (!Array.isArray(sd)) add("suddenDeath", "The sudden-death questions must be a list.");
   else if (sd.length > L.suddenDeath) add("suddenDeath", `A quiz can have at most ${L.suddenDeath} sudden-death questions.`);
@@ -107,7 +108,7 @@ function checkSettings(v: unknown, add: (p: string, m: string) => void): QuizSet
   };
 }
 
-function checkQuestion(q: unknown, path: string, label: string, seen: Set<string>, add: (p: string, m: string) => void): Obj | null {
+function checkQuestion(q: unknown, path: string, label: string, seen: Set<string>, add: (p: string, m: string) => void): DraftQuestion | null {
   if (!isObj(q)) { add(path, `${label} is not a JSON object.`); return null; }
   let ok = true;
   const bad = (p: string, m: string) => { ok = false; add(`${path}${p}`, m); };
@@ -119,7 +120,7 @@ function checkQuestion(q: unknown, path: string, label: string, seen: Set<string
   if (q.timerSeconds !== undefined && !(isInt(q.timerSeconds) && q.timerSeconds >= 10 && q.timerSeconds <= 300)) {
     bad(".timerSeconds", `${label}'s timer must be a whole number of seconds from 10 to 300.`);
   }
-  let media: Obj | undefined;
+  let media: DraftMedia | undefined;
   if (q.media !== undefined) {
     const m = q.media;
     if (!isObj(m) || typeof m.kind !== "string" || len(m.kind) > 20) bad(".media", `${label}'s media is not valid.`);
@@ -128,19 +129,20 @@ function checkQuestion(q: unknown, path: string, label: string, seen: Set<string
     else media = m.alt === undefined ? { kind: m.kind, file: m.file } : { kind: m.kind, file: m.file, alt: m.alt };
   }
   const answer = checkAnswer(q.answer, label, (p, m) => bad(`.answer${p}`, m));
-  if (!ok) return null;
-  const out: Obj = { id: q.id, text };
-  if (q.note !== undefined) out.note = q.note;
-  if (q.timerSeconds !== undefined) out.timerSeconds = q.timerSeconds;
-  if (media) out.media = media;
-  out.answer = answer;
-  return out;
+  if (!ok || !answer) return null;
+  // Field order of Question in formats.ts. Each field was checked above (ok is still true).
+  return {
+    id: q.id as string,
+    text: text as string,
+    ...(q.note !== undefined ? { note: q.note as string } : {}),
+    ...(q.timerSeconds !== undefined ? { timerSeconds: q.timerSeconds as number } : {}),
+    ...(media ? { media } : {}),
+    answer,
+  };
 }
 
-const optRange = (v: unknown) => v === undefined || (isNum(v) && v >= 0);
-
 /** Answers may be incomplete in a draft (empty text, no value yet); types and sizes must hold. */
-function checkAnswer(a: unknown, label: string, bad: (p: string, m: string) => void): Obj | null {
+function checkAnswer(a: unknown, label: string, bad: (p: string, m: string) => void): DraftAnswer | FutureAnswer | null {
   if (!isObj(a) || typeof a.type !== "string") { bad("", `${label} has no answer type.`); return null; }
   switch (a.type) {
     case "text": {
@@ -148,7 +150,7 @@ function checkAnswer(a: unknown, label: string, bad: (p: string, m: string) => v
       if (!Array.isArray(acc) || acc.length > L.accepted || !acc.every((x) => str(x, L.answerChars))) {
         bad(".accepted", `${label}'s accepted answers must be a list of at most ${L.accepted}, each at most ${L.answerChars} characters.`); return null;
       }
-      return { type: "text", accepted: acc };
+      return { type: "text", accepted: acc as string[] };
     }
     case "choice": {
       const opts = a.options;
@@ -156,27 +158,30 @@ function checkAnswer(a: unknown, label: string, bad: (p: string, m: string) => v
         bad(".options", `${label} can have at most ${L.options} options, each at most ${L.answerChars} characters.`); return null;
       }
       if (!isInt(a.correct) || a.correct < -1 || a.correct >= L.options) { bad(".correct", `${label}'s correct option is not valid.`); return null; }
-      return { type: "choice", options: opts, correct: a.correct };
+      return { type: "choice", options: opts as string[], correct: a.correct };
     }
     case "number":
     case "closest": {
-      if (a.value !== null && !isNum(a.value)) { bad(".value", `${label}'s answer must be a number.`); return null; }
-      if (a.type === "number") return { type: "number", value: a.value };
-      if (!optRange(a.range)) { bad(".range", `${label}'s range must be a number of 0 or more.`); return null; }
-      return a.range === undefined ? { type: "closest", value: a.value } : { type: "closest", value: a.value, range: a.range };
+      const value = a.value;
+      if (value !== null && !isNum(value)) { bad(".value", `${label}'s answer must be a number.`); return null; }
+      if (a.type === "number") return { type: "number", value };
+      const range = a.range;
+      if (range !== undefined && !(isNum(range) && range >= 0)) { bad(".range", `${label}'s range must be a number of 0 or more.`); return null; }
+      return range === undefined ? { type: "closest", value } : { type: "closest", value, range };
     }
     case "datetime": {
       if (a.precision !== "year" && a.precision !== "date" && a.precision !== "time") { bad(".precision", `${label} must say year, date or time.`); return null; }
       if (!str(a.value, 12)) { bad(".value", `${label}'s answer is too long.`); return null; }
       if (a.scoring !== "exact" && a.scoring !== "closest") { bad(".scoring", `${label} must be scored "exact" or "closest".`); return null; }
-      if (!optRange(a.range)) { bad(".range", `${label}'s range must be a number of 0 or more.`); return null; }
-      const out: Obj = { type: "datetime", precision: a.precision, value: a.value, scoring: a.scoring };
-      if (a.range !== undefined) out.range = a.range;
+      const range = a.range;
+      if (range !== undefined && !(isNum(range) && range >= 0)) { bad(".range", `${label}'s range must be a number of 0 or more.`); return null; }
+      const out: DraftAnswer = { type: "datetime", precision: a.precision, value: a.value, scoring: a.scoring };
+      if (range !== undefined) out.range = range;
       return out;
     }
     default:
       // A type from a newer Lock-In: keep it as it is, so saving never loses it (S-09). It stays "not ready".
       if (len(a.type) > 20) { bad(".type", `${label}'s answer type is not valid.`); return null; }
-      return a;
+      return a as FutureAnswer;
   }
 }

@@ -11,6 +11,8 @@ import * as L from "./logic.mjs";
 
 /** @typedef {import("../../src/shared/protocol").TeamView} TeamView */
 /** @typedef {import("../../src/shared/protocol").QuestionPublic} QuestionPublic */
+/** @typedef {import("../../src/shared/protocol").CommandError} CommandError */
+/** @typedef {import("../../src/shared/client-api").LockInClient} LockInClient */
 
 /** @type {any} */
 const W = typeof window !== "undefined" ? window : globalThis;
@@ -56,8 +58,8 @@ export const ui = reactive({
   /** Server time, ticking, for timers and countdowns. */ now: Date.now(),
 });
 
-/** @type {any} */
-let client = null;
+/** Set by start(); commands are only sent after it. */
+let client = /** @type {LockInClient} */ (/** @type {unknown} */ (null));
 let sentToken = false;
 let moveTried = false;
 let lastFlash = 0;
@@ -217,8 +219,8 @@ export function join() {
   // D1: a phone that came from the QR code sends its join key, which gets past the room code limits.
   const joinKey = path.joinKey && room === path.roomCode ? path.joinKey : "";
   client.cmd("team.join", joinKey ? { roomCode: room, name, joinKey } : { roomCode: room, name }).then(
-    (/** @type {any} */ r) => { ui.joining = false; remember(r); forgetPath(); },
-    (/** @type {any} */ e) => { ui.joining = false; ui.joinError = errorOf(e); },
+    (r) => { ui.joining = false; remember(r); forgetPath(); },
+    (/** @type {CommandError} */ e) => { ui.joining = false; ui.joinError = errorOf(e); },
   );
 }
 
@@ -229,17 +231,17 @@ export function rejoin() {
   ui.rejoining = true;
   ui.rejoinError = null;
   client.cmd("team.rejoin", { code }).then(
-    (/** @type {any} */ r) => { ui.rejoining = false; ui.joinMode = "join"; ui.rejoinCode = ""; remember(r); forgetPath(); reroute(); },
-    (/** @type {any} */ e) => { ui.rejoining = false; ui.rejoinError = errorOf(e).message; },
+    (r) => { ui.rejoining = false; ui.joinMode = "join"; ui.rejoinCode = ""; remember(r); forgetPath(); reroute(); },
+    (/** @type {CommandError} */ e) => { ui.rejoining = false; ui.rejoinError = errorOf(e).message; },
   );
 }
 
 /** /m/<code>: take over a team the host is moving to this phone (11.3). */
 function moveHere() {
-  const code = L.parsePath(W.location.pathname).moveCode;
+  const code = L.parsePath(W.location.pathname).moveCode ?? "";
   client.cmd("team.rejoin", { code }).then(
-    (/** @type {any} */ r) => { remember(r); ui.moving = false; forgetPath(); reroute(); },
-    (/** @type {any} */ e) => {
+    (r) => { remember(r); ui.moving = false; forgetPath(); reroute(); },
+    (/** @type {CommandError} */ e) => {
       ui.moving = false;
       ui.joinMode = "rejoin";
       ui.rejoinError = `${errorOf(e).message} Ask the quizmaster for a new move link, or type your team's rejoin code.`;
@@ -270,7 +272,7 @@ export function send(q) {
   const mine = epoch;
   client.cmd("answer.submit", { questionId: q.id, value: built.value }).then(
     () => { if (mine === epoch) ui.sending[q.id] = false; },
-    (/** @type {any} */ e) => {
+    (/** @type {CommandError} */ e) => {
       if (mine !== epoch) return;
       ui.sending[q.id] = false;
       const err = errorOf(e);
@@ -300,7 +302,7 @@ export function playJoker(round) {
   const mine = epoch;
   client.cmd("joker.play", { round }).then(
     () => { if (mine === epoch) { ui.jokerBusy = false; ui.jokerConfirm = null; } },
-    (/** @type {any} */ e) => { if (mine === epoch) { ui.jokerBusy = false; ui.jokerConfirm = null; ui.jokerError = errorOf(e).message; } },
+    (/** @type {CommandError} */ e) => { if (mine === epoch) { ui.jokerBusy = false; ui.jokerConfirm = null; ui.jokerError = errorOf(e).message; } },
   );
 }
 

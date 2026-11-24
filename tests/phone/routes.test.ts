@@ -119,9 +119,9 @@ describe("service worker app shell", () => {
     for (const url of shell) {
       if (url === "/") continue;
       const file = url.startsWith("/vendor/") ? join(ROOT, "public", url)
-        : url.startsWith("/static/fonts/") ? join(ROOT, "docs/design/fonts", url.slice(14).replace(/^([a-z-]+)\.woff2$/, "$1-400.woff2"))
-        : url.startsWith("/static/logo/") ? join(ROOT, "docs/design/logo", url.slice(13))
-        : url === "/static/shared/tokens.css" ? join(ROOT, "docs/design/tokens.css")
+        : url.startsWith("/static/fonts/") ? join(ROOT, "assets/fonts", url.slice(14).replace(/^([a-z-]+)\.woff2$/, "$1-400.woff2"))
+        : url.startsWith("/static/logo/") ? join(ROOT, "assets/logo", url.slice(13))
+        : url === "/static/shared/tokens.css" ? join(ROOT, "assets/tokens.css")
         : join(ROOT, "public", url.slice(8));
       expect(existsSync(file), url).toBe(true);
     }
@@ -131,6 +131,7 @@ describe("service worker app shell", () => {
     const dir = join(ROOT, "public/phone");
     for (const f of ["app.mjs", "state.mjs", "screens.mjs"]) {
       for (const m of readFileSync(join(dir, f), "utf8").matchAll(/from "\.\/([\w.-]+)"/g)) expect(shell).toContain(`/static/phone/${m[1]}`);
+      for (const m of readFileSync(join(dir, f), "utf8").matchAll(/from "(\/static\/shared\/[\w.-]+)"/g)) expect(shell).toContain(m[1]!);
     }
   });
 

@@ -2,14 +2,14 @@
 // Quiz builder (H-02, H-03, H-04). The open quiz is a local reactive() draft;
 // a watch() on it drives the debounced autosave (TECH-SPEC 3.4, B3).
 import { html, nextTick, reactive, watch } from "/vendor/arrow/index.mjs";
-import { ApiError, getQuiz, groupProblems, readinessLabel, saveQuiz, uploadImage } from "./api.js";
+import { ApiError, getQuiz, isOffline, groupProblems, readinessLabel, saveQuiz, uploadImage } from "./api.js";
 import { prepareImage } from "./image.js";
 
-/** @typedef {import("./api.js").QuizFile} QuizFile */
+/** @typedef {import("./api.js").QuizDraft} QuizDraft */
 /** @typedef {import("./api.js").Problem} Problem */
-/** @typedef {import("../../../src/shared/formats").Question} Question */
-/** @typedef {import("../../../src/shared/formats").Round} Round */
-/** @typedef {import("../../../src/shared/formats").AnswerSpec} AnswerSpec */
+/** @typedef {import("../../../src/shared/formats").DraftQuestion} Question */
+/** @typedef {import("../../../src/shared/formats").DraftRound} Round */
+/** @typedef {import("../../../src/shared/formats").DraftAnswer} AnswerSpec */
 /**
  * What the editor shows: the quiz and its settings, a round, a question, or the sudden-death list.
  * @typedef {{ kind: "quiz" | "round" | "question" | "sd" | "none", id: string }} Selection
@@ -36,7 +36,7 @@ const emptyQuestion = () => ({ id: newId("q-"), text: "", answer: { type: "text"
 /**
  * A fresh answer of a type, for switching types.
  * @param {string} type
- * @returns {any}
+ * @returns {AnswerSpec}
  */
 function blankAnswer(type) {
   switch (type) {
@@ -59,7 +59,7 @@ const short = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 export function mountBuilder(root, quizId) {
   const ui = reactive({
     /** the quiz being edited (local; the server never overwrites it) */
-    draft: /** @type {QuizFile | null} */ (null),
+    draft: /** @type {QuizDraft | null} */ (null),
     /** updatedAt of the last save, sent as baseUpdatedAt (409 check) */
     base: "",
     /** whether the page shows the builder; separate from status so saving never rebuilds the page */
@@ -83,6 +83,8 @@ export function mountBuilder(root, quizId) {
   /** @type {ReturnType<typeof setTimeout> | undefined} */
   let timer;
   let inFlight = false;
+  /** The last save failed because the server could not be reached (ApiError code "offline"): retry on a timer. */
+  let offline = false;
 
   const draftJson = () => (ui.draft ? JSON.stringify(ui.draft) : "");
 
@@ -106,10 +108,12 @@ export function mountBuilder(root, quizId) {
       ui.ready = res.ready;
       ui.problems = res.problems;
       ui.message = "";
+      offline = false;
       ui.status = draftJson() === json ? "saved" : "pending";
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError(0, "error", String(e));
       ui.message = err.message;
+      offline = isOffline(err);
       if (err.code === "edited_elsewhere") ui.status = "conflict";
       else if (err.code === "quiz_in_use") ui.status = "locked";
       else ui.status = "error";
@@ -117,7 +121,7 @@ export function mountBuilder(root, quizId) {
       inFlight = false;
     }
     if (ui.status === "pending") schedule();
-    else if (ui.status === "error" && /** @type {any} */ (ui.message) && ui.message.startsWith("Can't reach")) schedule(5000);
+    else if (ui.status === "error" && offline) schedule(5000);
   }
 
   // Any change to the draft (re)starts the debounce.
@@ -131,7 +135,7 @@ export function mountBuilder(root, quizId) {
   });
 
   // ---- Lookups and edits ----------------------------------------------------
-  const d = () => /** @type {QuizFile} */ (ui.draft);
+  const d = () => /** @type {QuizDraft} */ (ui.draft);
 
   /** @param {string} id */
   function findQuestion(id) {
@@ -481,7 +485,7 @@ export function mountBuilder(root, quizId) {
 
   /** @param {Question} q */
   const numberAnswer = (q) => {
-    const a = /** @type {{ type: "number" | "closest", value: number | null, range?: number }} */ (/** @type {unknown} */ (q.answer));
+    const a = /** @type {{ type: "number" | "closest", value: number | null, range?: number }} */ (q.answer);
     return html`<div class="b-pane">
       <div class="field"><label class="l" for="ans-num">${a.type === "number" ? "Correct number" : "The real number"}</label>
         <input id="ans-num" class="input narrow" type="number" step="any" value="${() => (a.value ?? "")}"
