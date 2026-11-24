@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EMBED_ROOTS, OUTFILE, ROOT, embeddedPaths } from "../../scripts/build.ts";
 import { startTestServer, TEST_PUBLIC_URL, type TestServer } from "../helpers/server.ts";
+import { MIN_BUN, versionAtLeast } from "../../src/server/runtime.ts";
 
 const canRun = process.platform === "linux" && process.arch === "x64";
 
@@ -42,6 +43,7 @@ describe.skipIf(!canRun)("the compiled binary", () => {
   let base: string;
   let source: TestServer;
   let buildOutput = "";
+  let startLog = "";
 
   beforeAll(async () => {
     const build = Bun.spawn(["bun", "run", "build"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
@@ -64,6 +66,7 @@ describe.skipIf(!canRun)("the compiled binary", () => {
       log += new TextDecoder().decode(value);
     }
     reader.releaseLock();
+    startLog = log;
     base = `http://127.0.0.1:${/Listening on 127\.0\.0\.1:(\d+)/.exec(log)![1]}`;
     source = await startTestServer();
   }, 60000);
@@ -79,6 +82,12 @@ describe.skipIf(!canRun)("the compiled binary", () => {
     expect(existsSync(join(ROOT, OUTFILE))).toBe(true);
     expect(existsSync(join(ROOT, "src/server/embedded.ts"))).toBe(false);
     expect(buildOutput).toContain(`Built ${OUTFILE} with ${embeddedPaths().length} embedded files.`);
+  });
+
+  test("the embedded Bun runtime is at least MIN_BUN (SA-05)", () => {
+    const m = /Lock-In \S+ on Bun (\S+)/.exec(startLog);
+    expect(m).not.toBeNull();
+    expect(versionAtLeast(m![1]!, MIN_BUN)).toBe(true);
   });
 
   test("starts from an empty folder and makes its data folder there", () => {

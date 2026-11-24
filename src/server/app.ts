@@ -194,7 +194,7 @@ export async function startServer(config: Config, opts: AppOptions = {}): Promis
   for (const fn of app.startHooks) await fn();
 
   const port = server.port!;
-  app.log(`Lock-In ${VERSION}`);
+  app.log(`Lock-In ${VERSION} on Bun ${Bun.version}`);
   app.log(`Public address: ${config.publicUrl}  (host console: ${config.publicUrl}/host)`);
   app.log(`Data folder: ${config.dataDir}`);
   if (setupCode) app.log(`No host password is set yet. Setup code: ${setupCode}`);

@@ -1,0 +1,31 @@
+name: Bun release check
+
+# SA-05: Lock-In ships with the Bun runtime inside its binary, so a Bun security release
+# only reaches the pub once the binary is rebuilt. This weekly job fails when the Bun
+# pinned in ci.yml is not the latest 1.4.x, so the bump is noticed.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latest-bun:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare the pinned Bun with the latest 1.4.x release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pinned=$(sed -n 's/^ *bun-version: *//p' .github/workflows/ci.yml | head -1)
+          latest=$(gh api 'repos/oven-sh/bun/releases?per_page=100' --jq '[.[].tag_name | select(test("^bun-v1\\.4\\.[0-9]+$")) | ltrimstr("bun-v")] | sort_by(split(".") | map(tonumber)) | last')
+          echo "Pinned Bun: $pinned. Latest 1.4.x: $latest."
+          if [ -z "$latest" ]; then echo "Could not read Bun releases."; exit 1; fi
+          if [ "$pinned" != "$latest" ]; then
+            echo "::error::Bun $latest is out. Read its release notes; if it has security fixes, raise MIN_BUN in src/server/runtime.ts, package.json engines and ci.yml, then rebuild and redeploy."
+            exit 1
+          fi
