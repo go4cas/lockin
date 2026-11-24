@@ -106,7 +106,7 @@ export interface QuestionPublic {
   roundIndex: number;              // -1 for sudden death
   number: number;                  // 1-based within the round, or the sudden-death question number
   text: string;
-  image: string | null;            // "/media/q/<id>"
+  image: string | null;            // "/media/q/<id>?v=<night and image version>" (LI-003)
   input:
     | { type: "text" }
     | { type: "choice"; options: string[] }
@@ -262,5 +262,5 @@ export interface HistoryDetail {
   night: { id: string; quizTitle: string; openedAt: number; endedAt: number | null; status: "open" | "ended" };
   standings: (StandingRow & { name: string })[];
   rounds: { index: number; title: string; questions: { id: string; number: number; text: string; answerText: string }[] }[]; // index -1, title "Deadlock": sudden-death questions asked, numbered 1.. in the order asked (agreed with B1)
-  answers: { teamId: string; questionId: string; display: string; mark: "correct" | "wrong" | "pending" }[]; // no row = no answer
+  answers: { teamId: string; questionId: string; display: string; mark: "correct" | "wrong" | "pending"; noAnswer?: true }[]; // no row = no record; noAnswer = a record with no answer sent, display "" (LI-006)
 }

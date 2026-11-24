@@ -9,26 +9,17 @@ import type { Conn } from "../ws.ts";
 import { COALESCE_MS, Engine } from "./engine.ts";
 import { answerText as answerTextOf, valueText } from "./quiz.ts";
 import { ClockScheduler } from "./scheduler.ts";
-import { fileSources, type Sources } from "./sources.ts";
-import * as brandingModule from "../branding/index.ts";
-import type { VenueFile } from "../../shared/formats.ts";
+import { imageVersion } from "./media.ts";
+import { DEFAULT_VENUE_NAME, fileSources, type Sources } from "./sources.ts";
+import { branding as brandingOf, type BrandingStore } from "../branding/index.ts";
 import type { HistoryDetail } from "../../shared/protocol.ts";
 
-/** What B4's branding store offers (PR 11): used when it is there, else the engine reads the files itself. */
-interface BrandingLike {
-  venueName(): string;
-  themeVersion(): string;
-  venue(): VenueFile;
-  onThemeChange(fn: () => void): void;
-}
-
-function sourcesFor(app: App): { sources: Sources; branding: BrandingLike | null } {
+/** The engine reads the venue through B4's branding store; the store's name is null when unset. */
+function sourcesFor(app: App): { sources: Sources; branding: BrandingStore } {
   const files = fileSources(app.config.dataDir);
-  const get = (brandingModule as unknown as { branding?: (app: App) => BrandingLike }).branding;
-  if (typeof get !== "function") return { sources: files, branding: null };
-  const b = get(app);
+  const b = brandingOf(app);
   return {
-    sources: { ...files, venueInfo: () => ({ name: b.venueName(), themeVersion: b.themeVersion(), venue: b.venue() }) },
+    sources: { ...files, venueInfo: () => ({ name: b.venueName() ?? DEFAULT_VENUE_NAME, themeVersion: b.themeVersion(), venue: b.venue() }) },
     branding: b,
   };
 }
@@ -143,7 +134,7 @@ export function register(app: App): void {
     }
   });
 
-  branding?.onThemeChange(() => engine.venueChanged());
+  branding.onThemeChange(() => engine.venueChanged());
 
   app.onStart(() => {
     engine.load();
@@ -166,13 +157,18 @@ export function register(app: App): void {
     const status = m.state.questions[qid]?.status;
     const shown = status === "open" || status === "locked";
     if (!shown && !ctx.hostSession) return notFound();
+    // ?v= names the night and the image (LI-003). A different version is another night's
+    // or another image's address: never answer it with this night's bytes.
+    const v = ctx.url.searchParams.get("v");
+    if (v !== null && v !== imageVersion(m.night.id, ref.q.media.file)) return notFound();
     const path = fileSourcesFor(app).mediaPath(m.night.quizId, ref.q.media.file);
     if (!path) return notFound();
     const body = req.method === "HEAD" ? null : readFileSync(path);
     return new Response(body, {
       headers: {
         "Content-Type": contentType(path), "Content-Security-Policy": UPLOAD_CSP,
-        "Cache-Control": ctx.hostSession && !shown ? "private, no-store" : "private, max-age=3600",
+        // Only a versioned address of a shown question may be cached.
+        "Cache-Control": shown && v !== null ? "private, max-age=3600" : "private, no-store",
       },
     });
   });
@@ -204,8 +200,12 @@ export function register(app: App): void {
         index: -1, title: "Deadlock",
         questions: sdQuestions.map((q, i) => ({ id: q.id, number: i + 1, text: q.text, answerText: answerTextOf(q.answer) })),
       }]),
-      answers: h.answers.filter((a) => a.value !== null && specs.has(a.questionId))
-        .map((a) => ({ teamId: a.teamId, questionId: a.questionId, display: valueText(a.value!, specs.get(a.questionId)!), mark: a.mark })),
+      // A record with no value is kept with its mark and flagged noAnswer (LI-006): the host may
+      // mark a team right that sent nothing (a dead phone, an answer told in person).
+      answers: h.answers.filter((a) => specs.has(a.questionId))
+        .map((a) => a.value === null
+          ? { teamId: a.teamId, questionId: a.questionId, display: "", mark: a.mark, noAnswer: true as const }
+          : { teamId: a.teamId, questionId: a.questionId, display: valueText(a.value, specs.get(a.questionId)!), mark: a.mark }),
     };
     return json(detail);
   }, { host: true });

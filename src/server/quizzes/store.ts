@@ -4,7 +4,7 @@
 // folder copied in by hand appears straight away. Files are written atomically
 // through writeJsonAtomic (B0).
 
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { validateQuiz, type Problem, type QuizFile } from "../../shared/formats.ts";
@@ -39,6 +39,11 @@ export const TRASH = ".trash";
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** Question pictures the builder made (saveMedia): question id, content hash, optional number. */
+const BUILDER_MEDIA = /^q-[a-z0-9]{8}-[0-9a-f]{4,16}(?:-\d+)?\.(?:jpg|png|webp)$/;
+/** An unreferenced picture is removed on a draft save once it is this old (SA-20). */
+const MEDIA_SWEEP_AFTER_MS = 60 * 60_000;
 
 export interface QuizStoreOptions {
   /** `<dataDir>/quizzes` */
@@ -190,6 +195,7 @@ export class QuizStore {
     if (!draft.ok) throw new QuizError(400, "invalid_quiz", draft.problems[0]!.message, draft.problems);
     const quiz = { ...draft.quiz, id, updatedAt: this.stamp(current.updatedAt) };
     this.write(quiz);
+    this.sweepMedia(id, quiz);
     return { quiz: quiz as unknown as QuizFile, ...this.readiness(id, quiz) };
   }
 
@@ -226,13 +232,52 @@ export class QuizStore {
     if (bytes.length > MAX_IMAGE_BYTES) throw new QuizError(413, "too_large", "That picture is over 5 MB. Try a smaller one.");
     const ext = sniffImage(bytes);
     if (!ext) throw new QuizError(415, "not_an_image", "That file is not a JPEG, PNG or WebP picture.");
-    const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 4);
-    const file = `${questionId}-${hash}.${ext}`;
+    // 16 hex characters of the content's SHA-256 (code review LI-004, audit SA-20). A file already at
+    // that name is reused only if its bytes are the same; otherwise a numbered name is used, so an
+    // upload never reports success while keeping another picture.
+    const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
     const dir = join(this.folder(id), "media");
     mkdirSync(dir, { recursive: true });
-    const path = join(dir, file);
-    if (!existsSync(path)) writeFileSync(path, bytes);
-    return file;
+    for (let n = 1; ; n++) {
+      const file = `${questionId}-${hash}${n === 1 ? "" : `-${n}`}.${ext}`;
+      const path = join(dir, file);
+      if (!existsSync(path)) {
+        writeFileSync(path, bytes);
+        return file;
+      }
+      if (Buffer.from(bytes).equals(readFileSync(path))) {
+        utimesSync(path, new Date(), new Date());   // fresh again: not swept before the draft refers to it
+        return file;
+      }
+    }
+  }
+
+  /**
+   * Removes question pictures no question refers to (audit SA-20), after a draft save. Only
+   * builder-made names (`q-xxxxxxxx-<hex>.<ext>`) are touched, and only when older than
+   * MEDIA_SWEEP_AFTER_MS, so an upload whose draft save is still on its way is kept.
+   */
+  private sweepMedia(id: string, quiz: Obj): void {
+    const dir = join(this.folder(id), "media");
+    if (!existsSync(dir)) return;
+    const used = new Set<string>();
+    const rounds = Array.isArray(quiz.rounds) ? quiz.rounds : [];
+    const questions = [
+      ...rounds.flatMap((r) => (r && Array.isArray((r as Obj).questions) ? (r as Obj).questions as unknown[] : [])),
+      ...(Array.isArray(quiz.suddenDeath) ? quiz.suddenDeath : []),
+    ];
+    for (const q of questions) {
+      const m = (q as Obj | null)?.media as Obj | undefined;
+      if (m && typeof m.file === "string") used.add(m.file);
+    }
+    const cutoff = Date.now() - MEDIA_SWEEP_AFTER_MS;
+    for (const file of readdirSync(dir)) {
+      if (used.has(file) || !BUILDER_MEDIA.test(file)) continue;
+      const path = join(dir, file);
+      try {
+        if (statSync(path).mtimeMs < cutoff) unlinkSync(path);
+      } catch { /* gone already */ }
+    }
   }
 
   /** Path of a media file for GET /media/quiz/:quizId/:file, or null. */

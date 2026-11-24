@@ -172,20 +172,50 @@ function oneOf<T extends string>(v: unknown, options: readonly T[]): v is T {
   return typeof v === "string" && (options as readonly string[]).includes(v);
 }
 
-function validDate(y: number, m: number, d: number): boolean {
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+const DAY_MS = 86_400_000;
+
+/**
+ * Reads a datetime value at a precision (the one parser for readiness, submissions and marking,
+ * code review LI-002). Returns its normal form (`YYYY` or `-YYYY`, `YYYY-MM-DD` or `HH:MM`) and an
+ * ordinal in the unit used for distance (signed years, days or minutes), or null if it is not a
+ * valid value. Lenient with what people type: single-digit month, day and hour ("1969-7-20",
+ * "9:05"), and seconds on a time are dropped ("20:17:30" is "20:17"). Years run from -9999 to 9999;
+ * dates from 0000-01-01 to 9999-12-31 in the proleptic Gregorian calendar.
+ */
+export function parseDatetime(precision: "year" | "date" | "time", raw: string): { key: string; ordinal: number } | null {
+  const s = raw.trim();
+  if (precision === "year") {
+    const m = /^(-?)(\d{1,4})$/.exec(s);
+    if (!m) return null;
+    const y = Number(m[2]) * (m[1] ? -1 : 1);
+    return { key: (y < 0 ? "-" : "") + String(Math.abs(y)).padStart(4, "0"), ordinal: y === 0 ? 0 : y };
+  }
+  if (precision === "date") {
+    const m = /^(\d{1,4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+    if (!m) return null;
+    const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+    // setUTCFullYear, not Date.UTC: Date.UTC reads years 0 to 99 as 1900 to 1999.
+    const date = new Date(0);
+    date.setUTCFullYear(y, mo - 1, d);
+    if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
+    const key = `${String(y).padStart(4, "0")}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    return { key, ordinal: Math.round(date.getTime() / DAY_MS) };
+  }
+  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  if (!m) return null;
+  const h = Number(m[1]), min = Number(m[2]), sec = m[3] === undefined ? 0 : Number(m[3]);
+  if (h > 23 || min > 59 || sec > 59) return null;
+  return { key: `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`, ordinal: h * 60 + min };
 }
 
-/** Checks a datetime answer's value against its precision. */
+/**
+ * Checks a datetime answer's value against its precision, as stored in a quiz or sent by a phone:
+ * the canonical shape (`-?Y{1,4}`, `YYYY-MM-DD`, `HH:MM`) and a value parseDatetime accepts,
+ * so every valid value can be marked.
+ */
 export function validDatetime(precision: "year" | "date" | "time", value: string): boolean {
-  if (precision === "year") return /^-?\d{1,4}$/.test(value);
-  if (precision === "time") {
-    const m = /^(\d{2}):(\d{2})$/.exec(value);
-    return !!m && Number(m[1]) < 24 && Number(m[2]) < 60;
-  }
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  return !!m && validDate(Number(m[1]), Number(m[2]), Number(m[3]));
+  const shape = precision === "year" ? /^-?\d{1,4}$/ : precision === "date" ? /^\d{4}-\d{2}-\d{2}$/ : /^\d{2}:\d{2}$/;
+  return shape.test(value) && parseDatetime(precision, value) !== null;
 }
 
 /**

@@ -10,6 +10,9 @@ import { validateQuiz, validateTheme, validateVenue, defaultVenue, type QuizFile
 
 export type QuizLoad = { ok: true; quiz: QuizFile } | { ok: false; code: "not_found" | "quiz_not_ready"; problems: Problem[] };
 
+/** The venue name when the theme names none (one place for the fallback, code review LI-023). */
+export const DEFAULT_VENUE_NAME = "Lock-In";
+
 export interface VenueInfo {
   name: string;
   themeVersion: string;
@@ -54,7 +57,7 @@ export function fileSources(dataDir: string): Sources {
           if (v.ok) venue = v.value;
         } catch { /* unreadable: defaults */ }
       }
-      let name = "Lock-In";
+      let name = DEFAULT_VENUE_NAME;
       let themeVersion = "default";
       const themePath = join(dataDir, "theme", "theme.json");
       if (existsSync(themePath)) {

@@ -347,9 +347,9 @@ describe("POST /api/quizzes/:id/media and GET /media/quiz/* (H-03)", () => {
   test("stores JPEG, PNG and WebP by first bytes, named after the question and a content hash", async () => {
     const q = await create("Pictures");
     const png = await (await upload(q.id, PNG)).json();
-    expect(png.file).toMatch(/^q-abcdefgh-[0-9a-f]{4}\.png$/);
+    expect(png.file).toMatch(/^q-abcdefgh-[0-9a-f]{16}\.png$/);
     const jpg = await (await upload(q.id, JPG)).json();
-    expect(jpg.file).toMatch(/^q-abcdefgh-[0-9a-f]{4}\.jpg$/);
+    expect(jpg.file).toMatch(/^q-abcdefgh-[0-9a-f]{16}\.jpg$/);
     const webp = new Uint8Array([...new TextEncoder().encode("RIFF"), 0, 0, 0, 0, ...new TextEncoder().encode("WEBPVP8 ")]);
     expect((await (await upload(q.id, webp)).json()).file).toMatch(/\.webp$/);
     expect(sniffImage(new TextEncoder().encode("<svg></svg>"))).toBeNull();

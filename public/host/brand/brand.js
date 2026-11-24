@@ -6,6 +6,7 @@
 // so they change as the QM types, and nothing is written until Save.
 
 import { html, reactive, watch } from "/vendor/arrow/index.mjs";
+import { saveDraft } from "./save.js";
 import { BUNDLED_FONT_INFO, DEFAULT_INPUTS, checkReadability, deriveBrandTokens, assetUrl, DISPLAY_FALLBACK, BODY_FALLBACK } from "./derive.js";
 
 /** @typedef {import('../../../src/shared/formats').ThemeFile} ThemeFile */
@@ -240,14 +241,15 @@ async function saveTheme() {
   ui.saving = true;
   ui.message = null;
   try {
-    const res = await api("/api/theme", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme: themeFromDraft() }),
+    const { keptEdits } = await saveDraft({
+      snapshot: () => JSON.stringify(themeFromDraft()),
+      send: (theme) => api("/api/theme", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme }) }),
+      setSaved: (res) => { page.savedTheme = JSON.stringify(res.theme); },
+      apply: (res) => draftFromTheme(res.theme),
     });
-    draftFromTheme(res.theme);
-    page.savedTheme = JSON.stringify(res.theme);
-    ui.message = { kind: "ok", text: "Saved. The display and phones switch to it from the next screen they show.", problems: [] };
+    ui.message = { kind: "ok", text: keptEdits
+      ? "Saved what you had when you pressed Save. Your newer changes are not saved yet."
+      : "Saved. The display and phones switch to it from the next screen they show.", problems: [] };
   } catch (e) {
     ui.message = { kind: "error", text: e instanceof Error ? e.message : String(e), problems: (/** @type {any} */ (e).problems ?? []).map((/** @type {any} */ p) => p.message) };
   }
@@ -258,14 +260,15 @@ async function saveVenue() {
   ui.saving = true;
   ui.message = null;
   try {
-    const res = await api("/api/venue", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(venueFromDraft()),
+    const { keptEdits } = await saveDraft({
+      snapshot: () => JSON.stringify(venueFromDraft()),
+      send: (venue) => api("/api/venue", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(venue) }),
+      setSaved: (res) => { page.savedVenue = JSON.stringify(res); },
+      apply: (res) => draftFromVenue(res),
     });
-    draftFromVenue(res);
-    page.savedVenue = JSON.stringify(res);
-    ui.message = { kind: "ok", text: "Saved. New nights use these settings.", problems: [] };
+    ui.message = { kind: "ok", text: keptEdits
+      ? "Saved what you had when you pressed Save. Your newer changes are not saved yet."
+      : "Saved. New nights use these settings.", problems: [] };
   } catch (e) {
     ui.message = { kind: "error", text: e instanceof Error ? e.message : String(e), problems: (/** @type {any} */ (e).problems ?? []).map((/** @type {any} */ p) => p.message) };
   }

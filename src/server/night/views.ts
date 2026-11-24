@@ -10,6 +10,7 @@ import type { AnswerGroup, StandingRow } from "../../shared/rules-api.ts";
 import { FLASH_MS, TEAM_COLOURS, type Engine } from "./engine.ts";
 import { answerText, halftimeRound, inputOf, timerSecondsOf, valueKey, valueText } from "./quiz.ts";
 import { LINE_SLOTS } from "./state.ts";
+import { imageUrl } from "./media.ts";
 
 function common(e: Engine): Omit<Common, "flash"> {
   const v = e.venue();
@@ -92,7 +93,7 @@ function questionPublic(e: Engine, qid: string): QuestionPublic {
     roundIndex: ref.round,
     number: ref.round === -1 ? sdNumber : ref.index + 1,
     text: q.text,
-    image: q.media?.kind === "image" ? `/media/q/${q.id}` : null,
+    image: q.media?.kind === "image" && e.m ? imageUrl(e.m.night.id, q.id, q.media.file) : null,
     input: inputOf(q.answer),
     status: e.state.questions[qid]?.status === "locked" ? "locked" : "open",
     timer: timerView(e, qid),
