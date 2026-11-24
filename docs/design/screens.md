@@ -1,6 +1,6 @@
 # Screens
 
-Every wireframe, by screen, with the requirement it covers. Open the live wireframe with `wireframes/<file>.html?s=<id>`; the image is the same frame rendered by `tools/render.js` (display at 1280×720, phone at 390×844, host at 1366×768). The moments these screens belong to are described in [moments.md](moments.md).
+Every wireframe, by screen, with the requirement it covers. Open the live wireframe with `wireframes/<file>.html?s=<id>`; the image is the same frame rendered by `tools/render.cjs` (display at 1280×720, phone at 390×844, host at 1366×768). The moments these screens belong to are described in [moments.md](moments.md).
 
 ## Display (`wireframes/display.html`)
 

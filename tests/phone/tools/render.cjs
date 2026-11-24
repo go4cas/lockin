@@ -8,7 +8,7 @@
 // Needs Playwright with Chromium (a tool, not a dependency) and Bun. Port 8081 must be free.
 // /vendor/* is answered from public/vendor/ here because the fixture server has no /vendor route.
 // Playwright harness for the phone: serves files from the fixture server, mocks /ws.
-const { chromium } = require("playwright");
+const { chromium } = require("../../../tools/browser/playwright.cjs");
 const path = require("path");
 const { execFileSync, spawn } = require("child_process");
 const ROOT = path.resolve(__dirname, "../../..");

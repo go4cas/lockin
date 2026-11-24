@@ -1,74 +1,53 @@
 // Scanner for the display browser baseline (TECH-SPEC 3.3): Chromium 86 / Safari 14.
-// Not a parser: it strips comments, strings and regex literals, then looks for
-// syntax, APIs and CSS features those engines do not have.
+// It blanks comments, strings, template text and regex literals with the TypeScript
+// parser, then looks for syntax, APIs and CSS features those engines do not have.
+
+import ts from "typescript";
 
 export interface Finding { file: string; line: number; rule: string; text: string }
 
-const REGEX_BEFORE = new Set(["(", ",", "=", ":", "[", "!", "&", "|", "?", "{", "}", ";", "+", "-", "*", "%", "<", ">", "~", "^", ""]);
-const REGEX_KEYWORDS = /(?:^|[^\w$])(return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await)$/;
-
-/** Replaces comments, strings, template literals and regex literals with spaces (newlines kept). */
+/**
+ * Replaces the text of comments, strings, template literals and regex literals with
+ * spaces (newlines kept), so the rules below only see code. Uses the TypeScript parser
+ * (a dev dependency already pinned for typecheck), so the expressions inside template
+ * slots (`${() => ...}`, where Arrow pages put their logic) stay visible to the rules
+ * (code review LI-010). Template delimiters (` ${ } `) are kept so brackets still balance.
+ */
 export function stripJs(code: string): string {
   const out = code.split("");
   const blank = (from: number, to: number) => { for (let k = from; k < to; k++) if (out[k] !== "\n") out[k] = " "; };
-  let i = 0;
-  let lastSignificant = "";
-  let lastWordEnd = "";
-  while (i < code.length) {
-    const ch = code[i]!;
-    const next = code[i + 1];
-    if (ch === "/" && next === "/") {
-      const end = code.indexOf("\n", i);
-      const stop = end === -1 ? code.length : end;
-      blank(i, stop);
-      i = stop;
-      continue;
-    }
-    if (ch === "/" && next === "*") {
-      const end = code.indexOf("*/", i + 2);
-      const stop = end === -1 ? code.length : end + 2;
-      blank(i, stop);
-      i = stop;
-      continue;
-    }
-    if (ch === '"' || ch === "'" || ch === "`") {
-      let j = i + 1;
-      while (j < code.length && code[j] !== ch) {
-        if (code[j] === "\\") j++;
-        else if (ch !== "`" && code[j] === "\n") break;
-        j++;
+  const sf = ts.createSourceFile("x.js", code, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
+  const visit = (node: ts.Node) => {
+    if (node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode) return; // blanked as a comment
+    const kids = node.getChildren(sf);
+    if (kids.length === 0) {
+      const start = node.getStart(sf);
+      blank(node.pos, start);   // the trivia before a token: only whitespace and comments
+      switch (node.kind) {
+        case ts.SyntaxKind.StringLiteral:
+        case ts.SyntaxKind.NoSubstitutionTemplateLiteral:
+        case ts.SyntaxKind.TemplateTail:
+        case ts.SyntaxKind.RegularExpressionLiteral:
+          blank(start + 1, node.end - 1 - (node.kind === ts.SyntaxKind.RegularExpressionLiteral ? flagsLength(code, node.end) : 0));
+          break;
+        case ts.SyntaxKind.TemplateHead:
+        case ts.SyntaxKind.TemplateMiddle:
+          blank(start + 1, node.end - 2);
+          break;
       }
-      blank(i + 1, j);
-      i = j + 1;
-      lastSignificant = ch;
-      continue;
+      return;
     }
-    if (ch === "/" && (REGEX_BEFORE.has(lastSignificant) || REGEX_KEYWORDS.test(lastWordEnd))) {
-      let j = i + 1;
-      let inClass = false;
-      while (j < code.length && code[j] !== "\n") {
-        const c = code[j];
-        if (c === "\\") { j += 2; continue; }
-        if (c === "[") inClass = true;
-        else if (c === "]") inClass = false;
-        else if (c === "/" && !inClass) break;
-        j++;
-      }
-      blank(i + 1, j);
-      i = j + 1;
-      while (i < code.length && /[a-z]/i.test(code[i]!)) i++;
-      lastSignificant = "/";
-      continue;
-    }
-    if (!/\s/.test(ch)) {
-      lastSignificant = /[\w$]/.test(ch) ? "w" : ch;
-      lastWordEnd = (lastWordEnd + ch).slice(-12);
-    } else {
-      lastWordEnd += " ";
-    }
-    i++;
-  }
+    for (const k of kids) visit(k);
+  };
+  visit(sf);
   return out.join("");
+}
+
+/** Length of a regex literal's flags (the letters after its closing slash). */
+function flagsLength(code: string, end: number): number {
+  let n = 0;
+  while (/[a-z]/i.test(code[end - 1 - n] ?? "")) n++;
+  return n;
 }
 
 function lineOf(code: string, index: number): number {
