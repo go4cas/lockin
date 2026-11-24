@@ -1,0 +1,40 @@
+# Lock-In off-server copy of the newest backup to a private R2 bucket (docs/RELEASE.md,
+# "Off-server copy"). Started by lockin-backup.service after each successful backup.
+# Does nothing until /etc/lockin/r2.env exists (root only, mode 0600).
+
+[Unit]
+Description=Lock-In off-server copy of the newest backup
+Documentation=https://github.com/go4cas/lockin/blob/main/docs/RELEASE.md
+ConditionPathExists=/etc/lockin/r2.env
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lockin
+Group=lockin
+# systemd reads the root-only file and hands Lock-In's user a private copy for this run.
+LoadCredential=r2:/etc/lockin/r2.env
+ExecStart=/usr/local/lib/lockin/offsite.sh --data /var/lib/lockin
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native

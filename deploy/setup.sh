@@ -16,9 +16,10 @@
 #
 # What it does: installs sqlite3 if missing, makes the lockin system user, installs the
 # binary to /usr/local/bin/lockin (the old one stays as lockin.previous), writes the
-# settings file, installs the systemd units and the backup script, backs up the data before
-# replacing a binary, starts Lock-In, checks it answers, and prints the setup code if no
-# host password is set yet. It never opens a firewall port and never touches Cloudflare.
+# settings file, installs the systemd units and the backup scripts (the off-server copy is
+# idle until /etc/lockin/r2.env exists), backs up the data before replacing a binary,
+# starts Lock-In, checks it answers, and prints the setup code if no host password is set
+# yet. It never opens a firewall port and never touches Cloudflare.
 # On a server shared with other apps it refuses a port another program already listens on,
 # and its logs go to their own journal namespace, so their retention never touches others.
 set -euo pipefail
@@ -59,7 +60,7 @@ done
 if [ "$(uname -s)" != Linux ] || [ "$(uname -m)" != x86_64 ]; then die "Lock-In's server binary is for Linux on x86-64 only"; fi
 command -v systemctl >/dev/null || die "this server has no systemd"
 [ -z "$version" ] || [ -z "$binary" ] || die "give --version or --binary, not both"
-for f in systemd/lockin.service systemd/lockin-backup.service systemd/lockin-backup.timer backup.sh restore.sh journald-lockin.conf; do
+for f in systemd/lockin.service systemd/lockin-backup.service systemd/lockin-backup.timer systemd/lockin-offsite.service backup.sh restore.sh offsite.sh journald-lockin.conf; do
   [ -f "$here/$f" ] || die "missing $here/$f; run setup.sh from a full copy of the repository's deploy/ folder"
 done
 
@@ -168,11 +169,11 @@ fi
 
 # 5. Scripts, units and journal retention.
 install -d -m 755 "$LIB"
-for s in backup.sh restore.sh; do
+for s in backup.sh restore.sh offsite.sh; do
   cmp -s "$here/$s" "$LIB/$s" || { install -m 755 "$here/$s" "$LIB/$s"; say "installed $LIB/$s"; }
 done
 units_changed=0
-for u in lockin.service lockin-backup.service lockin-backup.timer; do
+for u in lockin.service lockin-backup.service lockin-backup.timer lockin-offsite.service; do
   if ! cmp -s "$here/systemd/$u" "$UNITS/$u"; then
     install -m 644 "$here/systemd/$u" "$UNITS/$u"
     say "installed $UNITS/$u"

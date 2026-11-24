@@ -10,7 +10,7 @@ import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const DEPLOY = join(ROOT, "deploy");
-const SCRIPTS = ["setup.sh", "backup.sh", "restore.sh"];
+const SCRIPTS = ["setup.sh", "backup.sh", "restore.sh", "offsite.sh"];
 const has = (cmd: string) => Bun.spawnSync(["sh", "-c", `command -v ${cmd}`]).exitCode === 0;
 // On CI these must run, not skip: ci.yml installs sqlite3 and shellcheck if the runner lacks them.
 const CI = !!process.env.CI;
@@ -93,6 +93,13 @@ describe("systemd units", () => {
   test("logs go to their own namespace and share the CPU (shared server)", () => {
     expect(lines.has("LogNamespace=lockin")).toBe(true);
     expect(lines.has("CPUQuota=150%")).toBe(true);
+  });
+
+  test("the off-server copy follows a good backup, reads root-only credentials, and is idle without them", () => {
+    expect(readFileSync(join(DEPLOY, "systemd/lockin-backup.service"), "utf8")).toMatch(/^OnSuccess=lockin-offsite.service$/m);
+    const o = readFileSync(join(DEPLOY, "systemd/lockin-offsite.service"), "utf8");
+    for (const want of [/^ConditionPathExists=\/etc\/lockin\/r2.env$/m, /^LoadCredential=r2:\/etc\/lockin\/r2.env$/m, /^User=lockin$/m, /^ProtectSystem=strict$/m, /^NoNewPrivileges=yes$/m]) expect(o).toMatch(want);
+    expect(o).not.toMatch(/^EnvironmentFile=/m);
   });
 
   test("journal retention is 30 days (SA-17)", () => {
@@ -185,5 +192,52 @@ describe.skipIf(!HAS_SQLITE)("backup and restore", () => {
     const r = run([join(DEPLOY, "backup.sh"), "--data", temp()]);
     expect(r.code).not.toBe(0);
     expect(r.out).toContain("no lockin.db");
+  });
+});
+
+describe("off-server copy", () => {
+  const ACCOUNT = "0123456789abcdef0123456789abcdef";
+  const SECRET = "s3cretValue/With+Chars=";
+  /** A data folder with two archives, credentials, and a stand-in curl that records what it was given. */
+  function setup(creds: string) {
+    const dir = temp();
+    const data = join(dir, "data");
+    mkdirSync(join(data, "backups"), { recursive: true, mode: 0o700 });
+    for (const n of ["lockin-backup-20261123-050000.tar.gz", "lockin-backup-20261124-050000.tar.gz"]) writeFileSync(join(data, "backups", n), "x", { mode: 0o600 });
+    const credFile = join(dir, "r2.env");
+    writeFileSync(credFile, creds, { mode: 0o600 });
+    const bin = join(dir, "bin");
+    mkdirSync(bin);
+    const log = join(dir, "curl.log");
+    writeFileSync(join(bin, "curl"), `#!/usr/bin/env bash\nprintf '%s\\n' "$@" > ${JSON.stringify(log)}\necho '--stdin--' >> ${JSON.stringify(log)}\ncat >> ${JSON.stringify(log)}\n`, { mode: 0o755 });
+    const go = () => {
+      const p = Bun.spawnSync([join(DEPLOY, "offsite.sh"), "--data", data, "--credentials", credFile], {
+        stdout: "pipe", stderr: "pipe", env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+      });
+      return { code: p.exitCode, out: p.stdout.toString() + p.stderr.toString() };
+    };
+    return { go, log };
+  }
+  const GOOD = `R2_ACCOUNT_ID=${ACCOUNT}\nR2_BUCKET=lockin-backups\nR2_ACCESS_KEY_ID=abc123\nR2_SECRET_ACCESS_KEY=${SECRET}\n`;
+
+  test("uploads the newest archive, signed, with the secret only on standard input", () => {
+    const { go, log } = setup(GOOD);
+    const r = go();
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("copied lockin-backup-20261124-050000.tar.gz");
+    const [args, stdin] = readFileSync(log, "utf8").split("--stdin--\n") as [string, string];
+    expect(args).toContain(`https://${ACCOUNT}.r2.cloudflarestorage.com/lockin-backups/lockin-backup-20261124-050000.tar.gz`);
+    expect(args).toContain("aws:amz:auto:s3");
+    expect(args).toContain("=https");
+    expect(args).not.toContain(SECRET);
+    expect(stdin).toBe(`user = "abc123:${SECRET}"\n`);
+  });
+
+  test("refuses credentials that are missing or malformed, and never runs them as a script", () => {
+    expect(setup(GOOD.replace(ACCOUNT, "not-an-account")).go().code).not.toBe(0);
+    expect(setup(GOOD.replace("lockin-backups", "Bad_Bucket")).go().code).not.toBe(0);
+    const { go, log } = setup(GOOD.replace("abc123", "$(touch /tmp/lockin-pwned)"));
+    expect(go().code).not.toBe(0);
+    expect(() => statSync(log)).toThrow();
   });
 });

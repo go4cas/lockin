@@ -18,6 +18,7 @@ The files in [`deploy/`](../deploy/) do the server side:
 | `deploy/restore.sh` | Puts a backup back, on this server or a new one. |
 | `deploy/systemd/lockin.service` | The service: restarts on any exit, own user, hardened. |
 | `deploy/systemd/lockin-backup.service`, `.timer` | The daily backup at 05:00 server time. |
+| `deploy/offsite.sh`, `deploy/systemd/lockin-offsite.service` | Copies each new backup to a private R2 bucket, once set up. |
 | `deploy/journald-lockin.conf` | Keeps Lock-In's own logs for 30 days. |
 
 Contents:
@@ -152,6 +153,8 @@ These are steps in your Cloudflare account; nothing in the repo does them.
 
 **If the server already has a tunnel** for other apps, do not install a second `cloudflared`: in Zero Trust, Networks, Tunnels, open that tunnel and do step 3 only, adding Lock-In's hostname with Lock-In's port. Every app on the tunnel gets its own hostname and its own port.
 
+For a server with no tunnel yet:
+
 1. In the Cloudflare dashboard, go to Zero Trust, then Networks, then Tunnels, and create a tunnel of type **Cloudflared**. Name it after the server.
 2. Choose Debian (64-bit) and run the install commands it shows on the VPS. The last one looks like `sudo cloudflared service install <token>`: that token is a secret, so do not paste it anywhere else or commit it.
 3. Add a public hostname (the dashboard may call it a published application route): your quiz address, for example `quiz.example.com`, with service type **HTTP** and URL **`127.0.0.1:<port>`** (the port from `setup.sh`, 8080 unless you chose another).
@@ -229,7 +232,31 @@ systemctl list-timers lockin-backup      # when is the next
 sudo ls -l /var/lib/lockin/backups       # what is there
 ```
 
-**Keep a copy off the server.** A backup on the same disk does not survive the VPS being lost. At least weekly, and before any big change, pull the newest one to a computer you trust:
+### Off-server copy (R2)
+
+A backup on the same disk does not survive the VPS being lost. After each good backup, `lockin-offsite.service` uploads it to a private Cloudflare R2 bucket. It does nothing until you give it credentials, which live only on the server.
+
+1. **In Cloudflare, R2:** create a bucket, for example `lockin-backups` (a bucket of its own, not shared with another app). In its settings, add a lifecycle rule that deletes objects after **30 days**.
+2. **R2 API token:** Manage API tokens, Create API token, permission **Object Read & Write**, applied to **that bucket only**. Note the Access Key ID, the Secret Access Key and your Account ID. Keep them in your password manager, not in chat, email or a repository.
+3. **On the server**, make the root-only credentials file and fill it in:
+
+   ```sh
+   sudo install -m 600 -o root -g root /dev/null /etc/lockin/r2.env
+   sudo nano /etc/lockin/r2.env
+   ```
+
+   ```
+   R2_ACCOUNT_ID=<your account ID>
+   R2_BUCKET=lockin-backups
+   R2_ACCESS_KEY_ID=<access key ID>
+   R2_SECRET_ACCESS_KEY=<secret access key>
+   ```
+
+4. **Try it:** `sudo systemctl start lockin-backup`, then `journalctl -u lockin-offsite -n 5` should end with `copied lockin-backup-... to bucket lockin-backups`, and the file shows in the bucket.
+
+systemd reads the file as root and hands the upload a private copy for that run (`LoadCredential`); the key never appears on a command line or in the settings file. The archives hold the password hash, rejoin codes and every quiz's answers, so keep the bucket private (no public access, no custom domain).
+
+**Without R2**, pull the newest backup to a computer you trust at least weekly, and before any big change:
 
 ```sh
 latest=$(ssh you@your-server 'sudo ls /var/lib/lockin/backups | grep "tar.gz$" | tail -1')
@@ -294,7 +321,7 @@ Everything Lock-In knows is in the data folder, and the public address lives in 
    sudo systemctl stop lockin
    ```
 
-3. **Copy the newest backup across**, through your own computer (as in [section 5](#5-backups)) or straight between the servers, keeping it private (`chmod 600`).
+3. **Copy the newest backup across**: download it from the R2 bucket (Cloudflare dashboard, R2, the bucket, the newest object, Download), or through your own computer (as in [section 5](#5-backups)), or straight between the servers. Keep it private (`chmod 600`). If the old server is lost, the newest R2 copy is the one to use. Then make `/etc/lockin/r2.env` on the new server too.
 4. **Restore it on the new server:**
 
    ```sh
@@ -302,9 +329,21 @@ Everything Lock-In knows is in the data folder, and the public address lives in 
    ```
 
    The `lockin` user can have a different number on the new server; `restore.sh` gives every file to the new server's `lockin` and keeps the modes.
-5. **Point the tunnel at the new server.** The simplest way: install `cloudflared` on the new server with the same tunnel's token (Zero Trust, Networks, Tunnels, the tunnel, its install command), then remove it from the old one (`sudo cloudflared service uninstall`). Or make a new tunnel on the new server and move the public hostname to it. The hostname stays the same, so QR codes, saved phones and paired displays keep working.
+5. **Point Lock-In's hostname at the new server.** Move only Lock-In's public hostname; the hostname stays the same, so QR codes, saved phones and paired displays keep working.
+   - **If the old server's tunnel also carries other apps** (the usual case): leave `cloudflared` on the old server alone; uninstalling it would take the other apps offline. If the new server already has a tunnel, add Lock-In's hostname to it with Lock-In's port; if not, make a new tunnel for the new server ([section 3](#the-tunnel)) and add the hostname there. Then delete Lock-In's hostname from the old tunnel.
+   - **If the old tunnel served only Lock-In:** install `cloudflared` on the new server with the same tunnel's token (Zero Trust, Networks, Tunnels, the tunnel, its install command), then remove it from the old one (`sudo cloudflared service uninstall`).
 6. **Check** `https://quiz.example.com/api/ping`, sign in to the console, and see the quizzes and history are there.
-7. **Retire the old server** after a night has run on the new one: delete its data folder (`sudo rm -rf /var/lib/lockin`) and the VPS.
+7. **Retire Lock-In on the old server** after a night has run on the new one. If other apps still run there, remove only Lock-In's parts:
+
+   ```sh
+   sudo systemctl disable --now lockin lockin-backup.timer
+   sudo rm -f /etc/systemd/system/lockin.service /etc/systemd/system/lockin-backup.* /etc/systemd/system/lockin-offsite.service /etc/systemd/journald@lockin.conf
+   sudo systemctl daemon-reload
+   sudo rm -rf /var/lib/lockin /etc/lockin /usr/local/lib/lockin /usr/local/bin/lockin /usr/local/bin/lockin.previous
+   sudo userdel lockin
+   ```
+
+   Delete the VPS itself only if nothing else runs on it.
 
 ## 8. Logs
 
@@ -361,5 +400,4 @@ Lock-In 1.0.0 is the first release, for the first pilot pub.
 Small jobs saved for after the pilot:
 
 - **Remove the old cookie name** `lockin_host` (SA-13). 1.0.0 still reads it so test installs are not signed out; take it out in the next minor release.
-- Refactors from the code review (LI-016, LI-017, LI-019, LI-020, LI-021).
 - Local laptop mode (TECH-SPEC 4.8), when it is ranked again.
