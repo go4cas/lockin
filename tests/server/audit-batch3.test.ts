@@ -276,9 +276,7 @@ describe("SA-17: security events are logged, without secrets, at most once per t
 
   test("sign-in, failures, the limiter, sign-out, refused sockets, pairing and teams leave lines with no secrets", async () => {
     const clock = new FakeClock();
-    const s = await server({ clock });
-    s.app.services.rules = fakeRules;
-    s.app.services.copyPicker = fakeCopy();
+    const s = await server({ clock, services: { rules: fakeRules, copyPicker: fakeCopy() } });
     writeQuiz(s.dataDir, makeQuiz("logs", [[q(text("x"))]]));
     const setupCode = s.app.auth.ensureSetupCode();
     const bad = await s.fetch("/api/auth/setup", { method: "POST", body: JSON.stringify({ password: TEST_PASSWORD, setupCode: "WRONGWRONG" }) });

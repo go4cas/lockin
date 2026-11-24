@@ -6,13 +6,11 @@
 // reloads itself when venue.themeVersion changes, so a new logo shows (see NOTES).
 
 import type { App } from "../app.ts";
-import { branding } from "../branding/index.ts";
 import { assetUrl } from "../branding/derive.ts";
 import type { ThemeFile } from "../../shared/formats.ts";
 import type { HostView } from "../../shared/protocol.ts";
 import type { CommandResult } from "../ws.ts";
 import { fail, safely } from "../ws.ts";
-import { DisplayPairing } from "./pairing.ts";
 
 export const DISPLAY_PAGE = "public/display/index.html";
 export const DEFAULT_TAGLINE = "Lock in your answers.";
@@ -43,12 +41,12 @@ export function personalise(page: string, logo: string | null, tagline: string |
 export function displaysSummary(app: App): NonNullable<HostView["displays"]> {
   const p = app.services.displayPairing;
   const conns = app.ws.connections("display");
-  const list = (p?.list() ?? []).map((d) => {
-    const open = p!.connectionsOf(d.id).map((id) => app.ws.connection(id)).filter((c): c is NonNullable<typeof c> => !!c);
+  const list = p.list().map((d) => {
+    const open = p.connectionsOf(d.id).map((id) => app.ws.connection(id)).filter((c): c is NonNullable<typeof c> => !!c);
     return { ...d, connected: open.length > 0, ip: open[0]?.ip ?? null };
   });
   return {
-    paired: p?.pairedCount ?? 0,
+    paired: p.pairedCount,
     connected: conns.filter((c) => c.paired).length,
     waiting: conns.filter((c) => !c.paired).length,
     list,
@@ -65,7 +63,6 @@ export type DisplayCommand = (typeof DISPLAY_COMMANDS)[number];
 /** `display.pair { code }`, `display.unpair { id }` and `display.unpairAll` (host only; the hub has checked the role). */
 export function displayCommand(app: App, name: DisplayCommand, args: Record<string, unknown>): CommandResult {
   const pairing = app.services.displayPairing;
-  if (!pairing) return fail("wrong_phase");
   if (name === "display.unpairAll") {
     const n = pairing.unpairAll();
     for (const c of app.ws.connections("display")) {
@@ -115,7 +112,6 @@ export function displayCommand(app: App, name: DisplayCommand, args: Record<stri
 /** Sends each unpaired display whose code expired its new code (D2, SA-03 step 3). */
 export function sweepPairing(app: App): void {
   const pairing = app.services.displayPairing;
-  if (!pairing) return;
   pairing.markConnectedSeen();
   pairing.dropUnused();   // SA-11: 90 days unused
   for (const id of pairing.expired()) {
@@ -128,7 +124,6 @@ export function sweepPairing(app: App): void {
 /** A waiting place came free: an unpaired display that was turned away (no code) may now get one. */
 function offerFreedCodes(app: App): void {
   const pairing = app.services.displayPairing;
-  if (!pairing) return;
   for (const c of app.ws.connections("display")) {
     if (c.paired || pairing.holds(c.id)) continue;
     app.ws.sendState(c);
@@ -137,8 +132,7 @@ function offerFreedCodes(app: App): void {
 }
 
 export function register(app: App): void {
-  const pairing = new DisplayPairing(app.config.dataDir, app.clock, (m) => app.log(m));
-  app.services.displayPairing = pairing;
+  const pairing = app.services.displayPairing;
   app.ws.setDisplayAuthoriser((conn, token) => {
     if (pairing.connect(conn.id, token)) conn.setPaired(true);
     // D5: opened from a browser signed in to the console ("Open display"): paired for as long
@@ -164,8 +158,8 @@ export function register(app: App): void {
     const bytes = await app.files.read(DISPLAY_PAGE);
     if (!bytes) return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
     let theme: ThemeFile | null = null;
-    try { theme = branding(app).theme(); } catch { theme = null; }
-    const picked = app.services.copyPicker?.pick("taglines", { pub: theme?.name ?? undefined }, {}) ?? null;
+    try { theme = app.services.branding.theme(); } catch { theme = null; }
+    const picked = app.services.copyPicker.pick("taglines", { pub: theme?.name ?? undefined }, {}) ?? null;
     const body = personalise(new TextDecoder().decode(bytes), logoUrl(theme), picked?.text ?? null);
     // no-store: the logo and tagline come from the theme, which can change at any time.
     return new Response(req.method === "HEAD" ? null : body, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });

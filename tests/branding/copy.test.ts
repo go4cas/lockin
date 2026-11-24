@@ -113,7 +113,7 @@ describe("the server's copy picker", () => {
   test("is app.services.copyPicker and follows the saved theme's copy and name", async () => {
     const s = await startTestServer();
     try {
-      const picker = s.app.services.copyPicker!;
+      const picker = s.app.services.copyPicker;
       expect(picker.pick("team_joined", { team: "Quizzly Bears" }, {})!.text).toContain("Quizzly Bears");
       const cookie = await s.signIn();
       const res = await s.fetch("/api/theme", {

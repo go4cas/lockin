@@ -139,6 +139,8 @@ tests/load/, tests/e2e/                         B9
 
 Each server module exposes one `register(app: App)` function from its `index.ts`. B0 creates every module folder with an empty `register`, and `main.ts` already calls all of them, so no build thread edits `main.ts`.
 
+Shared services are built once per app by the composition root, `createServices()` in `src/server/services.ts`, before any module registers (code review LI-020): the rules, the copy picker, the branding store, the quiz store and display pairing. A module reaches them through `app.services`; all are required and read-only. Tests swap the rules and the copy picker through `AppOptions.services` when the app is built. The socket hub's four plug-ins (command handler, view provider, team token resolver, display authoriser) are checked by `hub.assertWired()` at the end of `createApp()`, so a missing one fails at start, not as a fail-open default.
+
 ### 3.3 Browser baselines
 
 | Page | Must run on | So it may use |

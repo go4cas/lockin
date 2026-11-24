@@ -48,10 +48,8 @@ async function playImage(s: TestServer, host: TestClient, quizId: string, imageI
 
 describe("question image identity (LI-003)", () => {
   test("a new night with different bytes under the same question id gets a new URL; the old URL does not serve the new bytes", async () => {
-    const s = await startTestServer({ clock: new FakeClock() });
+    const s = await startTestServer({ clock: new FakeClock(), services: { rules: fakeRules, copyPicker: fakeCopy() } });
     servers.push(s);
-    s.app.services.rules = fakeRules;
-    s.app.services.copyPicker = fakeCopy();
     const img = q(text("Abbey Road"), { media: { kind: "image", file: "cover.png" } });
     const quiz = makeQuiz("img-identity", [[img]]);
     writeQuiz(s.dataDir, quiz, { "cover.png": PNG_A });
@@ -78,10 +76,8 @@ describe("question image identity (LI-003)", () => {
   });
 
   test("a version parameter does not get round the shown-question gate", async () => {
-    const s = await startTestServer({ clock: new FakeClock() });
+    const s = await startTestServer({ clock: new FakeClock(), services: { rules: fakeRules, copyPicker: fakeCopy() } });
     servers.push(s);
-    s.app.services.rules = fakeRules;
-    s.app.services.copyPicker = fakeCopy();
     const img = q(text("Abbey Road"), { media: { kind: "image", file: "cover.png" } });
     const quiz = makeQuiz("img-hidden", [[q(text("first")), img]]);
     writeQuiz(s.dataDir, quiz, { "cover.png": PNG_A });

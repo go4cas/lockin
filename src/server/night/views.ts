@@ -113,7 +113,7 @@ function shownIds(e: Engine): string[] {
 }
 
 function markingQuestion(e: Engine, qid: string): MarkingQuestion {
-  const rules = e.rulesOrThrow();
+  const rules = e.rules;
   const spec = e.qIndex.get(qid)!.q.answer;
   const teamIds = e.participants(qid);
   const answered = teamIds.map((t) => e.answer(t, qid)).filter((a) => !!a?.value)
@@ -150,7 +150,6 @@ function revealItem(e: Engine): RevealItem | null {
 }
 
 function standingsFor(e: Engine, upTo: number): Standings | null {
-  if (!e.rules()) return null;
   const rows: StandingRow[] = e.standingsRows(upTo);
   // Movement (T-09 arrows): positions after the round before, without sudden death.
   const prev = new Map<string, number>();
@@ -235,7 +234,7 @@ function lockedMoment(e: Engine): { at: number; all: boolean } | null {
 }
 
 function finalOf(e: Engine): DisplayView["final"] {
-  if (e.state.phase !== "ended" || !e.rules()) return null;
+  if (e.state.phase !== "ended") return null;
   const st = publicStandings(e);
   if (!st) return null;
   const winners = st.rows.filter((r) => r.position === 1).map((r) => chip(e, r.teamId));
@@ -324,8 +323,7 @@ export function hostView(e: Engine): HostView {
   }
   const s = e.state;
   const started = e.m.night.startedAt !== null;
-  const hasRules = !!e.rules();
-  const live = started && hasRules ? standingsFor(e, Math.min(s.round, e.quiz.rounds.length - 1)) : null;
+  const live = started ? standingsFor(e, Math.min(s.round, e.quiz.rounds.length - 1)) : null;
   const totals = new Map(live?.rows.map((r) => [r.teamId, r.total]) ?? []);
   const cur = e.currentQuestionId();
   const teams: HostTeam[] = e.teams().map((t) => {
@@ -338,7 +336,7 @@ export function hostView(e: Engine): HostView {
   const inRound = s.phase !== "lobby" && s.phase !== "ended" && s.phase !== "sudden_death";
   const roundQs = inRound ? e.roundQuestions().map((q) => questionHost(e, q.id)) : null;
   let marking: HostView["marking"] = null;
-  if ((s.phase === "asking" || s.phase === "marking") && hasRules) {
+  if (s.phase === "asking" || s.phase === "marking") {
     const locked = e.roundQuestions().filter((q) => s.questions[q.id]?.status === "locked").map((q) => markingQuestion(e, q.id));
     marking = { questions: locked, pendingTotal: locked.reduce((n, q) => n + q.pending, 0) };
   }
@@ -346,7 +344,7 @@ export function hostView(e: Engine): HostView {
   const sdCur = s.sd?.current;
   const flash = fresh(e, s.flash);
   let needed: HostView["suddenDeathNeeded"] = null;
-  if (hasRules && ((s.phase === "leaderboard" && e.isLastRound()) || s.phase === "sudden_death")) needed = e.sdNeeded();
+  if ((s.phase === "leaderboard" && e.isLastRound()) || s.phase === "sudden_death") needed = e.sdNeeded();
   return {
     ...base,
     flash: flash && flash.key !== "no_answer" ? flash : null,
@@ -359,7 +357,7 @@ export function hostView(e: Engine): HostView {
     suddenDeath: sdv ? {
       ...sdv,
       questionHost: sdCur ? questionHost(e, sdCur.questionId) : null,
-      marking: sdCur && s.questions[sdCur.questionId]?.status === "locked" && hasRules ? markingQuestion(e, sdCur.questionId) : null,
+      marking: sdCur && s.questions[sdCur.questionId]?.status === "locked" ? markingQuestion(e, sdCur.questionId) : null,
     } : null,
     suddenDeathNeeded: needed,
     finalStandingsAt: s.phase === "ended" ? s.finalStandingsAt ?? null : null,

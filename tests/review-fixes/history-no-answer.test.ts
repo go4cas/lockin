@@ -26,10 +26,8 @@ async function ok(c: TestClient, name: string, args: object = {}) {
 }
 
 async function setup(dataDir?: string) {
-  const s = await startTestServer({ clock: new FakeClock(), dataDir, keepData: true });
+  const s = await startTestServer({ clock: new FakeClock(), dataDir, keepData: true, services: { rules: fakeRules, copyPicker: fakeCopy() } });
   servers.push(s);
-  s.app.services.rules = fakeRules;
-  s.app.services.copyPicker = fakeCopy();
   return s;
 }
 

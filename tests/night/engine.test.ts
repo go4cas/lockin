@@ -693,11 +693,4 @@ describe("views (10.3, 10.4)", () => {
     expect(r.copy.calls.filter((c) => c.key === "lobby").every((c) => (c.vars as { pub: string }).pub === "Lock-In")).toBe(true);
   });
 
-  test("without a copy picker or rules, screens show no line and standings are left out", () => {
-    const r = rig({ rules: undefined });
-    rigs.push(r);
-    writeQuiz(r.dataDir, makeQuiz("friday", [[q(number(1))]]));
-    expect(() => r.engine.command(r.host, "night.open", { quizId: "friday" })).toThrow("rules");
-    expect(r.engine.m).toBeNull();
-  });
 });

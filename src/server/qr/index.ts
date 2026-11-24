@@ -44,7 +44,7 @@ export function register(app: App): void {
   app.route("GET", "/qr/join.svg", (req, ctx) => {
     const pairing = app.services.displayPairing;
     const auth = /^Bearer (\S{1,100})$/.exec(req.headers.get("authorization") ?? "");
-    const allowed = !!ctx.hostSession || !pairing || pairing.isPaired(auth?.[1] ?? null);
+    const allowed = !!ctx.hostSession || pairing.isPaired(auth?.[1] ?? null);
     if (!allowed) return errorResponse(404, "not_found", "There is nothing at this address.");
     return svg(joinUrl(app), "QR code to join the quiz");
   });

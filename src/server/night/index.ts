@@ -10,19 +10,8 @@ import { COALESCE_MS, Engine } from "./engine.ts";
 import { answerText as answerTextOf, valueText } from "./quiz.ts";
 import { ClockScheduler } from "./scheduler.ts";
 import { imageVersion } from "./media.ts";
-import { DEFAULT_VENUE_NAME, fileSources, type Sources } from "./sources.ts";
-import { branding as brandingOf, type BrandingStore } from "../branding/index.ts";
+import { fileSources, venueFrom } from "./sources.ts";
 import type { CommandName, HistoryDetail } from "../../shared/protocol.ts";
-
-/** The engine reads the venue through B4's branding store; the store's name is null when unset. */
-function sourcesFor(app: App): { sources: Sources; branding: BrandingStore } {
-  const files = fileSources(app.config.dataDir);
-  const b = brandingOf(app);
-  return {
-    sources: { ...files, venueInfo: () => ({ name: b.venueName() ?? DEFAULT_VENUE_NAME, themeVersion: b.themeVersion(), venue: b.venue() }) },
-    branding: b,
-  };
-}
 import { historyList, historyNight } from "./store.ts";
 import { displayView, unpairedDisplayView, viewFor } from "./views.ts";
 import { DISPLAY_COMMANDS, displayCommand, displaysSummary, type DisplayCommand } from "../display/index.ts";
@@ -35,18 +24,16 @@ export type { HistoryDetail };
 
 export function register(app: App): void {
   const scheduler = new ClockScheduler(app.clock, (m) => app.log(m));
-  const { sources, branding } = sourcesFor(app);
+  const { branding, quizStore } = app.services;
+  const sources = fileSources(app.config.dataDir, venueFrom(branding));
   const engine = new Engine({
     db: app.db,
     clock: app.clock,
     scheduler,
     sources,
-    rules: () => app.services.rules,
-    copy: () => app.services.copyPicker,
-    saveAcceptedAnswer: () => {
-      const store = app.services.quizStore;
-      return store ? (q, id, text) => store.saveAcceptedAnswer(q, id, text) : undefined;
-    },
+    rules: app.services.rules,
+    copy: app.services.copyPicker,
+    saveAcceptedAnswer: (q, id, text) => quizStore.saveAcceptedAnswer(q, id, text),
     publicUrl: app.publicUrl,
     log: (m) => app.log(m),
   });
@@ -66,7 +53,7 @@ export function register(app: App): void {
     engine.ensureRecovered();
     if (conn.role === "display" && !conn.paired) {
       // REVIEW finding 4: an unpaired display sees only its pairing code.
-      return { seq: engine.seq, view: unpairedDisplayView(engine, app.services.displayPairing?.codeFor(conn.id, conn.ip) ?? "") };
+      return { seq: engine.seq, view: unpairedDisplayView(engine, app.services.displayPairing.codeFor(conn.id, conn.ip)) };
     }
     if (conn.role === "display" || conn.role === null) {
       const now = app.clock.now();
@@ -197,7 +184,7 @@ export function register(app: App): void {
     // or another image's address: never answer it with this night's bytes.
     const v = ctx.url.searchParams.get("v");
     if (v !== null && v !== imageVersion(m.night.id, ref.q.media.file)) return notFound();
-    const path = fileSourcesFor(app).mediaPath(m.night.quizId, ref.q.media.file);
+    const path = sources.mediaPath(m.night.quizId, ref.q.media.file);
     if (!path) return notFound();
     const body = req.method === "HEAD" ? null : readFileSync(path);
     return new Response(body, {
@@ -218,7 +205,7 @@ export function register(app: App): void {
     const quiz = h.night.quiz;
     const open = engine.m && engine.m.night.id === h.night.id ? engine : null;
     let standings: HistoryDetail["standings"] = h.standings;
-    if (open && h.night.status === "open" && open.m!.night.startedAt !== null && open.rules()) {
+    if (open && h.night.status === "open" && open.m!.night.startedAt !== null) {
       const rows = open.standingsRows(Math.min(open.state.round, quiz.rounds.length - 1));
       standings = rows.map((r) => ({ ...r, name: open.m!.teams.get(r.teamId)?.name ?? "" }));
     }
@@ -245,11 +232,4 @@ export function register(app: App): void {
     };
     return json(detail);
   }, { host: true });
-}
-
-const sourcesByApp = new WeakMap<App, ReturnType<typeof fileSources>>();
-function fileSourcesFor(app: App) {
-  let s = sourcesByApp.get(app);
-  if (!s) { s = fileSources(app.config.dataDir); sourcesByApp.set(app, s); }
-  return s;
 }

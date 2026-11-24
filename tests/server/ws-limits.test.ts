@@ -143,7 +143,7 @@ describe("pairing codes under a flood (SA-03, D2)", () => {
     expect(second).toMatch(/^[0-9]{6}$/);
     expect(second).not.toBe(first);
     // the old code no longer pairs anything
-    expect(s.app.services.displayPairing!.claim(first)).toEqual({ error: "bad_code" });
+    expect(s.app.services.displayPairing.claim(first)).toEqual({ error: "bad_code" });
   });
 
   test("property: no code is ever held by two open connections or moved from one to another", () => {

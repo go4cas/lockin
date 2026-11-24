@@ -1,7 +1,8 @@
 // WebSocket hub: hello, roles, ping/pong, command routing (TECH-SPEC section 10).
-// The night engine (B1) plugs in through setCommandHandler, setViewProvider and
-// setTeamTokenResolver; until then a stub answers `wrong_phase` and every
-// client gets an idle view.
+// The night module plugs in through setCommandHandler, setViewProvider and
+// setTeamTokenResolver, and the display module through setDisplayAuthoriser. All
+// four are required: createApp() calls assertWired() after every module registered,
+// so a missing one fails at construction instead of answering with a default (LI-020).
 
 import type { Server, ServerWebSocket } from "bun";
 import {
@@ -49,7 +50,7 @@ export interface Conn {
   /** The team this connection is bound to (team role only). */
   readonly teamId: string | null;
   readonly hostSession: string | null;
-  /** Display role: true once paired (token or host session). Always true without a display authoriser. */
+  /** Display role: true once paired (token or host session), as the display authoriser decided at hello. */
   readonly paired: boolean;
   /** Display role: paired by the host session it was opened with (D5), not by a stored token; ends with that session. */
   readonly pairedBySession: boolean;
@@ -185,22 +186,36 @@ export class Hub {
   private hostTimer: ReturnType<typeof setTimeout> | null = null;
   private hostPending = false;
   private hostLastAt = -Infinity;
-  private commandHandler: CommandHandler = () => fail("wrong_phase", "No night is running yet.");
-  private viewProvider: ViewProvider = (conn) => ({ seq: 0, view: idleView(conn.role ?? "display") });
-  private tokenResolver: TeamTokenResolver = () => null;
+  private commandHandler: CommandHandler | null = null;
+  private viewProvider: ViewProvider | null = null;
+  private tokenResolver: TeamTokenResolver | null = null;
   private displayAuthoriser: DisplayAuthoriser | null = null;
   private connectListeners: ((conn: Conn) => void)[] = [];
   private disconnectListeners: ((conn: Conn) => void)[] = [];
 
   constructor(private opts: HubOptions) {}
 
-  // --- plug-in points for B1 ----------------------------------------------
+  // --- plug-in points (night and display modules) ---------------------------
 
   setCommandHandler(fn: CommandHandler): void { this.commandHandler = fn; }
   setViewProvider(fn: ViewProvider): void { this.viewProvider = fn; }
   setTeamTokenResolver(fn: TeamTokenResolver): void { this.tokenResolver = fn; }
-  /** Display pairing (REVIEW finding 4): without one, every display counts as paired. */
+  /** Display pairing (REVIEW finding 4): decides whether a display that said hello is paired. */
   setDisplayAuthoriser(fn: DisplayAuthoriser): void { this.displayAuthoriser = fn; }
+
+  /** Throws unless every plug-in point is set (LI-020). createApp() calls it once modules registered. */
+  assertWired(): void {
+    const missing = [
+      ["command handler", this.commandHandler], ["view provider", this.viewProvider],
+      ["team token resolver", this.tokenResolver], ["display authoriser", this.displayAuthoriser],
+    ].filter(([, fn]) => fn === null).map(([name]) => name);
+    if (missing.length > 0) throw new Error(`The socket hub is missing its ${missing.join(", ")}.`);
+  }
+
+  private wired<T>(fn: T | null): T {
+    if (fn === null) throw new Error("The socket hub is not wired (assertWired was not called).");
+    return fn;
+  }
   /** True if the connection's host session (from its upgrade request) is still valid. */
   hostSessionAlive(conn: Conn): boolean { return !!conn.hostSession && this.opts.sessionAlive(conn.hostSession); }
   /** A connection by id, if it is open. */
@@ -217,7 +232,7 @@ export class Hub {
 
   /** Sends a connection its current view. */
   sendState(conn: Conn): void {
-    const { seq, view } = this.viewProvider(conn);
+    const { seq, view } = this.wired(this.viewProvider)(conn);
     conn.send({ t: "state", seq, serverNow: this.opts.clock.now(), view });
   }
 
@@ -398,13 +413,13 @@ export class Hub {
       if (conn.helloTimer) { clearTimeout(conn.helloTimer); conn.helloTimer = null; }
       conn.role = msg.role;
       if (msg.role === "team" && typeof msg.token === "string" && msg.token.length > 0 && msg.token.length <= 100) {
-        conn.teamId = this.tokenResolver(msg.token);
+        conn.teamId = this.wired(this.tokenResolver)(msg.token);
       }
       conn.send({ t: "welcome", protocol: PROTOCOL, role: conn.role, serverNow: this.opts.clock.now(), teamId: conn.teamId });
-      if (msg.role === "display" && this.displayAuthoriser) {
+      if (msg.role === "display") {
         conn.paired = false;
         const token = typeof msg.token === "string" && msg.token.length > 0 && msg.token.length <= 100 ? msg.token : null;
-        this.displayAuthoriser(conn, token);
+        this.wired(this.displayAuthoriser)(conn, token);
       }
       this.sendState(conn);
       for (const fn of this.connectListeners) fn(conn);
@@ -439,7 +454,7 @@ export class Hub {
       }
     }
     try {
-      return await this.commandHandler(conn, name, args as Record<string, unknown>);
+      return await this.wired(this.commandHandler)(conn, name, args as Record<string, unknown>);
     } catch (e) {
       this.opts.log?.(`Command ${name} failed: ${e instanceof Error ? e.stack ?? e.message : String(e)}`);
       return fail("server_error");

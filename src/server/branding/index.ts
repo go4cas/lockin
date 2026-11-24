@@ -1,35 +1,18 @@
 // B4: venue theme, venue settings, /theme.css and the copy pools
 // (TECH-SPEC 5.3 to 5.5, 8.6, 9; docs/design/branding.md).
 //
-// Other modules reach the stores through branding(app):
-//   branding(app).theme(), .themeVersion(), .venueName(), .venue(), .onThemeChange(fn)
-// and the copy picker through app.services.copyPicker.
+// The store and the copy picker are built by the composition root (services.ts,
+// code review LI-020); other modules use app.services.branding and
+// app.services.copyPicker.
 
 import type { App } from "../app.ts";
 import { BUNDLED_FONTS, validateTheme } from "../../shared/formats.ts";
 import { UPLOAD_CSP, errorResponse, json, BodyTooLarge, readFormBody, readJsonBody } from "../http.ts";
 import { BUNDLED_FONT_INFO } from "./derive.ts";
 import { ASSET_KINDS, ASSET_RULES, type AssetKind } from "./assets.ts";
-import { createCopyPicker, mergePools, poolsFromCopyFile, type Pools } from "./copy.ts";
-import { BrandingStore } from "./store.ts";
 import { themeCss } from "./theme-css.ts";
 
 export { BrandingStore } from "./store.ts";
-
-/** The default copy pools, a shipped file (embedded in the binary, TECH-SPEC 4.6). */
-export const COPY_PATH = "docs/brand/copy.en.json";
-
-const stores = new WeakMap<App, BrandingStore>();
-
-/** The branding store of an app. B1 reads the venue name, theme version and venue defaults here. */
-export function branding(app: App): BrandingStore {
-  let s = stores.get(app);
-  if (!s) {
-    s = new BrandingStore(app.config.dataDir, (m) => app.log(m));
-    stores.set(app, s);
-  }
-  return s;
-}
 
 const CONTENT_TYPES: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", svg: "image/svg+xml",
@@ -48,27 +31,7 @@ function problemsResponse(problems: { path: string; message: string }[]): Respon
 }
 
 export function register(app: App): void {
-  const store = branding(app);
-
-  // Default copy pools, read through app.files so the compiled binary finds its
-  // embedded copy (B8). The theme's copy is merged on every pick.
-  let defaults: Pools = {};
-  const copyLoaded = app.files.read(COPY_PATH).then((bytes) => {
-    if (!bytes) { app.log(`${COPY_PATH} is missing, so screens show no copy lines.`); return; }
-    try {
-      defaults = poolsFromCopyFile(JSON.parse(new TextDecoder().decode(bytes)));
-    } catch (e) {
-      app.log(`${COPY_PATH} could not be read, so screens show no copy lines: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  });
-  app.services.copyPicker = createCopyPicker(() => mergePools(defaults, store.theme().copy), () => store.venueName());
-
-  // Start-up (4.4): load both files now so problems show in the log at start.
-  app.onStart(async () => {
-    await copyLoaded;
-    store.theme();
-    store.venue();
-  });
+  const store = app.services.branding;
 
   // --- public: the theme for every page ------------------------------------
 

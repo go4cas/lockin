@@ -95,9 +95,10 @@ export interface EngineDeps {
   clock: Clock;
   scheduler: Scheduler;
   sources: Sources;
-  rules: () => Rules | undefined;
-  copy: () => CopyPicker | undefined;
-  saveAcceptedAnswer: () => ((quizId: string, questionId: string, text: string) => void | Promise<void>) | undefined;
+  rules: Rules;
+  copy: CopyPicker;
+  /** Appends an answer accepted while marking to the quiz file (B3's store, TECH-SPEC 5.2). */
+  saveAcceptedAnswer: (quizId: string, questionId: string, text: string) => void | Promise<void>;
   publicUrl: string;
   log?: (message: string) => void;
 }
@@ -193,12 +194,8 @@ export class Engine {
     return this.venueCache.info;
   }
 
-  rulesOrThrow(): Rules {
-    const r = this.d.rules();
-    if (!r) throw new Error("The marking rules (B2) are not installed.");
-    return r;
-  }
-  rules(): Rules | undefined { return this.d.rules(); }
+  /** Marking, scoring and positions (B2), from the composition root. */
+  get rules(): Rules { return this.d.rules; }
 
   /** Active teams (not removed), in join order. */
   teams(): TeamRec[] {
@@ -253,7 +250,7 @@ export class Engine {
 
   /** Positions after rounds 0..upTo (8.3, 8.4), with sudden-death outcomes. */
   standingsRows(upTo: number, withSd = true): StandingRow[] {
-    const rules = this.rulesOrThrow();
+    const rules = this.rules;
     const rounds = this.quiz.rounds.slice(0, upTo + 1).map((r) => ({ questionIds: r.questions.map((q) => q.id) }));
     const correct = new Set<string>();
     for (const a of this.m!.answers.values()) if (a.mark === "correct") correct.add(answerKey(a.teamId, a.questionId));
@@ -264,8 +261,7 @@ export class Engine {
   /** Sudden-death outcomes so far, replayed from the sudden_deaths rows (8.5). */
   outcomes(): SuddenDeathOutcome[] {
     if (!this.m) return [];
-    const rules = this.rules();
-    if (!rules) return [];
+    const rules = this.rules;
     const positions = [...new Set(this.m.sd.map((r) => r.position))];
     const out: SuddenDeathOutcome[] = [];
     for (const position of positions) {
@@ -291,9 +287,9 @@ export class Engine {
 
   /** The next sudden-death position to decide, if any (only after the last round). */
   sdNeeded(): { position: number; teamIds: string[] } | null {
-    if (!this.m || !this.rules()) return null;
+    if (!this.m) return null;
     const rows = this.standingsRows(this.quiz.rounds.length - 1);
-    return this.rulesOrThrow().suddenDeathNeeded(rows, this.quiz.settings.suddenDeathScope, this.outcomes());
+    return this.rules.suddenDeathNeeded(rows, this.quiz.settings.suddenDeathScope, this.outcomes());
   }
 
   /** True while the current sudden-death position is still being decided. */
@@ -305,9 +301,7 @@ export class Engine {
   // --- copy lines and flashes -------------------------------------------------
 
   private pick(key: string, vars: Vars = {}): string | null {
-    const picker = this.d.copy();
-    if (!picker) return null;
-    const res = picker.pick(key, { pub: this.venue().name, ...vars }, this.state.copyLast);
+    const res = this.d.copy.pick(key, { pub: this.venue().name, ...vars }, this.state.copyLast);
     if (!res) return null;
     this.state.copyLast[key] = res.index;
     return res.text;
@@ -416,7 +410,7 @@ export class Engine {
       try {
         this.run(() => { this.lockOpen(at); return OK; });
       } catch (e) {
-        // For example the rules module is not installed yet: try again on the next command or view.
+        // For example the database is busy: try again on the next command or view.
         this.recoverPending = true;
         this.d.log?.(`Restart recovery is waiting: ${e instanceof Error ? e.message : String(e)}`);
         return;
@@ -558,7 +552,7 @@ export class Engine {
         return p !== "marking" ? "wrong_phase" : this.roundPending() > 0 ? "marks_pending" : null;
       case "round.next": return (p === "leaderboard" && !this.isLastRound()) || p === "halftime" ? null : "wrong_phase";
       case "sd.start":
-        if (p !== "leaderboard" || !this.isLastRound() || this.quiz.suddenDeath.length === 0 || !this.rules()) return "wrong_phase";
+        if (p !== "leaderboard" || !this.isLastRound() || this.quiz.suddenDeath.length === 0) return "wrong_phase";
         return this.sdNeeded() ? null : "wrong_phase";
       case "sd.ask": {
         if (p !== "sudden_death" || !s.sd) return "wrong_phase";
@@ -690,7 +684,6 @@ export class Engine {
       const first = load.problems[0]?.message;
       return fail("quiz_not_ready", first ? `That quiz isn't ready yet: ${first}` : undefined);
     }
-    this.rulesOrThrow();
     const now = this.now();
     const d = new Date(now);
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -876,7 +869,7 @@ export class Engine {
 
   /** Auto-marks a question at its lock (8.2): no answer is wrong; closest questions are marked together. */
   private autoMarkAtLock(qid: string, at: number): void {
-    const rules = this.rulesOrThrow();
+    const rules = this.rules;
     const spec = this.qIndex.get(qid)!.q.answer;
     const teamIds = this.participants(qid);
     const withValue = new Map<string, AnswerValue>();
@@ -939,7 +932,7 @@ export class Engine {
     if (!ref) return fail("not_found", "That question isn't locked yet.");
     if (typeof a.key !== "string" || (a.mark !== "correct" && a.mark !== "wrong")) return fail("bad_args");
     const qid = ref.q.id;
-    const rules = this.rulesOrThrow();
+    const rules = this.rules;
     const spec = ref.q.answer;
     const members: AnswerRec[] = [];
     for (const tid of this.participants(qid)) {
@@ -956,10 +949,9 @@ export class Engine {
       if (!spec.accepted.some((t) => rules.normalise(t) === a.key)) {
         spec.accepted.push(display);
         this.dirty.night = true;
-        const save = this.d.saveAcceptedAnswer();
+        const save = this.d.saveAcceptedAnswer;
         const quizId = this.m!.night.quizId;
         this.post.push(() => {
-          if (!save) { this.d.log?.(`No quiz store yet: accepted answer for ${qid} kept in the night's snapshot only.`); return; }
           Promise.resolve().then(() => save(quizId, qid, display))
             .catch((e) => this.d.log?.(`Saving an accepted answer failed: ${e instanceof Error ? e.message : String(e)}`));
         });
@@ -1004,7 +996,7 @@ export class Engine {
   private showLeaderboard(): void {
     this.setPhase("leaderboard");
     const r = this.state.round;
-    const rules = this.rulesOrThrow();
+    const rules = this.rules;
     const after = this.standingsRows(r, false);
     const before = r > 0 ? this.standingsRows(r - 1, false) : null;
     const key = rules.leaderboardLine(before, after);
@@ -1080,7 +1072,7 @@ export class Engine {
     row.rightIds = rightIds;
     this.dirty.sd.add(row.seq);
     sd.current!.status = "revealed";
-    const res = this.rulesOrThrow().resolveSuddenDeath(row.teamIds, rightIds);
+    const res = this.rules.resolveSuddenDeath(row.teamIds, rightIds);
     const name = (id: string) => this.m!.teams.get(id)?.name ?? "";
     if (res.winner) {
       sd.decided.push({ position: sd.position, teamIds: [res.winner], outcome: "won" });
