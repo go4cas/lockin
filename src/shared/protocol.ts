@@ -235,3 +235,18 @@ export function emptyLines(): Lines {
     halftime: null, suddenDeath: null, winner: null, lastPlace: null, goodbye: null,
   };
 }
+
+// 9.2 History API (agreed with Cas 2026-11-24): the host console's dispute screen reads
+// GET /api/history/:nightId for the open night too, so it can change marks on earlier rounds.
+export interface HistoryListItem {
+  id: string; quizTitle: string; openedAt: number; endedAt: number | null;
+  teams: number;                   // number of teams
+  winners: string[];               // team names in first place
+}
+export interface HistoryList { nights: HistoryListItem[] }
+export interface HistoryDetail {
+  night: { id: string; quizTitle: string; openedAt: number; endedAt: number | null; status: "open" | "ended" };
+  standings: (StandingRow & { name: string })[];
+  rounds: { index: number; title: string; questions: { id: string; number: number; text: string; answerText: string }[] }[]; // index -1, title "Deadlock": sudden-death questions asked, numbered 1.. in the order asked (agreed with B1)
+  answers: { teamId: string; questionId: string; display: string; mark: "correct" | "wrong" | "pending" }[]; // no row = no answer
+}

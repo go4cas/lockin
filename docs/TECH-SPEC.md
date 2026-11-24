@@ -758,8 +758,8 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `POST /api/theme/assets` | B4 | multipart `file`, `kind: "logo" \| "displayBackground" \| "font"` → `{ file: "assets/<name>" }` |
 | `GET /api/venue` / `PUT /api/venue` | B4 | `VenueFile` |
 | `GET /api/theme/preview.css` | B4 | `?theme=<url-encoded ThemeFile JSON>` → CSS, for the live preview (H-16) |
-| `GET /api/history` | B1 | → `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` |
-| `GET /api/history/:nightId` | B1 | → `{ night, standings: StandingRow & { name }[], rounds, answers }` |
+| `GET /api/history` | B1 | → `HistoryList`: `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` (saved nights, newest first) |
+| `GET /api/history/:nightId` | B1 | → `HistoryDetail` (`src/shared/protocol.ts`): `{ night, standings, rounds, answers }`. Also answers for the night that is open now, so the console can change marks on earlier rounds (H-13; agreed with Cas 2026-11-24). `answers` has one row per team per question answered, with its display text and mark. |
 
 Upload limits: images 5 MB, logo 2 MB, fonts 2 MB. Files are checked by their first bytes, stored under generated names, and served with `X-Content-Type-Options: nosniff`.
 
@@ -1145,7 +1145,7 @@ Done when:
 - Marking uses `Rules`: auto-marking at lock, review groups, `mark.group` adds accepted answers to the snapshot and the quiz file (through B3's quiz store interface `saveAcceptedAnswer(quizId, questionId, text)`, stubbed if B3 has not merged).
 - Joker rules (P-04), Quiz Start closing joining, one phone per team, rejoin and move codes (section 11) are tested.
 - Sudden death runs through `sd.start`, `sd.ask`, `sd.reveal` with tied-team-only answering, and its outcomes feed `rank`.
-- Quiz End writes `results`; `GET /api/history` and `/api/history/:id` return saved nights; mark changes are logged (H-13).
+- Quiz End writes `results`; `GET /api/history` returns saved nights and `/api/history/:id` saved nights and the open night (9.2); mark changes are logged (H-13).
 - Lines and flashes (10.4) come from `CopyPicker` (a fake until B4 merges) with no repeats per pool.
 - View sends are coalesced as in 10.7.
 
