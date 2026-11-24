@@ -125,14 +125,30 @@ function displaysLine() {
 
 const pairReady = (/** @type {string} */ name) => page.status === "online" && !ui.busy[name];
 
+/**
+ * What the host is told after pairing (SA-03): where the screen is and how long it waited,
+ * so a screen that is not the pub's TV is noticed and unpaired.
+ * @param {{ ip?: string; connectedFor?: number } | undefined} r
+ */
+export function pairedNote(r) {
+  const mins = Math.round((r && typeof r.connectedFor === "number" ? r.connectedFor : 0) / 60_000);
+  const ago = mins < 1 ? "just now" : mins === 1 ? "1 minute ago" : `${mins} minutes ago`;
+  const where = r && r.ip ? ` at ${r.ip}` : "";
+  return `Paired a display${where}, connected ${ago}. Not your TV? Unpair every display.`;
+}
+
 /** Pair a display by the code it shows, see what is connected, unpair them all. */
 export function pairCard() {
   const submit = async (/** @type {Event} */ e) => {
     e.preventDefault();
     const code = pair.code.replace(/\s+/g, "");
-    if (!/^[0-9]{4}$/.test(code)) { ui.error = "The display shows a 4-digit code. Type all four digits."; return; }
+    if (!/^[0-9]{6}$/.test(code)) { ui.error = "The display shows a 6-digit code. Type all six digits."; return; }
     pair.note = "";
-    if ((await send("display.pair", { code })).ok) { pair.code = ""; pair.note = "Paired. The display shows the quiz now."; }
+    const res = await send("display.pair", { code });
+    if (res.ok) {
+      pair.code = "";
+      pair.note = pairedNote(/** @type {any} */ (res).result);
+    }
   };
   const unpair = async () => {
     pair.confirmUnpair = false;
@@ -140,9 +156,9 @@ export function pairCard() {
   };
   return html`<section class="card pair-card">
     <h3 class="label">Pair a display</h3>
-    <p class="muted s">A display shows nothing of the night until it is paired. Type the 4-digit code it shows. "Open display" from this browser is paired already.</p>
+    <p class="muted s">A display shows nothing of the night until it is paired. Type the 6-digit code it shows. "Open display" from this browser is paired already.</p>
     <form class="row" @submit="${submit}">
-      <input class="input pair-input" inputmode="numeric" autocomplete="off" maxlength="4" aria-label="Code shown on the display" placeholder="0000"
+      <input class="input pair-input" inputmode="numeric" autocomplete="off" maxlength="7" aria-label="Code shown on the display" placeholder="000000"
         value="${() => pair.code}" @input="${(/** @type {Event} */ e) => { pair.code = /** @type {HTMLInputElement} */ (e.target).value; }}">
       <button type="submit" class="btn primary" disabled="${() => !pairReady("display.pair")}">Pair</button>
     </form>
@@ -187,6 +203,19 @@ export function lobbyEnter() {
   ui.plannedDirty = false;
 }
 
+/** "New room code" (D1): confirm first, since phones on the join page need the new code. */
+const newCode = reactive({ confirm: false });
+async function makeNewCode() {
+  newCode.confirm = false;
+  await send("night.newRoomCode", {});
+}
+
+/** True while typed room codes are paused because someone is guessing (SA-01). */
+function joinPaused() {
+  const until = page.view && page.view.role === "host" ? page.view.joinPausedUntil : undefined;
+  return typeof until === "number" && until > serverNow();
+}
+
 export function lobbyScreen() {
   const savePlanned = async () => {
     const v = ui.planned.trim();
@@ -197,12 +226,21 @@ export function lobbyScreen() {
   return html`<div class="stage">
     <div class="two lobby-top">
       <section class="card join-card">
-        <img class="qr" src="/qr/join.svg" alt="${() => `QR code for ${page.view?.night?.joinUrl || "the join page"}`}" width="132" height="132">
+        <img class="qr" src="${() => "/qr/join.svg?r=" + (page.view?.night?.roomCode || "")}" alt="${() => `QR code for ${page.view?.night?.joinUrl || "the join page"}`}" width="132" height="132">
         <div>
           <h3 class="label">Teams join at</h3>
           <p class="join-url">${() => (page.view && page.view.night ? bare(page.view.night.joinUrl).replace(/\/j\/[^/]+$/, "") : "")}</p>
           <h3 class="label">Room code</h3>
           <p class="room-code">${() => page.view?.night?.roomCode || ""}</p>
+          <p class="s warn" role="status" hidden="${() => !joinPaused()}">Someone is guessing the room code. Typed codes are paused for a minute; the QR code still works. If the code has got out, make a new one.</p>
+          <div class="row" hidden="${() => newCode.confirm}">
+            <button type="button" class="link" disabled="${() => !enabled("night.newRoomCode")}" @click="${() => { newCode.confirm = true; }}">New room code</button>
+          </div>
+          <div class="row" hidden="${() => !newCode.confirm}">
+            <span class="s">Teams already in stay in. Phones still on the join page need the new code.</span>
+            <button type="button" class="btn primary" disabled="${() => !enabled("night.newRoomCode")}" @click="${makeNewCode}">Make a new code</button>
+            <button type="button" class="btn ghost" @click="${() => { newCode.confirm = false; }}">Cancel</button>
+          </div>
         </div>
       </section>
       <section class="card display-card">

@@ -44,6 +44,8 @@ export interface EngineState {
   seq: number;                      // increases on every change
   /** Ended: server time the final standings replace the winner screen; null while waiting for the host's final.show. Absent before Quiz End. */
   finalStandingsAt?: number | null;
+  /** D1: the join key in the QR code and join link (10 characters); absent on nights opened before it existed. */
+  joinKey?: string;
 }
 
 export const LINE_SLOTS: readonly (keyof Lines)[] = [

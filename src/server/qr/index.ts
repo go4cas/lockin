@@ -7,16 +7,20 @@ import { qrSvg } from "./encode.ts";
 /** Move codes: 8 characters from the rejoin alphabet (TECH-SPEC 11.2, 11.3). */
 const MOVE_CODE = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/;
 
-/** The open night's room code, or null when no night is open. */
-export function openRoomCode(app: App): string | null {
-  const row = app.db.query<{ room_code: string }, []>("SELECT room_code FROM nights WHERE status = 'open' LIMIT 1").get();
-  return row?.room_code ?? null;
+/** The open night's room code and join key (D1), or null when no night is open. */
+export function openRoomCode(app: App): { roomCode: string; joinKey: string } | null {
+  const row = app.db.query<{ room_code: string; state: string }, []>("SELECT room_code, state FROM nights WHERE status = 'open' LIMIT 1").get();
+  if (!row) return null;
+  let joinKey = "";
+  try { joinKey = (JSON.parse(row.state) as { joinKey?: unknown }).joinKey as string ?? ""; } catch { joinKey = ""; }
+  return { roomCode: row.room_code, joinKey: typeof joinKey === "string" ? joinKey : "" };
 }
 
-/** Where phones join: `<publicUrl>/j/<roomCode>` while a night is open, else the join page `<publicUrl>/`. */
+/** Where phones join: `<publicUrl>/j/<roomCode>-<joinKey>` while a night is open, else the join page `<publicUrl>/`. */
 export function joinUrl(app: App): string {
-  const code = openRoomCode(app);
-  return code ? `${app.publicUrl}/j/${code}` : `${app.publicUrl}/`;
+  const open = openRoomCode(app);
+  if (!open) return `${app.publicUrl}/`;
+  return `${app.publicUrl}/j/${open.roomCode}${open.joinKey ? `-${open.joinKey}` : ""}`;
 }
 
 export function displayUrl(app: App): string {

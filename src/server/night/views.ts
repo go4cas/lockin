@@ -32,7 +32,7 @@ function nightInfo(e: Engine): NightInfo | null {
   return {
     id: n.id,
     roomCode: n.roomCode,
-    joinUrl: `${e.publicUrl}/j/${n.roomCode}`,
+    joinUrl: `${e.publicUrl}/j/${n.roomCode}${e.state.joinKey ? `-${e.state.joinKey}` : ""}`,
     quizTitle: n.quizTitle,
     plannedStart: n.plannedStart,
     holdingFrom: n.plannedStart === null ? null : n.plannedStart - venue.holding.minutesBefore * 60_000,

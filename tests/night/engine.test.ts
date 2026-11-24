@@ -44,7 +44,9 @@ describe("night.open (7.2)", () => {
     expect(r.engine.m!.night.quiz).toEqual(quiz);
     expect(code(r.engine.command(r.host, "night.open", { quizId: "friday" }))).toBe("night_open");
     const v = displayView(r.engine);
-    expect(v.night!.joinUrl).toBe(`https://quiz.example.com/j/${res.roomCode}`);
+    // D1: the join link carries the room code and the night's join key
+    expect(v.night!.joinUrl).toBe(`https://quiz.example.com/j/${res.roomCode}-${r.engine.state.joinKey}`);
+    expect(r.engine.state.joinKey).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{10}$/);
     expect(v.night!.holdingFrom).toBe(r.clock.now() + 3_600_000 - 30 * 60_000);
     expect(v.lines.lobby).toBe("lobby#0");
   });

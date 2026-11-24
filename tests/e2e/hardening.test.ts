@@ -47,7 +47,8 @@ describe("roles and input", () => {
     const { night, roomCode } = await openNight(q, 2);
     const team = night.phones[0]!.c;
     const unbound = await night.client("team", "unbound");
-    for (const name of COMMAND_NAMES.filter((n) => !TEAM_COMMANDS.includes(n))) {
+    for (const [i, name] of COMMAND_NAMES.filter((n) => !TEAM_COMMANDS.includes(n)).entries()) {
+      if (i % 8 === 7) await Bun.sleep(1000);   // stay under the per-socket message limit (SA-04: 20, then 10 a second)
       expect([name, await code(team, name, {})]).toEqual([name, "not_allowed"]);
       expect([name, await code(night.display, name, {})]).toEqual([name, "not_allowed"]);
       expect([name, await code(unbound, name, {})]).toEqual([name, "not_allowed"]);
@@ -128,7 +129,7 @@ describe("roles and input", () => {
 });
 
 describe("load and failure", () => {
-  test("an answer flood from one phone does not slow the host's counts for the others", async () => {
+  test("an answer flood from one phone is cut off and does not slow the host's counts for the others", async () => {
     const q = quiz("flood");
     const { night } = await openNight(q, 10);
     await night.cmd("quiz.start");
@@ -136,18 +137,21 @@ describe("load and failure", () => {
     await night.cmd("question.next");
     const qid = q.rounds[0]!.questions[0]!.id;
     const flooder = night.phones[0]!.c;
-    // 2,000 answer changes as fast as the socket takes them
-    const flood = Promise.all(Array.from({ length: 2000 }, (_, i) => flooder.cmd("answer.submit", { questionId: qid, value: { type: "text", text: `spam ${i}` } })));
+    // 2,000 answer changes as fast as the socket takes them: SA-04 closes the socket after the burst
+    const flood = Promise.all(Array.from({ length: 2000 }, (_, i) =>
+      flooder.cmd("answer.submit", { questionId: qid, value: { type: "text", text: `spam ${i}` } }).catch(() => null)));
     await Bun.sleep(50);
     const t0 = Date.now();
     await Promise.all(night.phones.slice(1).map((p, i) => ok(p.c, "answer.submit", { questionId: qid, value: { type: "text", text: `honest ${i}` } })));
     await waitFor<HostView>(night.host, (v) => v.current!.answered === 10, "10 answers", 5000);
     const ms = Date.now() - t0;
-    const acks = await flood;
-    console.log(`[hardening] flood: 2000 changes from one phone; the other 9 answers counted on the host in ${ms} ms`);
-    expect(acks.every((a) => a.ok)).toBe(true);
+    void flood;   // the rest never get an answer: the socket is closed
+    const accepted = flooder.received.filter((m) => m.t === "ack" && m.ok).length;
+    console.log(`[hardening] flood: 2000 changes from one phone, ${accepted} accepted before it was cut off; the other 9 answers counted on the host in ${ms} ms`);
+    expect(accepted).toBeLessThanOrEqual(20);
+    expect(flooder.received.some((m) => m.t === "bye" && m.reason === "protocol")).toBe(true);
     expect(ms).toBeLessThan(1000);
-    expect(night.teamView("Team 1").answers[0]!.value).toEqual({ type: "text", text: "spam 1999" });
+    expect(night.hostView().teams.find((t) => t.id === night.phones[0]!.teamId)).toBeTruthy();   // the team itself is kept
   }, 30_000);
 
   test("a reconnect storm: 30 phones drop and come back at once, all rebind with their answers", async () => {

@@ -183,7 +183,9 @@ export function join() {
   if (room.length !== 4) { ui.joinError = { code: "room_code", message: "The room code has 4 letters. It's on the TV." }; return; }
   ui.joining = true;
   ui.joinError = null;
-  client.cmd("team.join", { roomCode: room, name }).then(
+  // D1: a phone that came from the QR code sends its join key, which gets past the room code limits.
+  const joinKey = path.joinKey && room === path.roomCode ? path.joinKey : "";
+  client.cmd("team.join", joinKey ? { roomCode: room, name, joinKey } : { roomCode: room, name }).then(
     (/** @type {any} */ r) => { ui.joining = false; remember(r); forgetPath(); },
     (/** @type {any} */ e) => { ui.joining = false; ui.joinError = errorOf(e); },
   );

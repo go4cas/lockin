@@ -263,7 +263,7 @@ describe("GET and PUT /api/quizzes/:id (H-02)", () => {
   test("a body over the limit is refused", async () => {
     const q = await create("Huge");
     const res = await send("PUT", `/api/quizzes/${q.id}`, { quiz: q, baseUpdatedAt: q.updatedAt, pad: "x".repeat(2_100_000) });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(413);   // SA-02: too big is 413, not 400
   });
 });
 

@@ -139,7 +139,11 @@ export async function handleRequest(app: InternalApp, req: Request, server: BunS
 
   if (url.pathname === "/ws") {
     if (!originAllowed(req, app.publicUrl)) return withSecurityHeaders(errorResponse(403, "forbidden_origin", "This page is not allowed to connect."));
-    const ok = server.upgrade(req, { data: app.ws.upgradeData(ip, session?.hash ?? null) });
+    // SA-04: caps on open sockets, in total and per client IP, checked before any socket is made.
+    const data = app.ws.admit(ip, session?.hash ?? null);
+    if (!data) return withSecurityHeaders(errorResponse(429, "too_many_connections", "Too many screens are connected from here. Try again in a minute."));
+    const ok = server.upgrade(req, { data });
+    if (!ok) app.ws.release(data);
     return ok ? undefined : withSecurityHeaders(errorResponse(400, "bad_upgrade", "This address only takes WebSocket connections."));
   }
 

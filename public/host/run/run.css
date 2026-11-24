@@ -226,3 +226,4 @@ td.move.down, td.move.same { color: var(--color-text-muted); }
 }
 .hide-answers .secret:not([data-peek]):hover { filter: blur(0.35em); }
 .pair-card { margin-top: 16px; max-width: 900px; } .pair-input { width: 7em; font-size: 20px; letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
+.join-card .warn { color: var(--color-warning); max-width: 32ch; }

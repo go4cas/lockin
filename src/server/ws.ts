@@ -12,7 +12,21 @@ import type { Clock } from "./auth.ts";
 
 export const HELLO_TIMEOUT_MS = 5_000;
 export const IDLE_TIMEOUT_S = 60;
-const MAX_MESSAGE_BYTES = 64 * 1024;
+/** Largest client frame (SA-04): the biggest real one, night.open with 30 long prizes, is about 11 KB. */
+export const MAX_MESSAGE_BYTES = 32 * 1024;
+/** A socket that has this much unsent data queued (it is not reading) is closed (SA-04). */
+export const BACKPRESSURE_LIMIT = 1024 * 1024;
+/**
+ * Open sockets (SA-04): in total, and per client IP. A full pub on one Wi-Fi address is
+ * 30 phones, a few displays and a console, with room for every phone reconnecting at once.
+ */
+export const MAX_SOCKETS = 600;
+export const MAX_SOCKETS_PER_IP = 120;
+/** Messages per socket (SA-04), pings included: a burst of 20, then 10 a second. Hosts are trusted and not limited. */
+export const MESSAGE_BURST = 20;
+export const MESSAGES_PER_SECOND = 10;
+/** Host-only updates (presence, display counts) are sent at most this often (SA-04, SA-03). */
+export const HOST_UPDATE_MS = 250;
 
 export type ByeReason = Extract<ServerMsg, { t: "bye" }>["reason"];
 export type CommandResult = { ok: true; result?: unknown } | { ok: false; error: { code: ErrorCode; message: string } };
@@ -23,6 +37,8 @@ export interface SocketData {
   ip: string;
   /** Hash of the host session cookie sent on the upgrade request, if it was valid. */
   hostSession: string | null;
+  /** True while this socket holds a place under the socket caps (SA-04). */
+  admitted?: boolean;
 }
 
 export interface Conn {
@@ -86,6 +102,9 @@ class Connection implements Conn {
   readonly connectedAt: number;
   helloTimer: ReturnType<typeof setTimeout> | null = null;
   closed = false;
+  /** Message budget (SA-04): tokens left and when they were last topped up (real time, ms). */
+  tokens = MESSAGE_BURST;
+  tokensAt = performance.now();
 
   constructor(readonly ws: ServerWebSocket<SocketData>, private clock: Clock) {
     this.connectedAt = clock.now();
@@ -96,7 +115,18 @@ class Connection implements Conn {
   get hostSession() { return this.ws.data.hostSession; }
 
   send(msg: ServerMsg): void {
+    // Bun closes the socket itself once BACKPRESSURE_LIMIT is queued (closeOnBackpressureLimit).
     if (!this.closed) this.ws.send(JSON.stringify(msg));
+  }
+  /** Takes one message from the budget; false when the socket is over it (SA-04). */
+  spend(): boolean {
+    if (this.role === "host") return true;
+    const now = performance.now();
+    this.tokens = Math.min(MESSAGE_BURST, this.tokens + ((now - this.tokensAt) / 1000) * MESSAGES_PER_SECOND);
+    this.tokensAt = now;
+    if (this.tokens < 1) return false;
+    this.tokens -= 1;
+    return true;
   }
   bindTeam(teamId: string | null): void {
     this.teamId = teamId;
@@ -123,6 +153,12 @@ export interface HubOptions {
 export class Hub {
   private conns = new Map<number, Connection>();
   private nextId = 1;
+  /** Sockets admitted (upgrade accepted, not yet closed), in total and by client IP (SA-04). */
+  private socketCount = 0;
+  private socketsByIp = new Map<string, number>();
+  private hostTimer: ReturnType<typeof setTimeout> | null = null;
+  private hostPending = false;
+  private hostLastAt = -Infinity;
   private commandHandler: CommandHandler = () => fail("wrong_phase", "No night is running yet.");
   private viewProvider: ViewProvider = (conn) => ({ seq: 0, view: idleView(conn.role ?? "display") });
   private tokenResolver: TeamTokenResolver = () => null;
@@ -159,6 +195,33 @@ export class Hub {
     conn.send({ t: "state", seq, serverNow: this.opts.clock.now(), view });
   }
 
+  /**
+   * Sends every host connection its view, at most once every HOST_UPDATE_MS (SA-04, SA-03):
+   * the first change goes at once, later ones in the window are folded into one send at its end.
+   */
+  broadcastHosts(): void {
+    const now = performance.now();
+    if (this.hostTimer) { this.hostPending = true; return; }
+    const wait = this.hostLastAt + HOST_UPDATE_MS - now;
+    if (wait <= 0) {
+      this.hostLastAt = now;
+      this.broadcastState((c) => c.role === "host");
+      this.hostTimer = setTimeout(() => this.flushHosts(), HOST_UPDATE_MS);
+      return;
+    }
+    this.hostPending = true;
+    this.hostTimer = setTimeout(() => this.flushHosts(), wait);
+  }
+
+  private flushHosts(): void {
+    this.hostTimer = null;
+    if (!this.hostPending) return;
+    this.hostPending = false;
+    this.hostLastAt = performance.now();
+    this.broadcastState((c) => c.role === "host");
+    this.hostTimer = setTimeout(() => this.flushHosts(), HOST_UPDATE_MS);
+  }
+
   /** Sends every connection its current view (or only those matching `filter`). */
   broadcastState(filter?: (conn: Conn) => boolean): void {
     for (const c of this.connections()) if (!filter || filter(c)) this.sendState(c);
@@ -172,6 +235,7 @@ export class Hub {
   }
 
   closeAll(): void {
+    if (this.hostTimer) { clearTimeout(this.hostTimer); this.hostTimer = null; }
     for (const c of this.conns.values()) {
       if (c.helloTimer) clearTimeout(c.helloTimer);
       c.closed = true;
@@ -182,6 +246,34 @@ export class Hub {
 
   // --- Bun websocket handlers ---------------------------------------------
 
+  /**
+   * Admits a socket before the upgrade (SA-04): null when the server or this client IP is
+   * at its cap, so the caller can answer 429 and no socket is made. Otherwise the socket's
+   * data; its place is held until it closes, or until `release` if the upgrade fails.
+   */
+  admit(ip: string, hostSession: string | null): SocketData | null {
+    const mine = this.socketsByIp.get(ip) ?? 0;
+    if (this.socketCount >= MAX_SOCKETS || mine >= MAX_SOCKETS_PER_IP) return null;
+    this.socketCount++;
+    this.socketsByIp.set(ip, mine + 1);
+    return { connId: this.nextId++, ip, hostSession, admitted: true };
+  }
+
+  /** Gives back a place taken by `admit` (the socket closed, or the upgrade failed). Safe to call twice. */
+  release(data: SocketData): void {
+    if (!data.admitted) return;
+    data.admitted = false;
+    this.socketCount = Math.max(0, this.socketCount - 1);
+    const n = (this.socketsByIp.get(data.ip) ?? 1) - 1;
+    if (n > 0) this.socketsByIp.set(data.ip, n); else this.socketsByIp.delete(data.ip);
+  }
+
+  /** Sockets open (or being opened) now, in total or from one IP. */
+  socketsOpen(ip?: string): number {
+    return ip === undefined ? this.socketCount : this.socketsByIp.get(ip) ?? 0;
+  }
+
+  /** Socket data without the caps (tests that drive the hub directly). */
   upgradeData(ip: string, hostSession: string | null): SocketData {
     return { connId: this.nextId++, ip, hostSession };
   }
@@ -190,6 +282,8 @@ export class Hub {
     idleTimeout: IDLE_TIMEOUT_S,
     sendPings: false,
     maxPayloadLength: MAX_MESSAGE_BYTES,
+    backpressureLimit: BACKPRESSURE_LIMIT,
+    closeOnBackpressureLimit: true,
     open: (ws: ServerWebSocket<SocketData>) => {
       const conn = new Connection(ws, this.opts.clock);
       this.conns.set(conn.id, conn);
@@ -200,6 +294,7 @@ export class Hub {
     message: (ws: ServerWebSocket<SocketData>, raw: string | Buffer) => {
       const conn = this.conns.get(ws.data.connId);
       if (!conn || conn.closed) return;
+      if (!conn.spend()) return conn.bye("protocol");
       conn.lastMessageAt = this.opts.clock.now();
       let msg: ClientMsg;
       try {
@@ -213,6 +308,7 @@ export class Hub {
       });
     },
     close: (ws: ServerWebSocket<SocketData>) => {
+      this.release(ws.data);
       const conn = this.conns.get(ws.data.connId);
       if (!conn) return;
       conn.closed = true;
