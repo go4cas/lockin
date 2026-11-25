@@ -42,4 +42,6 @@ Not part of the checks, and kept separate on purpose:
 - **Screenshot harnesses** (`tests/phone/tools/render.cjs`, `tests/display/screenshots.cjs`,
   `docs/design/tools/render.cjs`) mock the server or render wireframes. They show
   presentation, not the integration. They load Playwright the same way.
+- **Design review screenshots** (`tests/e2e/design-shots.ts`) walk a whole night against a real
+  server and capture every client at its real sizes, with an index (docs/DESIGN-SYSTEM.md, section 7).
 - **Physical phones, the pub TV and the cast device** stay a release sign-off.
