@@ -594,7 +594,7 @@ function createDisplay(root, now) {
       ${() => (isChoice()
         ? html`<div class="${() => "opts reveal-in" + (many() ? " many" : "")}">${() => { const qq = rq(); const opts = qq.input.type === "choice" ? qq.input.options : []; return revealOptions(opts, choiceIndex(opts, r().answerText)); }}</div>`
         : html`<div class="t-xl answer mt3 reveal-in">${tick()}<span>${() => r().answerText}</span></div>`)}
-      <div class="tally reveal-in">${() => tallyDots(r().rightCount, of())}<span><b>${() => r().rightCount + " of " + of()}</b> ${() => (of() === 1 ? "team got it" : "teams got it")}</span></div>
+      <div class="tally reveal-in"><span class="${() => (Math.min(of(), 30) > 15 ? "dots small" : "dots")}">${() => tallyDots(r().rightCount, of())}</span><span><b>${() => r().rightCount + " of " + of()}</b> ${() => (of() === 1 ? "team got it" : "teams got it")}</span></div>
     </div>`;
   }
 
@@ -606,13 +606,18 @@ function createDisplay(root, now) {
     });
   }
 
-  /** One dot per team, filled for each team that got it (moments.md 7). @param {number} right @param {number} of */
+  /**
+   * One dot per team, filled for each team that got it (moments.md 7). A keyed list straight in
+   * the slot: inside a reused wrapper template the list kept the previous reveal's dots (UI-13,
+   * the Arrow 1.0.6 pitfall in NOTES). The key carries the state, so a dot is never recycled
+   * with the wrong class.
+   * @param {number} right @param {number} of
+   */
   function tallyDots(right, of) {
     const out = [];
     const n = Math.min(of, 30);
-    // The key carries the state: a recycled dot keeps its first class (UI-13).
     for (let i = 0; i < n; i++) out.push(html`<i class="${i < right ? "ok" : ""}"></i>`.key(i + (i < right ? "y" : "n")));
-    return html`<span class="${n > 15 ? "dots small" : "dots"}">${out}</span>`;
+    return out;
   }
 
   // ---------------------------------------------------------------- leaderboard

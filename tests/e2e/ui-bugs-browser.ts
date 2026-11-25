@@ -14,7 +14,7 @@ import { chromium, type Page } from "../../tools/browser/playwright.mjs";
 import { DEFAULT_QUIZ_SETTINGS, QUIZ_FORMAT, type QuizFile } from "../../src/shared/formats.ts";
 import { writeQuiz } from "../night/fakes.ts";
 import { tempDataDir } from "../helpers/process.ts";
-import { Night } from "./driver.ts";
+import { Night, ok } from "./driver.ts";
 
 const OUT = process.argv[2] ?? join(import.meta.dir, "../../dist/ui-bugs-browser");
 const PORT = 20000 + Math.floor(Math.random() * 2000);
@@ -36,7 +36,10 @@ const notReady = {
 const ready: QuizFile = {
   format: QUIZ_FORMAT, id: "ready", title: "Ready Quiz", updatedAt: "2026-11-24T10:00:00.000Z",
   settings: { ...DEFAULT_QUIZ_SETTINGS, timerSeconds: 60 },
-  rounds: [{ id: "r-ui100000", title: "Round 1", questions: [{ id: "q-ui300000", text: "What is the capital of England?", answer: { type: "text", accepted: ["London"] } }] }],
+  rounds: [{ id: "r-ui100000", title: "Round 1", questions: [
+    { id: "q-ui300000", text: "What is the capital of England?", answer: { type: "text", accepted: ["London"] } },
+    { id: "q-ui400000", text: "What is the capital of France?", answer: { type: "text", accepted: ["Paris"] } },
+  ] }],
   suddenDeath: [],
 };
 
@@ -106,6 +109,41 @@ async function main() {
     await tv.screenshot({ path: join(OUT, "ui-08-holding-footer.png") });
     check(/Test Team/.test(joinedNow), `UI-08 the display says the team joined: "${joinedNow}"`);
     check(!/Test Team/.test(joinedLater), `UI-08 7.5 s later the join line has gone: "${joinedLater}"`);
+
+    // UI-13: reveal tally dots match "N of M teams got it", also on the second reveal
+    const t2 = await night.join(roomCode, "Second");
+    const t3 = await night.join(roomCode, "Third");
+    await night.cmd("night.update", { plannedStart: null });
+    await night.cmd("quiz.start");
+    await night.cmd("round.start");
+    const answerAll = async (qid: string, right: string, rightTeams: number) => {
+      await night.cmd("question.next");
+      await phone.waitForSelector("input.input:not(#team-name)", { timeout: 5000 }).catch(() => {});
+      for (const [i, t] of [t2, t3].entries()) {
+        await ok(t.c, "answer.submit", { questionId: qid, value: { type: "text", text: i < rightTeams ? right : "Nope" } });
+      }
+      await night.cmd("lock");
+    };
+    await answerAll("q-ui300000", "London", 2);
+    await answerAll("q-ui400000", "Paris", 1);
+    await night.cmd("round.finish");
+    await Bun.sleep(300);
+    for (const m of night.hostView().marking!.questions) for (const g of m.groups.filter((x) => x.mark === "pending")) {
+      await ok(night.host, "mark.group", { questionId: m.question.id, key: g.key, mark: "wrong" });
+    }
+    const dots = () => tv.evaluate(() => {
+      const tally = document.querySelector(".tally");
+      return { filled: tally?.querySelectorAll("i.ok").length ?? -1, text: tally?.textContent?.trim() ?? "" };
+    });
+    await night.cmd("reveal.start");
+    await tv.waitForTimeout(1800);
+    const first = await dots();
+    await night.cmd("reveal.next");
+    await tv.waitForTimeout(1800);
+    const second = await dots();
+    await tv.screenshot({ path: join(OUT, "ui-13-reveal-q2.png") });
+    check(first.filled === 2 && /2 of 3/.test(first.text), `UI-13 first reveal: ${first.filled} dots, "${first.text}"`);
+    check(second.filled === 1 && /1 of 3/.test(second.text), `UI-13 second reveal: ${second.filled} dots, "${second.text}"`);
   } finally {
     await browser.close();
     await night.stop();
