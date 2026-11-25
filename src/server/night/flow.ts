@@ -197,7 +197,9 @@ function showLeaderboard(w: Work): void {
     }
     if (best) vars = { team: best.team, n: best.n };
   }
-  w.setLine("leaderboard", key, vars);
+  // Several joint leaders: lead_change lines are singular ("{team} takes the top spot"), so a
+  // shared lead uses lines written for a list of names (UI-09), as winner_shared does.
+  w.setLine("leaderboard", key === "lead_change" && leaders.length > 1 ? "lead_change_shared" : key, vars);
 }
 
 export function roundNext(w: Work): CommandResult {

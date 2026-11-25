@@ -228,3 +228,10 @@ td.move.down, td.move.same { color: var(--color-text-muted); }
 .pair-card { margin-top: 16px; max-width: 900px; } .pair-input { width: 7em; font-size: 20px; letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
 .paired-list { list-style: none; margin: 8px 0; padding: 0; } .paired-list li { gap: 8px; padding: 4px 0; flex-wrap: wrap; } .paired-list li[hidden] { display: none; }
 .join-card .warn { color: var(--color-warning); max-width: 32ch; }
+
+/* UI-11: on a laptop the team list takes all the room the side panel has (8 teams fit at
+   1280x800), and scrolls only when it really does not fit; the big button stays in view. */
+@media (min-width: 1024px) {
+  .side { height: calc(100vh - 113px); min-height: 0; position: sticky; top: 0; align-self: start; }
+  .side-teams { flex: 1 1 auto; min-height: 96px; max-height: none; }
+}

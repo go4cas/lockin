@@ -6,7 +6,7 @@ import { startTestServer } from "../helpers/server.ts";
 
 const ENGINE_KEYS = [
   "lobby", "team_joined", "round_start", "last_seconds", "locked", "all_locked", "no_answer", "joker_played", "reveal",
-  "lead_change", "big_climb", "close_race", "halftime", "tie_breaker", "sudden_death", "sudden_death_again",
+  "lead_change", "lead_change_shared", "big_climb", "close_race", "halftime", "tie_breaker", "sudden_death", "sudden_death_again",
   "sudden_death_won", "sudden_death_shared", "winner", "winner_shared", "last_place", "goodbye",
 ];
 

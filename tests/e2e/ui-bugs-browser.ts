@@ -73,6 +73,16 @@ async function main() {
     check(!row.problems.includes("[object Object]") && row.problems.trim().length > 0, `UI-01 not-ready reason is text: "${row.problems}"`);
     check(row.counts === "1 round · 2 questions", `UI-01 counts read "${row.counts}"`);
 
+    // a paired display (the TV)
+    const tv = await (await browser.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
+    watch("display", tv);
+    await tv.goto(`${PUBLIC}/display`);
+    await tv.waitForFunction(() => /^[0-9]{6}$/.test(document.querySelector(".pair-code")?.textContent?.trim() ?? ""), null, { timeout: 5000 });
+    await host.fill(".pair-input", (await tv.textContent(".pair-code"))!.trim());
+    await host.click(".pair-card button[type=submit]");
+    await tv.waitForFunction(() => !document.querySelector(".pair-code"), null, { timeout: 5000 });
+    const footer = () => tv.evaluate(() => document.querySelector(".display-voice")?.textContent ?? "");
+
     // UI-02
     const { roomCode } = await night.cmd("night.open", { quizId: ready.id }) as { roomCode: string };
     const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
@@ -87,6 +97,15 @@ async function main() {
     await phone.screenshot({ path: join(OUT, "ui-02-phone-lobby.png") });
     const lobbyLine = await phone.evaluate(() => [...document.querySelectorAll<HTMLElement>(".voice")].filter((e) => e.offsetParent !== null).map((e) => e.textContent).join(" | "));
     check(lobbyLine === "", `UI-02 the joined phone's lobby shows no join line: "${lobbyLine}"`);
+
+    // UI-08: the team_joined line leaves the display's footer after FLASH_MS (6 s), lobby and holding page
+    const joinedNow = await footer();
+    await night.cmd("night.update", { plannedStart: Date.now() + 20 * 60_000 });
+    await tv.waitForTimeout(7500);
+    const joinedLater = await footer();
+    await tv.screenshot({ path: join(OUT, "ui-08-holding-footer.png") });
+    check(/Test Team/.test(joinedNow), `UI-08 the display says the team joined: "${joinedNow}"`);
+    check(!/Test Team/.test(joinedLater), `UI-08 7.5 s later the join line has gone: "${joinedLater}"`);
   } finally {
     await browser.close();
     await night.stop();
