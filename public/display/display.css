@@ -299,7 +299,12 @@ body.display-body { background: var(--brand-display-bg); overflow: hidden; curso
 /* Question */
 .question-main { padding-bottom: 4vh; }
 .question-main.with-image { align-items: center; }
-.q-body { justify-content: center; }
+.q-body { justify-content: flex-start; }
+/* Centred, but never pushed up under the header when it is too tall (UI-03): auto margins
+   do not go negative, unlike justify-content: center (and "safe center" is past the baseline). */
+.q-body::before, .q-body::after { content: ""; flex: none; margin: auto 0; }
+.opts.many { margin-top: var(--display-space-2); }
+.opts.many .opt { font-size: var(--display-text-s); padding: 1.2vh 2vh; margin-bottom: 1.6vh; line-height: var(--leading-tight); }
 .q-meta { align-items: baseline; }
 .timer-col { width: 34vh; flex: none; margin-left: var(--display-space-4); }
 .timer.small { font-size: var(--display-text-xl); }
@@ -329,7 +334,8 @@ body.display-body { background: var(--brand-display-bg); overflow: hidden; curso
 .display-screen.deadlock .lock .qmark { fill: none; }
 
 /* Reveal */
-.reveal-main { justify-content: center; }
+.reveal-main { justify-content: flex-start; }
+.reveal-main::before, .reveal-main::after { content: ""; flex: none; margin: auto 0; }  /* safe centring, as .q-body */
 .reveal-in { animation: fadein var(--motion-slow) var(--ease-out) 1200ms both; }
 .answer span { vertical-align: middle; }
 .tally b { color: var(--color-text); }
@@ -427,3 +433,19 @@ body.display-body { background: var(--brand-display-bg); overflow: hidden; curso
 .lb-row .mv.down { color: var(--color-wrong, var(--color-text-muted)); }
 .off { display: none; }  /* an optional part that is not showing (slots keep plain values, see NOTES) */
 .opt .tick-slot { margin-left: auto; flex: none; display: flex; align-items: center; color: var(--color-correct); }
+
+/* Real-device UI bugs (docs/UI-BUGS.md) */
+/* UI-04: one-column standings shrink their rows to fit rather than cut off the last team. */
+.lb:not(.two) .lb-row { height: auto; flex: 0 1 var(--display-row-h); min-height: 0; }
+.lb.dense:not(.two) .lb-row { flex-basis: var(--display-row-h-dense); }
+/* UI-04: halftime prizes fit the column: one line each, smaller, and the line above shrinks. */
+.halftime-col { min-height: 0; }
+.halftime-col .panel { flex: none; }
+.halftime-col .prize { font-size: var(--display-text-xs); padding: 0.6vh 0; }
+.halftime-col .prize span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.halftime-line { font-size: var(--display-text-m); }
+/* UI-06: the Reconnecting pill sits under the header, not on the round strip. */
+.reconnect { top: calc(var(--display-safe-y) + var(--display-header-h)); }
+/* UI-05: lobby chips that do not fit are hidden and counted. */
+.lobby-chips .chip.cut { visibility: hidden; }
+.chips-more { flex: none; }

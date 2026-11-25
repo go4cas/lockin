@@ -27,6 +27,7 @@
 | `reveal` | Marking screen footer; first reveal screen | Waiting screen | Once per round |
 | `lead_change` | Leaderboard footer | Score screen of the new leader | Leader changed since the last leaderboard (not after round 1) |
 | `close_race` | Leaderboard footer | | Top two within 1 point |
+| `lead_change_shared` | Leaderboard footer, instead of `lead_change` | Score screen of each new leader | The lead changed to joint leaders; `{team}` names them all (UI-09) |
 | `big_climb` | Leaderboard footer | Score screen of that team | A team rose 3 or more places since the last leaderboard |
 | `halftime` | Halftime | Halftime | Once |
 | `tie_breaker` | Leaderboard footer | | The tie breaker decided 1st place |

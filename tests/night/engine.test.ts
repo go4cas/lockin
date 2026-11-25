@@ -324,6 +324,31 @@ describe("marking (8.2, H-10, H-13)", () => {
   });
 });
 
+describe("leaderboard lines (UI-09)", () => {
+  test("a lead taken by several teams uses lead_change_shared, naming them all", () => {
+    const r = rig();
+    rigs.push(r);
+    const q1 = q(text("Fleetwood Mac"));
+    const q2 = q(text("Abba"));
+    writeQuiz(r.dataDir, makeQuiz("friday", [[q1], [q2]], { halftimeAfterRound: "none" }));
+    const [a, b, c] = start(r, ["Alpha", "Bravo", "Charlie"]);
+    host(r, "question.next");
+    submit(r, a!, q1.id, { type: "text", text: "Fleetwood Mac" });
+    host(r, "lock");
+    host(r, "round.finish");
+    host(r, "leaderboard.show");
+    while (r.engine.state.phase !== "round_intro") host(r, "round.next");
+    host(r, "round.start");
+    host(r, "question.next");
+    submit(r, b!, q2.id, { type: "text", text: "Abba" });
+    submit(r, c!, q2.id, { type: "text", text: "Abba" });
+    host(r, "lock");
+    host(r, "round.finish");
+    host(r, "leaderboard.show");
+    expect(displayView(r.engine).lines.leaderboard).toMatch(/^lead_change_shared#\d Alpha, Bravo and Charlie$/);
+  });
+});
+
 describe("a whole night: reveal, leaderboard, halftime, joker, sudden death, Quiz End (S-06..S-08)", () => {
   test("plays through and writes results", () => {
     const { r, rounds, sd } = setup({ joker: true }, { rounds: 2, sd: 3 });

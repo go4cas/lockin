@@ -128,6 +128,7 @@ function createDisplay(root, now) {
     flip: 0,          // page counter for halftime and final standings
     endStage: "winner",
     qr: "",           // the join QR as a data: URL (SA-11: fetched with the token in a header, never in a URL)
+    chipsMore: 0,     // lobby team chips that did not fit (UI-05)
   });
 
   let lbKey = "";
@@ -380,13 +381,35 @@ function createDisplay(root, now) {
       <div class="grow col">
         <div class="display t-l">${() => v().lines.lobby || "Scan the code to join."}</div>
         <div class="t-xs muted mt3">${() => teamCountText(v().teams.length)}</div>
-        <div class="${() => "chips lobby-chips mt2" + (v().teams.length <= 8 ? " big" : v().teams.length > 20 ? " many lots" : v().teams.length > 12 ? " many" : "")}">${() => v().teams.map(function (c) { return chip(c); })}</div>
+        <div class="${() => "chips lobby-chips mt2" + (v().teams.length <= 4 ? " big" : v().teams.length > 20 ? " many lots" : v().teams.length > 12 ? " many" : "")}">${() => { fitChipsSoon(); return v().teams.map(function (c) { return chip(c); }); }}</div>
+        <div class="t-xs muted chips-more" hidden="${() => page.chipsMore === 0}">${() => "+" + page.chipsMore + " more"}</div>
         <div class="grow"></div>
         ${() => (withNight((n) => n.prizes.length > 0, false)
           ? html`<div class="panel row prize-strip"><div class="t-xs muted mr4 nowrap">Tonight's prizes</div><div class="t-xs prize-list">${() => prizeItems(true)}</div></div>`
           : "")}
       </div>
     </div>`;
+  }
+
+  /**
+   * UI-05: the chips that do not fit the lobby box are hidden and counted ("+3 more"), so the
+   * screen never cuts a team in half or drops teams without saying so. Measured after layout.
+   */
+  let fitQueued = false;
+  function fitChipsSoon() {
+    if (fitQueued) return;
+    fitQueued = true;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { fitQueued = false; fitChips(); }); });
+  }
+  function fitChips() {
+    const box = /** @type {HTMLElement | null} */ (root.querySelector(".lobby-chips"));
+    if (!box) { page.chipsMore = 0; return; }
+    const chips = /** @type {HTMLElement[]} */ (Array.prototype.slice.call(box.children));
+    chips.forEach(function (c) { c.classList.remove("cut"); });
+    const bottom = box.getBoundingClientRect().bottom;
+    let cut = 0;
+    chips.forEach(function (c) { if (c.getBoundingClientRect().bottom > bottom + 1) { c.classList.add("cut"); cut++; } });
+    page.chipsMore = cut;
   }
 
   /** @param {number} n */
@@ -490,19 +513,23 @@ function createDisplay(root, now) {
   const q = () => /** @type {QuestionPublic} */ (lastQ = (page.view && v().question) || lastQ || EMPTY_Q);
   const tnow = () => timerNow(q().timer, page.now);
 
+  /** 5 or 6 options: the timer moves into the meta row and everything steps down a size (UI-03). */
+  const manyOpts = () => q().input.type === "choice" && /** @type {{ options: string[] }} */ (q().input).options.length > 4;
+  const compact = () => !!q().image || manyOpts();
+
   function questionScreen() {
     return html`<div class="${() => "display-main row question-main" + (q().image ? " with-image" : "")}">
       ${() => (q().image ? html`<div class="q-img"><img src="${() => q().image || ""}" alt=""></div>` : "")}
       <div class="grow col q-body">
         <div class="row q-meta">
           <div class="t-xs muted grow">${() => "Question " + q().number}</div>
-          ${() => (q().image ? timerDigits(true) : html`<span></span>`)}
+          ${() => (compact() ? timerDigits(true) : html`<span></span>`)}
         </div>
-        <div class="${() => "q-text mt2 t-" + questionSize(q().text, !!q().image)}">${() => q().text}</div>
-        ${() => (q().input.type === "choice" ? html`<div class="opts">${() => options(-1)}</div>` : "")}
-        ${() => (q().image ? html`<div class="answered mt3">${answered}</div>` : "")}
+        <div class="${() => "q-text mt2 t-" + questionSize(q().text, compact())}">${() => q().text}</div>
+        ${() => (q().input.type === "choice" ? html`<div class="${() => "opts" + (manyOpts() ? " many" : "")}">${() => options(-1)}</div>` : "")}
+        ${() => (compact() ? html`<div class="answered mt3">${answered}</div>` : "")}
       </div>
-      ${() => (q().image ? "" : html`<div class="col center timer-col">${timerDigits(false)}<div class="answered mt2">${answered}</div></div>`)}
+      ${() => (compact() ? "" : html`<div class="col center timer-col">${timerDigits(false)}<div class="answered mt2">${answered}</div></div>`)}
       <div class="${() => "timerbar" + (tnow().hot ? " hot" : "")}"><b style="${() => "transform:scaleX(" + tnow().fraction + ")"}"></b></div>
     </div>`;
   }
@@ -559,14 +586,15 @@ function createDisplay(root, now) {
     const r = () => /** @type {NonNullable<DisplayView["reveal"]>} */ (lastR = (page.view && v().reveal) || lastR || { question: EMPTY_Q, answerText: "", rightCount: 0 });
     const rq = () => r().question;
     const isChoice = () => rq().input.type === "choice";
+    const many = () => isChoice() && /** @type {{ options: string[] }} */ (rq().input).options.length > 4;
     const of = () => withNight((n) => n.teamCount, v().teams.length);
     return html`<div class="display-main col reveal-main">
       <div class="t-xs muted">${() => "Question " + rq().number}</div>
-      <div class="${() => "mt1 q-text t-" + (isChoice() ? "m" : "m muted")}">${() => rq().text}</div>
+      <div class="${() => "mt1 q-text t-" + (isChoice() ? (many() ? "s" : "m") : "m muted")}">${() => rq().text}</div>
       ${() => (isChoice()
-        ? html`<div class="opts reveal-in">${() => { const qq = rq(); const opts = qq.input.type === "choice" ? qq.input.options : []; return revealOptions(opts, choiceIndex(opts, r().answerText)); }}</div>`
+        ? html`<div class="${() => "opts reveal-in" + (many() ? " many" : "")}">${() => { const qq = rq(); const opts = qq.input.type === "choice" ? qq.input.options : []; return revealOptions(opts, choiceIndex(opts, r().answerText)); }}</div>`
         : html`<div class="t-xl answer mt3 reveal-in">${tick()}<span>${() => r().answerText}</span></div>`)}
-      <div class="tally reveal-in">${() => tallyDots(r().rightCount, of())}<span><b>${() => r().rightCount + " of " + of()}</b> ${() => (of() === 1 ? "team got it" : "teams got it")}</span></div>
+      <div class="tally reveal-in"><span class="${() => (Math.min(of(), 30) > 15 ? "dots small" : "dots")}">${() => tallyDots(r().rightCount, of())}</span><span><b>${() => r().rightCount + " of " + of()}</b> ${() => (of() === 1 ? "team got it" : "teams got it")}</span></div>
     </div>`;
   }
 
@@ -578,12 +606,18 @@ function createDisplay(root, now) {
     });
   }
 
-  /** One dot per team, filled for each team that got it (moments.md 7). @param {number} right @param {number} of */
+  /**
+   * One dot per team, filled for each team that got it (moments.md 7). A keyed list straight in
+   * the slot: inside a reused wrapper template the list kept the previous reveal's dots (UI-13,
+   * the Arrow 1.0.6 pitfall in NOTES). The key carries the state, so a dot is never recycled
+   * with the wrong class.
+   * @param {number} right @param {number} of
+   */
   function tallyDots(right, of) {
     const out = [];
     const n = Math.min(of, 30);
-    for (let i = 0; i < n; i++) out.push(html`<i class="${i < right ? "ok" : ""}"></i>`.key(i));
-    return html`<span class="${n > 15 ? "dots small" : "dots"}">${out}</span>`;
+    for (let i = 0; i < n; i++) out.push(html`<i class="${i < right ? "ok" : ""}"></i>`.key(i + (i < right ? "y" : "n")));
+    return out;
   }
 
   // ---------------------------------------------------------------- leaderboard
@@ -641,7 +675,7 @@ function createDisplay(root, now) {
       return pages[Math.min(progress().page, pages.length - 1)] || [0, 0];
     };
     return html`<div class="display-main col">
-      ${() => (boardLayout(rows().length).density === "full" ? html`<div class="t-xl b lb-title">Leaderboard</div>` : "")}
+      ${() => (boardLayout(rows().length).density === "full" ? html`<div class="${() => (rows().length > 6 ? "t-l" : "t-xl") + " b lb-title"}">Leaderboard</div>` : "")}
       ${board({ mode: "leaderboard", perPage: 20, slice, shown: () => Math.min(progress().shown, (slice()[1] || 0) - (slice()[0] || 0)) })}
     </div>`;
   }
@@ -676,9 +710,9 @@ function createDisplay(root, now) {
   function halftimeScreen() {
     const perPage = () => (rows().length > 10 ? 20 : 10);
     return html`<div class="display-main row">
-      <div class="grow col">
+      <div class="grow col halftime-col">
         <div class="display halftime-title">Halftime</div>
-        ${() => (v().lines.halftime ? html`<div class="display t-l mt2">${() => v().lines.halftime}</div>` : "")}
+        ${() => (v().lines.halftime ? html`<div class="display halftime-line mt2">${() => v().lines.halftime}</div>` : "")}
         <div class="grow"></div>
         ${() => (withNight((n) => n.prizes.length > 0, false)
           ? html`<div class="panel"><div class="t-xs muted panel-label">Playing for</div><div class="prizes">${() => prizeItems(false)}</div></div>`
@@ -746,10 +780,10 @@ function createDisplay(root, now) {
     const t = () => timerNow(sdq().timer, page.now);
     return html`<div class="display-main col dl-question">
       <div class="row grow dl-q-row">
-        <div class="${() => "q-text grow t-" + questionSize(sdq().text, false)}">${() => sdq().text}</div>
+        <div class="${() => "q-text grow t-" + questionSize(sdq().text, sdq().input.type === "choice" && /** @type {any} */ (sdq().input).options.length > 4)}">${() => sdq().text}</div>
         <div class="${() => "timer dl-timer" + (t().running ? " pulse" : "") + (t().started ? "" : " idle")}">${() => t().text}</div>
       </div>
-      ${() => (sdq().input.type === "choice" ? html`<div class="opts">${() => { const qq = sdq(); return qq.input.type === "choice" ? qq.input.options.map(function (o, i) { return html`<div class="opt"><b>${letter(i)}</b><span class="opt-text">${o}</span></div>`.key(i); }) : []; }}</div>` : "")}
+      ${() => (sdq().input.type === "choice" ? html`<div class="${() => "opts" + (sdq().input.type === "choice" && /** @type {any} */ (sdq().input).options.length > 4 ? " many" : "")}">${() => { const qq = sdq(); return qq.input.type === "choice" ? qq.input.options.map(function (o, i) { return html`<div class="opt"><b>${letter(i)}</b><span class="opt-text">${o}</span></div>`.key(i); }) : []; }}</div>` : "")}
       ${faceOff(function () { return ""; }, "")}
       <div class="answered dl-answered"><b>${() => sdq().answered}</b> of ${() => sdq().of} answered</div>
       <div class="timerbar"><b style="${() => "transform:scaleX(" + t().fraction + ")"}"></b></div>
@@ -853,6 +887,17 @@ function createDisplay(root, now) {
   const parts = (p) => ({ a: "", b: "", c: "", d: "", e: "", pips: null, ...p });
   const sp = () => stripParts();
 
+  /**
+   * " · Music and Film" after "Round 2", or nothing when the title only repeats the number
+   * ("Round 2", "Round number 2"), so the strip never reads "Round 2 Round 2".
+   * @param {{ index: number; title: string }} r
+   */
+  function roundTitleSuffix(r) {
+    const t = (r.title || "").trim();
+    if (!t || new RegExp("^round\\s*(number|no\\.?)?\\s*" + (r.index + 1) + "$", "i").test(t)) return "";
+    return " \u00b7 " + t;
+  }
+
   /** @returns {StripParts} */
   function stripParts() {
     const s = page.screen;
@@ -860,12 +905,13 @@ function createDisplay(root, now) {
     const n = v().night;
     const r = n && n.round;
     if (s === "lobby") return n && n.plannedStart !== null ? parts({ a: "Starts at ", b: clockTime(n.plannedStart) }) : parts({ a: "Starting soon" });
-    if (s === "round") return r && n ? parts({ a: "Round ", b: String(r.index + 1), c: " of " + n.roundCount }) : parts({});
+    // The round intro says "Round 1 of 6" in the middle of the screen already (UI-07).
+    if (s === "round") return parts({});
     if (s === "question" || s === "locked") {
       const qq = v().question;
-      return r ? parts({ a: "Round ", b: String(r.index + 1), c: r.title ? " " + r.title : "", pips: qq ? [r.questionCount, qq.number] : null }) : parts({});
+      return r ? parts({ a: "Round ", b: String(r.index + 1), c: roundTitleSuffix(r), pips: qq ? [r.questionCount, qq.number] : null }) : parts({});
     }
-    if (s === "marking") return r ? parts({ a: "Round ", b: String(r.index + 1), c: r.title ? " " + r.title : "" }) : parts({});
+    if (s === "marking") return r ? parts({ a: "Round ", b: String(r.index + 1), c: roundTitleSuffix(r) }) : parts({});
     if (s === "reveal") {
       const rv = v().reveal;
       return r ? parts({ a: "Round ", b: String(r.index + 1), c: " answers", pips: rv ? [r.questionCount, rv.question.number] : null }) : parts({});

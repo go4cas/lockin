@@ -3,7 +3,6 @@
   "taglines": [
     "Lock in your answers.",
     "The quiz that stays open late.",
-    "Answers locked. Next round's on you.",
     "Phones out. For once, that's allowed.",
     "Think fast. Drink slow.",
     "No take-backs.",
@@ -74,6 +73,12 @@
       "{team} takes the top spot.",
       "All change at the top. Hello, {team}.",
       "{team} has entered the chat. And first place."
+    ],
+    "lead_change_shared": [
+      "New leaders: {team}!",
+      "All change at the top. Hello, {team}.",
+      "Joint leaders now: {team}.",
+      "Sharing the top spot: {team}."
     ],
     "big_climb": [
       "{team} up {n} places. Suspicious.",

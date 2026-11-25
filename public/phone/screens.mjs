@@ -251,7 +251,6 @@ const lobbyScreen = () => html`
           <div class="small">${() => `at ${new Date(night()?.plannedStart ?? 0).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${night()?.teamCount ?? teams} ${night()?.teamCount === 1 ? "team" : "teams"} ready`}</div>
         </section>`;
       }}
-      ${voice(() => v().lines.lobby)}
       ${jokerCard()}
       ${prizesCard("Tonight's prizes")}
       ${homeCard()}
