@@ -237,7 +237,7 @@ Found while reading the CSS and capturing the screenshots. Not fixed here.
 22. "On the display now" is a text summary in a large empty box, not a preview.
 23. The full-page footer ("Powered by Lock-In") sits below a 100vh sidebar, so short pages scroll.
 
-Items 9 to 16 look like bugs; they are passed to the "Fix UI bugs from device testing" thread.
+Items 9 to 16 look like bugs; they are passed to the "Fix UI bugs from device testing" thread. See docs/UI-BUGS.md (UI-03 to UI-13) for what was fixed; 18 and 21 too.
 
 ## 7. Screenshots
 
