@@ -37,14 +37,14 @@ const night = () => v().night;
 
 // ---------------------------------------------------------------- pieces
 
-/** The lock in mark at `w` px. */
+/** The Lock-In mark at `w` px. */
 /** The venue's name, or "" when the server fell back to the default (the lockup shows instead). */
 const venueName = () => { const n = v().venue.name; return n && n !== "Lock-In" ? n : ""; };
 const mark = (/** @type {number} */ w) => html`<span class="ph-mark" style="${"font-size:" + w + "px"}">${markSvg(html)}</span>`;
 
 const tick = () => html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-/** Locked in: the countdown ring closed into a shackle over a venue bar (the padlock, drawn as the lock in mark). */
+/** Locked in: the countdown ring closed into a shackle over a venue bar (the padlock, drawn as the Lock-In mark). */
 const padlock = () => html`<div class="lockbig" aria-hidden="true"><svg viewBox="0 0 120 80"><path class="shackle" d="M10 80 V40 A30 30 0 0 1 70 40 V80"/></svg><i class="lockbar"></i></div>`;
 
 /**
@@ -77,7 +77,7 @@ const swap = (slot, key, build) => {
 
 /** The credit links to Lock-In's source (AGPL-3.0 section 13; the address is in shared/source.js). */
 const credit = () => (W.LockIn.SOURCE_URL
-  ? html`<div class="credit">Powered by <a href="${W.LockIn.SOURCE_URL}" target="_blank" rel="noopener noreferrer" aria-label="Lock In, free software">${lockup(html, "mono")}</a></div>`
+  ? html`<div class="credit">Powered by <a href="${W.LockIn.SOURCE_URL}" target="_blank" rel="noopener noreferrer" aria-label="Lock-In, free software">${lockup(html, "mono")}</a></div>`
   : html`<div class="credit">Powered by ${lockup(html, "mono")}</div>`);
 
 /** A host-voice line, or nothing (never carries information the team needs). */

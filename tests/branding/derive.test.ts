@@ -39,7 +39,7 @@ describe("venue colour tokens", () => {
     expect(server.assetUrl("assets/x.png")).toBe(page.assetUrl("assets/x.png"));
   });
 
-  test("the default colour gives Lock In's own tokens", () => {
+  test("the default colour gives Lock-In's own tokens", () => {
     const t = page.deriveBrandTokens(page.DEFAULT_INPUTS);
     expect(t.venue).toBe("#7df0c3");
     expect(t["on-venue"]).toBe(page.INK);

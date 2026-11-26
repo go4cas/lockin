@@ -43,7 +43,7 @@ describe("themeCss", () => {
     expect(dark["on-venue"]).toBe("#edede8");
   });
 
-  test("no main colour falls back to Lock In's Mint", () => {
+  test("no main colour falls back to Lock-In's Mint", () => {
     expect(vars(themeCss(theme({ colours: { accent: null } })))["venue"]).toBe("#7df0c3");
   });
 
