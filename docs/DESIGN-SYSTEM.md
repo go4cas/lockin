@@ -92,12 +92,12 @@ transforms and opacity only.
 ## 3. Logo
 
 - **Mark** (`public/shared/mark.mjs`, `assets/logo/`): a ring with a venue-coloured arc and a
-  keyhole. **Lockup**: the mark plus the wordmark "lock in" in Funnel Display. Use
+  keyhole. **Lockup**: the mark plus the wordmark "Lock-In" in Funnel Display. Use
   `mark(html)` and `lockup(html, cls)` from `mark.mjs` in Arrow templates (the console nav builds
   the same lockup as DOM, `LockIn.lockup()`).
 - When a venue has no name and no logo, the display header, phone join page and idle screens show
   the lockup instead of a name. A venue logo replaces the mark on the display; the phone and
-  console keep the Lock In mark.
+  console keep the Lock-In mark.
 - **"Powered by" + mono lockup**, linked to the source (AGPL-3.0): bottom-right on the display,
   phone footer, console footer.
 - Favicon: `assets/logo/lockin-favicon.svg`. Sudden death is **Deadlock**.
@@ -138,11 +138,15 @@ Before the timer starts it shows the full time, dimmed. The last ten seconds tur
 
 ## 6. Differences from the design canvas
 
-1. The builder keeps two columns (outline, editor); the canvas shows three.
-2. The library has no "Tonight / Last night" column (there is no data source for it yet).
-3. "On the display now" is a text summary, not a live miniature.
+Each of these was agreed with Cas (2026-11-26).
+
+1. The builder keeps two columns (outline, editor); the canvas shows three, with a preview. At
+   1280 px a third column leaves the editor too narrow for long questions and accepted answers.
+2. The library has no "Tonight / Last night" column: not on the roadmap.
+3. "On the display now" is a text summary, not a live miniature of the TV.
 4. TV question text uses Funnel Sans; the design system names Atkinson Hyperlegible Next as the
    fallback if it fails the back-of-the-room test.
+5. The wordmark reads "Lock-In" (the canvas has "lock in"), to match the product's name everywhere.
 
 ## 7. Screenshots
 

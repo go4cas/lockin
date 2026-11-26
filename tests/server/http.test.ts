@@ -71,7 +71,7 @@ describe("static files (TECH-SPEC 9.1, 4.5)", () => {
     expect(res.headers.get("content-type")).toBe("text/css; charset=utf-8");
   });
 
-  test("the Funnel fonts, their licences and the Lock In logo are served from assets/", async () => {
+  test("the Funnel fonts, their licences and the Lock-In logo are served from assets/", async () => {
     const font = await s.fetch("/static/fonts/funnel-display-wght.woff2");
     expect(font.status).toBe(200);
     expect(font.headers.get("content-type")).toBe("font/woff2");

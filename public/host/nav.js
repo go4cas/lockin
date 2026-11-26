@@ -1,5 +1,5 @@
 // @ts-check
-// Host console top nav (Last Call): the lock in lockup · Library · Branding · Run night ·
+// Host console top nav (Last Call): the Lock-In lockup · Library · Branding · Run night ·
 // History, under a hairline. The current section (from <body data-section>) gets a 2 px venue
 // underline. While a night runs, Run night shows a venue dot and the nav shows the room code:
 // the Run night page reports that through LockIn.nav.setNight(roomCode | null).
@@ -14,14 +14,14 @@
   const SVG = "http://www.w3.org/2000/svg";
 
   /**
-   * The lock in lockup, drawn with DOM calls (the same drawing as public/shared/mark.mjs).
+   * The Lock-In lockup, drawn with DOM calls (the same drawing as public/shared/mark.mjs).
    * @param {boolean} mono
    */
   function lockup(mono) {
     const wrap = document.createElement("span");
     wrap.className = "lockup";
     wrap.setAttribute("role", "img");
-    wrap.setAttribute("aria-label", "lock in");
+    wrap.setAttribute("aria-label", "Lock-In");
     const svg = document.createElementNS(SVG, "svg");
     svg.setAttribute("class", mono ? "mark mono" : "mark");
     svg.setAttribute("viewBox", "0 0 100 100");
@@ -40,7 +40,7 @@
     const word = document.createElement("span");
     word.className = "lockup-word";
     word.setAttribute("aria-hidden", "true");
-    word.textContent = "lock in";
+    word.textContent = "Lock-In";
     wrap.appendChild(word);
     return wrap;
   }
@@ -115,7 +115,7 @@
   }
   w.LockIn.nav = { setNight };
 
-  // "Powered by Lock In", linked to the source (AGPL-3.0 section 13; the address is in shared/source.js).
+  // "Powered by Lock-In", linked to the source (AGPL-3.0 section 13; the address is in shared/source.js).
   const source = w.LockIn.SOURCE_URL;
   if (source) {
     const credit = document.createElement("footer");
@@ -125,7 +125,7 @@
     link.href = source;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.setAttribute("aria-label", "Lock In, free software under the AGPL-3.0");
+    link.setAttribute("aria-label", "Lock-In, free software under the AGPL-3.0");
     link.appendChild(lockup(true));
     credit.appendChild(link);
     credit.appendChild(document.createTextNode("· free software under the AGPL-3.0"));

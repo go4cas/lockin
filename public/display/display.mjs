@@ -295,7 +295,7 @@ function createDisplay(root, now) {
   /** A fresh tick each time: one template instance must not be mounted in two places. */
   const tick = () => html`<svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-  /** The venue's logo, or the lock in lockup when the venue has none. @param {string} cls */
+  /** The venue's logo, or the Lock-In lockup when the venue has none. @param {string} cls */
   function brandMark(cls) {
     return BRAND.logo ? html`<img class="${"venue-logo " + cls}" src="${BRAND.logo}" alt="">` : lockup(html, cls);
   }

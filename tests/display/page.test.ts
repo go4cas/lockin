@@ -39,7 +39,7 @@ describe("public/display/index.html", () => {
     expect(page).not.toContain("importmap");
   });
 
-  test("shows the Powered by lock in credit and the reconnecting badge (T-10, T-11)", () => {
+  test("shows the Powered by Lock-In credit and the reconnecting badge (T-10, T-11)", () => {
     const mod = read("public/display/display.mjs");
     expect(mod).toContain('<span class="credit-by">Powered by</span>${lockup(html, "mono")}');
     expect(mod).toContain("Reconnecting…");

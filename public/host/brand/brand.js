@@ -2,7 +2,7 @@
 // Branding and venue settings (B4): H-15 venue defaults (prizes), H-16 branding
 // with a live preview and readability warnings, H-17 holding page settings.
 // Last Call (docs/DESIGN-SYSTEM.md, "Venue branding"): a venue sets its name, logo, ONE
-// main colour, the countdown style and the TV picture. Everything else stays Lock In's.
+// main colour, the countdown style and the TV picture. Everything else stays Lock-In's.
 // Built with Arrow (TECH-SPEC 3.4): the saved settings and the unsaved draft
 // live in separate reactive stores; the preview and the warnings read the draft,
 // so they change as the QM types, and nothing is written until Save.
@@ -45,7 +45,7 @@ const COUNTDOWNS = [
   { id: "flip", label: "Flip" },
 ];
 
-/** A few colours that work well, for a quick pick. Mint is Lock In's own. */
+/** A few colours that work well, for a quick pick. Mint is Lock-In's own. */
 const SUGGESTED = ["#7df0c3", "#ffd166", "#ff8a5c", "#f58fd2", "#c3a8ff", "#6fb6ff", "#b8f05a", "#edede8"];
 
 const ORDINAL = ["", "1st", "2nd", "3rd"];
@@ -75,7 +75,7 @@ const draft = reactive({
   name: "",
   logo: /** @type {string | null} */ (null),
   accent: DEFAULT_INPUTS.accent,
-  /** true while the colour is still Lock In's default, so saving keeps it null */
+  /** true while the colour is still Lock-In's default, so saving keeps it null */
   accentDefault: true,
   /** @type {CountdownStyle} */
   countdown: "ring",
@@ -356,7 +356,7 @@ function warnings() {
   return html`<div class="warn-box" role="status" hidden="${() => badChecks().length === 0}">
     <b>This colour may be hard to read in a pub.</b>
     <ul>${() => badChecks().map((c) => html`<li>${c.message}</li>`.key(c.message))}</ul>
-    <span class="hint">You can still save it.</span> <button type="button" class="link" @click="${resetColour}">Reset to Lock In colours</button>
+    <span class="hint">You can still save it.</span> <button type="button" class="link" @click="${resetColour}">Reset to Lock-In colours</button>
   </div>`;
 }
 
@@ -392,7 +392,7 @@ function brandingTab() {
             <label class="btn small file-btn">${() => (ui.uploading === "logo" ? "Uploading…" : draft.logo ? "Change logo" : "Upload a logo")}
               <input type="file" accept="image/png,image/svg+xml,image/jpeg" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "logo"); if (f) draft.logo = f; }}">
             </label>
-            <button type="button" class="btn quiet small" hidden="${() => !draft.logo}" @click="${() => { draft.logo = null; }}">Use the lock in mark</button>
+            <button type="button" class="btn quiet small" hidden="${() => !draft.logo}" @click="${() => { draft.logo = null; }}">Use the Lock-In mark</button>
           </div>
         </div>
         <p class="hint">PNG, SVG or JPEG, up to 2 MB. A light logo on a transparent background works best.</p>
@@ -405,12 +405,12 @@ function brandingTab() {
             <input type="color" value="${() => draft.accent}" @input="${(/** @type {Event} */ e) => setAccent(/** @type {HTMLInputElement} */ (e.target).value)}">
           </label>
           <span class="hex">${() => draft.accent}</span>
-          <span class="hint">${() => (draft.accentDefault ? "Lock In mint" : "")}</span>
+          <span class="hint">${() => (draft.accentDefault ? "Lock-In mint" : "")}</span>
         </div>
         <div class="suggest" role="group" aria-label="Suggested colours">${SUGGESTED.map((c) => html`
           <button type="button" class="sw" style="${"background:" + c}" aria-label="${"Use " + c}" aria-pressed="${() => String(draft.accent === c)}" @click="${() => setAccent(c)}"></button>`)}
         </div>
-        <p class="hint">Buttons, the countdown, the leader and the right answer. Everything else stays Lock In's, so every pub's night stays readable.</p>
+        <p class="hint">Buttons, the countdown, the leader and the right answer. Everything else stays Lock-In's, so every pub's night stays readable.</p>
       </div>
       ${warnings()}
 
