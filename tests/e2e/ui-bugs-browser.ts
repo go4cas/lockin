@@ -13,6 +13,7 @@
 // UI-24: Run night on a phone (390 px): nothing is cut off and the Night menu is in reach.
 // UI-25: Venue settings, the prizes tab says "Default prizes".
 // UI-26: Venue settings, a Displays tab lists the paired TVs and can pair or unpair them.
+// UI-27: the quiz builder uses Venue settings' page head (title, tabs) and settings cards.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -206,6 +207,22 @@ async function main() {
     const listed = await brand.waitForFunction(() => [...document.querySelectorAll<HTMLElement>(".paired-list li")].some((li) => !li.hidden && /Display 1/.test(li.textContent ?? "")), null, { timeout: 5000 }).then(() => true, () => false);
     await brand.screenshot({ path: join(OUT, "ui-26-displays-tab.png"), fullPage: true });
     check(listed, "UI-26 the Displays tab lists the paired TV");
+
+    // UI-27: builder tabs and settings cards
+    const build = await hostCtx.newPage();
+    watch("builder", build);
+    await build.goto(`${PUBLIC}/host/build?quiz=${ready.id}`);
+    await build.waitForSelector("#round-title", { timeout: 5000 });
+    const buildTabs = await build.evaluate(() => [...document.querySelectorAll(".b-head [role=tab]")].map((t) => t.textContent?.trim()).join(", "));
+    await build.click('[role=tab]:has-text("Settings")');
+    await build.waitForSelector("#quiz-title", { timeout: 5000 });
+    const settings = await build.evaluate(() => ({
+      cards: document.querySelectorAll(".b-settings .form-card").length,
+      side: (document.querySelector(".b-side") as HTMLElement | null)?.offsetParent !== null,
+    }));
+    await build.screenshot({ path: join(OUT, "ui-27-builder-settings.png"), fullPage: true });
+    check(buildTabs === "Rounds, Sudden death, Settings" && settings.cards === 4 && !settings.side, `UI-27 builder tabs "${buildTabs}", ${settings.cards} settings cards, outline shown: ${settings.side}`);
+    await build.close();
 
     // UI-16: unsaved changes, then a nav link
     await brand.click('[role=tab]:has-text("Branding")');

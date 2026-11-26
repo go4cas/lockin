@@ -11,8 +11,9 @@ import { prepareImage } from "./image.js";
 /** @typedef {import("../../../src/shared/formats").DraftRound} Round */
 /** @typedef {import("../../../src/shared/formats").DraftAnswer} AnswerSpec */
 /**
- * What the editor shows: the quiz and its settings, a round, a question, or the sudden-death list.
- * @typedef {{ kind: "quiz" | "round" | "question" | "sd" | "none", id: string }} Selection
+ * What the editor shows: the quiz's settings, a round, a question, the sudden-death list, or the
+ * Rounds tab with nothing picked. The tab (Rounds, Sudden death, Settings) follows from it.
+ * @typedef {{ kind: "quiz" | "rounds" | "round" | "question" | "sd" | "none", id: string }} Selection
  */
 
 export const AUTOSAVE_MS = 1000;
@@ -68,7 +69,7 @@ export function mountBuilder(root, quizId) {
     message: "",
     ready: false,
     problems: /** @type {Problem[]} */ ([]),
-    sel: /** @type {Selection} */ ({ kind: "quiz", id: "" }),
+    sel: /** @type {Selection} */ ({ kind: "rounds", id: "" }),
     /** the "also accept" field being typed */
     accept: "",
     uploading: false,
@@ -208,7 +209,8 @@ export function mountBuilder(root, quizId) {
     nextTick(() => {
       const at = roundIndex(id);
       if (at >= 0) quiz.rounds.splice(at, 1);
-      select("quiz");
+      const next = quiz.rounds[Math.min(Math.max(at, 0), quiz.rounds.length - 1)];
+      if (next) select("round", next.id); else select("rounds");
     });
   }
 
@@ -292,17 +294,39 @@ export function mountBuilder(root, quizId) {
     return "";
   };
 
-  // ---- Outline (left column) ------------------------------------------------
+  // ---- Tabs and outline -----------------------------------------------------
+  // Like Venue settings: the page title with a segmented tab bar (Rounds, Sudden death,
+  // Settings), as in the design canvas. The left column lists only what the tab holds.
+
+  /** Is this question in sudden death? @param {string} id */
+  const inSd = (id) => d().suddenDeath.some((q) => q.id === id);
+  /** @returns {"rounds" | "sd" | "settings"} */
+  const tab = () => {
+    const s = ui.sel;
+    if (s.kind === "quiz") return "settings";
+    if (s.kind === "sd" || (s.kind === "question" && inSd(s.id))) return "sd";
+    return "rounds";
+  };
+  /** @param {"rounds" | "sd" | "settings"} t */
+  function showTab(t) {
+    if (t === tab() && ui.sel.kind !== "none") return;
+    if (t === "settings") return select("quiz");
+    if (t === "sd") return select("sd");
+    const first = d().rounds[0];
+    return first ? select("round", first.id) : select("rounds");
+  }
+  const TABS = /** @type {const} */ ([["rounds", "Rounds"], ["sd", "Sudden death"], ["settings", "Settings"]]);
+
   /** @param {Question} q @param {number} n */
   const outlineQuestion = (q, n) => html`
     <a href="#" class="b-q" aria-current="${() => (ui.sel.kind === "question" && ui.sel.id === q.id ? "true" : false)}"
-      @click="${(/** @type {Event} */ e) => { e.preventDefault(); select("question", q.id); }}">Q${n} ${() => short(q.text.trim() || "…", 34)}</a>`.key(q.id);
+      @click="${(/** @type {Event} */ e) => { e.preventDefault(); select("question", q.id); }}"><span class="b-n">${n}</span><span class="b-t">${() => q.text.trim() || "No question text yet"}</span></a>`.key(q.id);
 
   /** @param {Round} r @param {number} i */
   const outlineRound = (r, i) => html`
     <li>
       <a href="#" class="b-round" aria-current="${() => (ui.sel.kind === "round" && ui.sel.id === r.id ? "true" : false)}"
-        @click="${(/** @type {Event} */ e) => { e.preventDefault(); select("round", r.id); }}">${i + 1} · ${() => short(r.title.trim() || `Round ${d().rounds.indexOf(r) + 1}`, 28)}</a>
+        @click="${(/** @type {Event} */ e) => { e.preventDefault(); select("round", r.id); }}"><span class="b-n">${i + 1}</span><span class="b-t">${() => r.title.trim() || `Round ${d().rounds.indexOf(r) + 1}`}</span><span class="b-c">${() => String(r.questions.length)}</span></a>
       ${() => {
         const open = (ui.sel.kind === "round" && ui.sel.id === r.id) || (ui.sel.kind === "question" && r.questions.some((q) => q.id === ui.sel.id));
         if (!open) return "";
@@ -313,24 +337,39 @@ export function mountBuilder(root, quizId) {
       }}
     </li>`.key(r.id);
 
-  const outline = () => html`
-    <a class="b-back" href="/host/build">← Quizzes</a>
-    <div class="b-title"><span>${() => d().title || "Untitled quiz"}</span> ${() => statusPill()}</div>
+  const roundsOutline = () => html`<div>
+    <p class="label b-side-label">Rounds</p>
     <ul class="b-outline">
-      <li><a href="#" aria-current="${() => (ui.sel.kind === "quiz" ? "true" : false)}"
-        @click="${(/** @type {Event} */ e) => { e.preventDefault(); select("quiz"); }}">Quiz and settings
-        ${() => (ui.ready ? "" : html`<span class="dot warn" title="Not ready yet"></span>`)}</a></li>
       ${() => d().rounds.map(outlineRound)}
-      <li>
-        <a href="#" aria-current="${() => (ui.sel.kind === "sd" || (ui.sel.kind === "question" && d().suddenDeath.some((q) => q.id === ui.sel.id)) ? "true" : false)}"
-          @click="${(/** @type {Event} */ e) => { e.preventDefault(); select("sd"); }}">Sudden death (${() => d().suddenDeath.length})</a>
-        ${() => {
-          const open = ui.sel.kind === "sd" || (ui.sel.kind === "question" && d().suddenDeath.some((q) => q.id === ui.sel.id));
-          return open ? html`<div class="b-qs">${() => d().suddenDeath.map((q, j) => outlineQuestion(q, j + 1))}</div>` : "";
-        }}
-      </li>
-      <li>${() => (d().rounds.length < 20 ? html`<a href="#" class="add" @click="${(/** @type {Event} */ e) => { e.preventDefault(); addRound(); }}">+ Add round</a>` : "")}</li>
-    </ul>`;
+    </ul>
+    ${() => (d().rounds.length < 20 ? html`<a href="#" class="b-add" @click="${(/** @type {Event} */ e) => { e.preventDefault(); addRound(); }}">+ Add round</a>` : "")}
+  </div>`;
+
+  const sdOutline = () => html`<div>
+    <p class="label b-side-label">Sudden death</p>
+    <div class="b-qs b-sd">${() => d().suddenDeath.map((q, j) => outlineQuestion(q, j + 1))}</div>
+    ${() => (d().suddenDeath.length < 20 ? html`<a href="#" class="b-add" @click="${(/** @type {Event} */ e) => { e.preventDefault(); addQuestion(d().suddenDeath, 20, true); }}">+ Add question</a>` : "")}
+  </div>`;
+
+  /** Both outlines are built once and shown or hidden (Arrow: swapping templates in one slot is fragile). */
+  const outline = () => html`
+    <div hidden="${() => tab() !== "rounds"}">${roundsOutline()}</div>
+    <div hidden="${() => tab() !== "sd"}">${sdOutline()}</div>`;
+
+  const readyPill = () => (ui.ready
+    ? html`<span class="pill ok"><i></i>Ready</span>`
+    : html`<button type="button" class="pill warn as-btn" @click="${() => select("quiz")}"><i></i>${() => readinessLabel(ui.ready, ui.problems)}</button>`);
+
+  const head = () => html`<div class="page-head b-head">
+    <div class="b-head-l">
+      <a class="b-back" href="/host/build">← Quizzes</a>
+      <h1>${() => d().title || "Untitled quiz"}</h1>
+      <div class="row b-pills">${() => readyPill()} ${() => statusPill()}</div>
+    </div>
+    <div class="seg" role="tablist" aria-label="Quiz">${TABS.map(([id, label]) => html`
+      <button type="button" role="tab" aria-selected="${() => String(tab() === id)}" @click="${() => showTab(id)}">${label}</button>`)}
+    </div>
+  </div>`;
 
   // ---- Editors (right column) -----------------------------------------------
   /**
@@ -348,30 +387,34 @@ export function mountBuilder(root, quizId) {
   /** @param {number} n @param {number} max */
   const count = (n, max) => `${n} of ${max} characters.`;
 
-  const quizEditor = () => html`<div class="b-pane">
-    <div class="row between"><h1>Quiz and settings</h1></div>
-    <div class="field">
-      <label class="l" for="quiz-title">Quiz title</label>
-      <input id="quiz-title" class="input" maxlength="80" spellcheck="true" autocomplete="off"
-        value="${() => d().title}" @input="${(/** @type {Event} */ e) => { d().title = val(e); }}">
-      <p class="muted s">Renaming changes the title the teams see, not the quiz's folder name (${d().id}).</p>
-    </div>
-    <section class="readiness">
-      ${() => (ui.ready
-        ? html`<p><span class="pill ok"><i></i>Ready</span> Every round has questions and every question has an answer, so this quiz can open a night.</p>`
-        : html`<p><span class="pill warn"><i></i>${() => readinessLabel(ui.ready, ui.problems)}</span> This quiz can't open a night until these are fixed:</p>
-            <ul class="problem-list">${() => groupProblems(ui.problems).slice(0, 40).map((p) => html`<li><a href="#" @click="${(/** @type {Event} */ e) => { e.preventDefault(); goTo(p.path); }}">${p.message}</a></li>`)}</ul>
-            ${() => (groupProblems(ui.problems).length > 40 ? html`<p class="muted s">And ${groupProblems(ui.problems).length - 40} more.</p>` : "")}`)}
-    </section>
-    <h2>Settings</h2>
-    <div class="settings">
-      <div class="field"><span class="l">Lock answers</span>
-        ${seg("Lock answers", [["question", "After each question"], ["round", "At the end of each round"]], () => d().settings.lockMode, (v) => { d().settings.lockMode = /** @type {any} */ (v); })}
+  /** The Settings tab: the same cards and fields as Venue settings. */
+  const quizEditor = () => html`<div class="b-pane b-settings">
+    <section class="card form-card">
+      <h2>Quiz</h2>
+      <div class="field">
+        <label class="l" for="quiz-title">Quiz title</label>
+        <input id="quiz-title" class="input" maxlength="80" spellcheck="true" autocomplete="off"
+          value="${() => d().title}" @input="${(/** @type {Event} */ e) => { d().title = val(e); }}">
+        <p class="hint">Renaming changes the title the teams see, not the quiz's folder name (${d().id}).</p>
       </div>
-      <div class="field"><label class="l" for="set-timer">Timer per question (seconds)</label>
-        <input id="set-timer" class="input narrow" type="number" min="10" max="300" step="5" value="${() => d().settings.timerSeconds}"
-          @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.timerSeconds = n; }}">
-        <p class="muted s">10 to 300. A question can set its own.</p></div>
+      <div class="readiness">${() => (ui.ready
+        ? html`<p class="hint"><span class="pill ok"><i></i>Ready</span> Every round has questions and every question has an answer, so this quiz can open a night.</p>`
+        : html`<p class="hint"><span class="pill warn"><i></i>${() => readinessLabel(ui.ready, ui.problems)}</span> This quiz can't open a night until these are fixed:</p>
+            <ul class="problem-list">${() => groupProblems(ui.problems).slice(0, 40).map((p) => html`<li><a href="#" @click="${(/** @type {Event} */ e) => { e.preventDefault(); goTo(p.path); }}">${p.message}</a></li>`)}</ul>
+            ${() => (groupProblems(ui.problems).length > 40 ? html`<p class="hint">And ${groupProblems(ui.problems).length - 40} more.</p>` : "")}`)}
+      </div>
+    </section>
+    <section class="card form-card">
+      <h2>Answers</h2>
+      <div class="field"><span class="l">Lock answers</span>
+        ${seg("Lock answers", [["question", "After each question"], ["round", "At the end of each round"]], () => d().settings.lockMode, (v) => { d().settings.lockMode = /** @type {any} */ (v); })}</div>
+      <div class="field"><label class="l" for="set-timer">Timer per question</label>
+        <div class="row"><input id="set-timer" class="input short" type="number" min="10" max="300" step="5" value="${() => d().settings.timerSeconds}"
+          @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.timerSeconds = n; }}"><span>seconds</span></div>
+        <p class="hint">10 to 300. A question can set its own.</p></div>
+    </section>
+    <section class="card form-card">
+      <h2>Rounds and teams</h2>
       <div class="field"><label class="l" for="set-half">Halftime</label>
         <select id="set-half" class="input narrow" @change="${(/** @type {Event} */ e) => { const v = val(e); d().settings.halftimeAfterRound = v === "auto" || v === "none" ? v : Number(v); }}">
           ${() => [
@@ -382,20 +425,28 @@ export function mountBuilder(root, quizId) {
         </select></div>
       <div class="field"><span class="l">Joker</span>
         ${seg("Joker", [["false", "Off"], ["true", "On"]], () => d().settings.joker, (v) => { d().settings.joker = v === "true"; })}
-        <p class="muted s">With the joker on, each team picks one round to score double.</p></div>
+        <p class="hint">With the joker on, each team picks one round to score double.</p></div>
       <div class="field"><label class="l" for="set-teams">Most teams</label>
-        <input id="set-teams" class="input narrow" type="number" min="2" max="30" value="${() => d().settings.maxTeams}"
-          @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.maxTeams = n; }}">
-        <p class="muted s">2 to 30.</p></div>
+        <div class="row"><input id="set-teams" class="input short" type="number" min="2" max="30" value="${() => d().settings.maxTeams}"
+          @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.maxTeams = n; }}"><span>teams</span></div>
+        <p class="hint">2 to 30.</p></div>
+    </section>
+    <section class="card form-card">
+      <h2>Ties and closest numbers</h2>
       <div class="field"><span class="l">Closest-number scoring</span>
         ${seg("Closest-number scoring", [["closest", "Closest team wins"], ["range", "Everyone within range"]], () => d().settings.closestScoring, (v) => { d().settings.closestScoring = /** @type {any} */ (v); })}</div>
       <div class="field"><span class="l">Sudden death decides</span>
         ${seg("Sudden death decides", [["first", "First place only"], ["all", "Every tied place"]], () => d().settings.suddenDeathScope, (v) => { d().settings.suddenDeathScope = /** @type {any} */ (v); })}</div>
       <div class="field"><label class="l" for="set-sdmax">Most sudden-death questions per place</label>
-        <input id="set-sdmax" class="input narrow" type="number" min="1" max="10" value="${() => d().settings.suddenDeathMax}"
-          @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.suddenDeathMax = n; }}">
-        <p class="muted s">1 to 10. After that the place is shared.</p></div>
-    </div></div>`;
+        <div class="row"><input id="set-sdmax" class="input short" type="number" min="1" max="10" value="${() => d().settings.suddenDeathMax}"
+          @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.suddenDeathMax = n; }}"><span>questions</span></div>
+        <p class="hint">1 to 10. After that the place is shared.</p></div>
+    </section>
+  </div>`;
+
+  const roundsEmpty = () => html`<div class="b-pane">
+    <p class="muted">This quiz has no rounds yet.</p>
+    <button type="button" class="btn primary" @click="${() => addRound()}">+ Add round</button></div>`;
 
   /** @param {Round} r */
   const roundEditor = (r) => {
@@ -604,6 +655,7 @@ export function mountBuilder(root, quizId) {
     }
     if (sel.kind === "sd") return sdEditor();
     if (sel.kind === "none") return "";
+    if (sel.kind === "rounds") return d().rounds[0] ? roundEditor(/** @type {Round} */ (d().rounds[0])) : roundsEmpty();
     return quizEditor();
   };
 
@@ -613,15 +665,15 @@ export function mountBuilder(root, quizId) {
     if (ui.phase === "missing") {
       return html`<div class="b-missing"><a class="b-back" href="/host/build">← Quizzes</a><h1>Can't open this quiz</h1><p>${() => ui.message}</p></div>`;
     }
-    return html`<div class="builder">
-      <nav class="b-side" aria-label="Quiz outline">${outline()}</nav>
+    return html`<div class="b-page">${head()}<div class="${() => (tab() === "settings" ? "builder no-side" : "builder")}">
+      <nav class="b-side" aria-label="Quiz outline" hidden="${() => tab() === "settings"}">${outline()}</nav>
       <main class="b-editor">
         ${() => banner()}
         <fieldset class="b-fields" disabled="${() => ui.status === "locked" || ui.status === "conflict"}">
           ${() => editor()}
         </fieldset>
       </main>
-    </div>`;
+    </div></div>`;
   }}`(root);
 
   document.body.classList.add("builder-open");
@@ -634,6 +686,8 @@ export function mountBuilder(root, quizId) {
     ui.draft = res.quiz;
     ui.status = "saved";
     ui.phase = "open";
+    const first = res.quiz.rounds[0];
+    ui.sel = first ? { kind: "round", id: first.id } : { kind: "rounds", id: "" };
     document.title = `${res.quiz.title} · Lock-In host`;
   }, (e) => {
     ui.message = e instanceof Error ? e.message : String(e);

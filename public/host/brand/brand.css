@@ -1,6 +1,6 @@
 /* Branding and venue settings (B4), in Last Call. Components come from host.css; this file lays out the page and draws the preview. */
 
-.brand-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+/* .page-head and .form-card are in host.css, shared with the quiz builder. */
 
 .split { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: 56px; align-items: start; }
 .form { display: flex; flex-direction: column; gap: 28px; }
@@ -48,7 +48,7 @@
 
 .pic-row { margin-top: 12px; }
 
-/* Holding page and prizes tabs */
+/* Holding page, prizes and displays tabs: cards are .form-card (host.css) */
 .card { max-width: 680px; margin-bottom: 20px; }
 .card h2 { margin: 0 0 12px; font-size: var(--host-text-overline); color: var(--ash); text-transform: uppercase; letter-spacing: 0.14em; font-weight: 500; }
 .panel-row { display: flex; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid var(--line); }

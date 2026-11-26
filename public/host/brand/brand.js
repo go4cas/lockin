@@ -652,7 +652,7 @@ function showTab(id) {
 
 const view = html`
 <div class="brand-page">
-  <div class="brand-head">
+  <div class="page-head">
     <h1>Venue settings</h1>
     <div class="seg" role="tablist" aria-label="Venue settings">${TABS.map((t) => html`
       <button type="button" role="tab" aria-selected="${() => String(page.tab === t.id)}" @click="${() => showTab(t.id)}">${t.label}</button>`)}
