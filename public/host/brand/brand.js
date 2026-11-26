@@ -1,18 +1,22 @@
 // @ts-check
 // Branding and venue settings (B4): H-15 venue defaults (prizes), H-16 branding
 // with a live preview and readability warnings, H-17 holding page settings.
+// Last Call (docs/DESIGN-SYSTEM.md, "Venue branding"): a venue sets its name, logo, ONE
+// main colour, the countdown style and the TV picture. Everything else stays Lock In's.
 // Built with Arrow (TECH-SPEC 3.4): the saved settings and the unsaved draft
 // live in separate reactive stores; the preview and the warnings read the draft,
 // so they change as the QM types, and nothing is written until Save.
 
-import { html, reactive, watch } from "/vendor/arrow/index.mjs";
+import { html, reactive } from "/vendor/arrow/index.mjs";
 import { saveDraft } from "./save.js";
-import { BUNDLED_FONT_INFO, DEFAULT_INPUTS, checkReadability, deriveBrandTokens, assetUrl, DISPLAY_FALLBACK, BODY_FALLBACK } from "./derive.js";
+import { DEFAULT_INPUTS, checkReadability, deriveBrandTokens, assetUrl } from "./derive.js";
+import { countdown } from "/static/shared/countdown.mjs";
+import { lockup, mark } from "/static/shared/mark.mjs";
 
 /** @typedef {import('../../../src/shared/formats').ThemeFile} ThemeFile */
 /** @typedef {import('../../../src/shared/formats').VenueFile} VenueFile */
 /** @typedef {import('../../../src/shared/formats').HoldingPanel} HoldingPanel */
-/** @typedef {import('../../../src/shared/formats').FontRef} FontRef */
+/** @typedef {import('../../../src/shared/formats').CountdownStyle} CountdownStyle */
 /** @typedef {"branding" | "holding" | "prizes"} Tab */
 
 /** @type {{ id: Tab, label: string }[]} */
@@ -32,16 +36,17 @@ const PANELS = [
   { id: "prizes", label: "Prizes" },
 ];
 
-/** "Aim for" ratios of the checks (docs/design/branding.md, "Readability warnings"). */
-/** @type {Record<string, number>} */
-const AIM = {
-  "Text on background": 7, "Text on panels": 7, "Main colour on background": 3,
-  "Second colour on background": 3, "Button text on main colour": 4.5, "Labels on second colour": 4.5,
-};
+/** @type {{ id: CountdownStyle, label: string }[]} */
+const COUNTDOWNS = [
+  { id: "ring", label: "Ring" },
+  { id: "number", label: "Number" },
+  { id: "bar", label: "Solid bar" },
+  { id: "dashed", label: "Dashed bar" },
+  { id: "flip", label: "Flip" },
+];
 
-const COLOURS = /** @type {const} */ ([
-  ["background", "Background"], ["text", "Text"], ["accent", "Main"], ["accent2", "Second"],
-]);
+/** A few colours that work well, for a quick pick. Mint is Lock In's own. */
+const SUGGESTED = ["#7df0c3", "#ffd166", "#ff8a5c", "#f58fd2", "#c3a8ff", "#6fb6ff", "#b8f05a", "#edede8"];
 
 const ORDINAL = ["", "1st", "2nd", "3rd"];
 /** @param {number} n */
@@ -69,19 +74,13 @@ const page = reactive({
 const draft = reactive({
   name: "",
   logo: /** @type {string | null} */ (null),
-  background: DEFAULT_INPUTS.background,
-  text: DEFAULT_INPUTS.text,
   accent: DEFAULT_INPUTS.accent,
-  accent2: DEFAULT_INPUTS.accent2,
-  /** true while a colour is still Lock-In's default, so saving keeps it null */
-  coloursDefault: { background: true, text: true, accent: true, accent2: true },
-  displayFont: "caveat-brush",
-  displayFontFile: /** @type {string | null} */ (null),
-  bodyFont: "atkinson-hyperlegible",
-  bodyFontFile: /** @type {string | null} */ (null),
-  /** @type {"colour" | "picture"} */
-  bgMode: "colour",
-  bgColour: /** @type {string | null} */ (null),
+  /** true while the colour is still Lock In's default, so saving keeps it null */
+  accentDefault: true,
+  /** @type {CountdownStyle} */
+  countdown: "ring",
+  /** @type {"ink" | "picture"} */
+  bgMode: "ink",
   bgImage: /** @type {string | null} */ (null),
 });
 
@@ -115,45 +114,24 @@ let prizeKey = 1;
 function draftFromTheme(t) {
   draft.name = t.name ?? "";
   draft.logo = t.logo;
-  for (const [k] of COLOURS) {
-    const v = t.colours[k];
-    draft[k] = v ?? DEFAULT_INPUTS[k];
-    draft.coloursDefault[k] = v === null;
-  }
-  const d = t.fonts.display, b = t.fonts.body;
-  draft.displayFont = d && "file" in d ? "upload" : d ? d.bundled : "caveat-brush";
-  draft.displayFontFile = d && "file" in d ? d.file : null;
-  draft.bodyFont = b && "file" in b ? "upload" : "atkinson-hyperlegible";
-  draft.bodyFontFile = b && "file" in b ? b.file : null;
-  const bg = t.displayBackground;
-  draft.bgMode = bg && "image" in bg ? "picture" : "colour";
-  draft.bgColour = bg && "colour" in bg ? bg.colour : null;
-  draft.bgImage = bg && "image" in bg ? bg.image : null;
+  draft.accent = t.colours.accent ?? DEFAULT_INPUTS.accent;
+  draft.accentDefault = t.colours.accent === null;
+  draft.countdown = t.countdown ?? "ring";
+  draft.bgMode = t.displayBackground ? "picture" : "ink";
+  draft.bgImage = t.displayBackground ? t.displayBackground.image : null;
   page.copy = t.copy;
 }
 
 /** @returns {ThemeFile} */
 function themeFromDraft() {
   const name = draft.name.trim();
-  /** @param {"display" | "body"} role @returns {FontRef | null} */
-  const font = (role) => {
-    const id = role === "display" ? draft.displayFont : draft.bodyFont;
-    const file = role === "display" ? draft.displayFontFile : draft.bodyFontFile;
-    if (id === "upload") return file ? { file } : null;
-    const dflt = role === "display" ? "caveat-brush" : "atkinson-hyperlegible";
-    return id === dflt ? null : { bundled: id };
-  };
-  /** @param {"background" | "text" | "accent" | "accent2"} k */
-  const colour = (k) => (draft.coloursDefault[k] ? null : draft[k]);
   return {
     format: "lockin.theme/1",
     name: name === "" ? null : name,
     logo: draft.logo,
-    colours: { background: colour("background"), text: colour("text"), accent: colour("accent"), accent2: colour("accent2") },
-    fonts: { display: font("display"), body: font("body") },
-    displayBackground: draft.bgMode === "picture"
-      ? (draft.bgImage ? { image: draft.bgImage } : null)
-      : (draft.bgColour ? { colour: draft.bgColour } : null),
+    colours: { accent: draft.accentDefault ? null : draft.accent },
+    countdown: draft.countdown === "ring" ? null : draft.countdown,
+    displayBackground: draft.bgMode === "picture" && draft.bgImage ? { image: draft.bgImage } : null,
     copy: page.copy,
   };
 }
@@ -278,7 +256,7 @@ async function saveVenue() {
 /**
  * Uploads a picked file and returns its "assets/<name>", or null.
  * @param {Event} e
- * @param {"logo" | "displayBackground" | "font"} kind
+ * @param {"logo" | "displayBackground"} kind
  * @returns {Promise<string | null>}
  */
 async function upload(e, kind) {
@@ -307,104 +285,64 @@ async function upload(e, kind) {
 // ---------------------------------------------------------------------------
 
 const inputs = () => ({
-  background: draft.background,
-  text: draft.text,
   accent: draft.accent,
-  accent2: draft.accent2,
-  displayBackgroundColour: draft.bgMode === "colour" ? draft.bgColour : null,
   displayBackgroundImage: draft.bgMode === "picture" && draft.bgImage ? assetUrl(draft.bgImage) : null,
 });
 
-/** @param {string} id */
-const familyOf = (id) => (BUNDLED_FONT_INFO.find((f) => f.id === id) || BUNDLED_FONT_INFO[3])?.family ?? "Atkinson Hyperlegible";
+/** The preview's own clock: a 30 s countdown that starts again every 30 s. */
+const preview = reactive({ now: Date.now() });
+const LOOP_MS = 30_000;
+const previewTimer = () => {
+  const start = Math.floor(preview.now / LOOP_MS) * LOOP_MS;
+  return { state: /** @type {"running"} */ ("running"), durationMs: LOOP_MS, locksAt: start + LOOP_MS, remainingMs: null };
+};
 
-/** The inline custom properties for the preview: the derived colours and the fonts. */
+/** The inline custom properties for the preview: the derived venue tokens and the roles that use them. */
 function previewStyle() {
   const tokens = deriveBrandTokens(inputs());
-  const display = draft.displayFont === "upload"
-    ? (draft.displayFontFile ? '"Lock-In Preview Display", ' + DISPLAY_FALLBACK : "")
-    : '"' + familyOf(draft.displayFont) + '", ' + DISPLAY_FALLBACK;
-  const body = draft.bodyFont === "upload"
-    ? (draft.bodyFontFile ? '"Lock-In Preview Body", ' + BODY_FALLBACK : "")
-    : '"Atkinson Hyperlegible", ' + BODY_FALLBACK;
   const parts = Object.entries(tokens).map(([k, v]) => "--" + k + ": " + v);
-  if (display) parts.push("--brand-font-display: " + display);
-  if (body) parts.push("--brand-font-body: " + body);
+  parts.push("--color-action: var(--venue)", "--color-on-action: var(--on-venue)", "--color-action-tint: var(--venue-tint)",
+    "--color-selected: var(--venue)", "--color-correct: var(--venue)", "--color-countdown: var(--venue)");
   return parts.join("; ");
 }
 
-/**
- * Uploaded fonts need @font-face rules; the server writes them, scoped to the
- * preview, in /api/theme/preview.css. Only fonts change this link.
- */
-let previewCssHref = "";
-function syncPreviewFonts() {
-  const fonts = themeFromDraft().fonts;
-  const uploaded = (fonts.display && "file" in fonts.display) || (fonts.body && "file" in fonts.body);
-  const href = uploaded
-    ? "/api/theme/preview.css?theme=" + encodeURIComponent(JSON.stringify({ format: "lockin.theme/1", fonts }))
-    : "";
-  if (href === previewCssHref) return;
-  previewCssHref = href;
-  let link = /** @type {HTMLLinkElement | null} */ (document.getElementById("preview-css"));
-  if (!href) { link?.remove(); return; }
-  if (!link) {
-    link = document.createElement("link");
-    link.id = "preview-css";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-  }
-  link.href = href;
-}
+const logoSrc = () => (draft.logo ? assetUrl(draft.logo) : "");
+const venueName = () => draft.name.trim() || "Your pub";
 
-const logoSrc = () => (draft.logo ? assetUrl(draft.logo) : "/static/logo/lockin-mark.svg");
-const sampleTeams = ["Quizteama Aguilera", "The Usual Suspects", "Les Quizerables", "Agatha Quiztie", "Universally Challenged", "Tequila Mockingbird"];
-
-/** A sample line in the venue's voice; {pub} lines need a name, so this one is fixed. */
-const sampleLine = "Grab a drink. Pick a silly name.";
-
+/** The TV preview: the question screen at 1/4 size. */
 function previewDisplay() {
   return html`
-  <div class="lockin-preview pv-display" style="${previewStyle}" aria-label="Display preview" role="img">
-    <div class="pv-bgimg"></div><div class="pv-scrim"></div>
+  <div class="lockin-preview pv-display" style="${previewStyle}" aria-label="TV preview" role="img">
+    <div class="pv-scrim"></div>
     <div class="pv-body">
-      <div class="pv-head"><img src="${logoSrc}" alt=""><span>${() => draft.name.trim()}</span><span class="soon">Starting soon</span></div>
-      <div class="pv-main">
-        <div>
-          <div class="pv-qr"><i></i></div>
-          <div class="pv-addr">Scan, or go to quiz.example.com</div>
-          <div class="pv-label" style="margin-top:6px">Room code</div>
-          <div class="pv-code">KXBT</div>
-        </div>
-        <div>
-          <p class="pv-line">${sampleLine}</p>
-          <div class="pv-label">6 teams in</div>
-          <div class="pv-chips">${sampleTeams.map((n, i) => html`<span class="pv-chip"><i style="${"background: var(--team-" + (i + 1) + ")"}"></i>${n}</span>`)}</div>
-          <div class="pv-prizes"><span>Tonight's prizes</span>${() => previewPrizes().map((p) => html`<span><b>${ordinal(p.place)}</b> ${p.text}</span>`.key(p.place + ":" + p.text))}</div>
-        </div>
+      <div class="pv-head">
+        <img class="${() => (draft.logo ? "pv-logo" : "pv-logo off")}" src="${logoSrc}" alt="">
+        <span class="pv-name">${venueName}</span><span class="pv-strip">Round 3 — Space</span>
+        <span class="pv-num">04 <span>/ 08</span></span>
       </div>
-      <div class="pv-flash">Tequila Mockingbird just joined. Fresh legs.</div>
+      <div class="pv-main">
+        <div class="pv-q">Which planet in our solar system has the most known moons?
+          <div class="pv-bubbles">${[1, 2, 3, 4, 5, 6].map((i) => html`<i style="${"background: var(--team-" + i + ")"}"></i>`)}<i class="w"></i><i class="w"></i></div>
+        </div>
+        <div class="pv-cd">${countdown(html, { style: () => draft.countdown, timer: previewTimer, now: () => preview.now, size: "tv" })}</div>
+      </div>
+      <div class="pv-foot"><span class="pv-voice">No phones. Well, one phone.</span><span class="pv-credit">Powered by ${lockup(html, "mono")}</span></div>
     </div>
-    <div class="pv-credit">Powered by Lock-In</div>
   </div>`;
 }
 
+/** The phone preview: an answer picked, with the countdown and the received strip. */
 function previewPhone() {
   return html`
   <div class="lockin-preview pv-phone" style="${previewStyle}" aria-label="Phone preview" role="img">
-    <div class="pv-head"><img src="${logoSrc}" alt=""><span>${() => draft.name.trim()}</span></div>
-    <div class="pv-card"><div class="pv-muted">The quiz starts in</div><div class="pv-count">12:34</div><div class="pv-muted">6 teams ready</div></div>
-    <p class="pv-line">${sampleLine}</p>
-    <div class="pv-card"><div class="pv-label">Tonight's prizes</div>${() => previewPrizes().map((p) => html`<div class="pv-prize"><b>${ordinal(p.place)}</b>${p.text}</div>`.key(p.place + ":" + p.text))}</div>
-    <div class="pv-btn">Put the quiz on your home screen</div>
-    <div class="pv-credit">Powered by Lock-In</div>
+    <div class="pv-ph-head"><span class="bubble" style="--b: var(--team-1)">QA</span><span class="pv-ph-team">Quizteama Aguilera</span><span class="pv-ph-rq">R3 · 04/08</span></div>
+    <div class="pv-ph-cd">${countdown(html, { style: () => draft.countdown, timer: previewTimer, now: () => preview.now, size: "small" })}</div>
+    <div class="pv-ph-q">Which planet has the most known moons?</div>
+    <div class="pv-ph-opt"><b>A</b>Jupiter</div>
+    <div class="pv-ph-opt on"><b>B</b>Saturn</div>
+    <div class="pv-ph-opt"><b>C</b>Uranus</div>
+    <div class="pv-ph-got"><i></i>The quizmaster has Saturn</div>
   </div>`;
-}
-
-/** Prizes for the preview: the venue's, or a made-up sample. */
-function previewPrizes() {
-  const real = venue.prizes.filter((p) => p.text.trim() !== "" && Number(p.place) >= 1).slice(0, 3);
-  return real.length > 0 ? real.map((p) => ({ place: Number(p.place), text: p.text })) : [{ place: 1, text: "Bar tab" }, { place: 2, text: "A round of shots" }];
 }
 
 // ---------------------------------------------------------------------------
@@ -413,39 +351,25 @@ function previewPrizes() {
 
 const badChecks = () => checkReadability(inputs()).filter((c) => c.level !== "ok");
 
-/** @param {import("./derive.js").ContrastCheck} c */
-const warningText = (c) => c.message + (AIM[c.pair] ? " (" + c.ratio + " : 1, aim for " + AIM[c.pair] + " : 1)" : "");
-
 function warnings() {
-  // Rows are keyed by their text, so a changed ratio is a new row (unkeyed rows keep their first text).
-  return html`<div class="ok-box" hidden="${() => badChecks().length > 0}">These colours read well in a pub.</div>
-  <div class="warn-box" role="status" hidden="${() => badChecks().length === 0}">
-    <b>This may be hard to read in a pub.</b>
-    <ul>${() => badChecks().map((c) => html`<li>${warningText(c)}</li>`.key(warningText(c)))}</ul>
-    <span class="hint">You can still save it.</span> <button type="button" class="link" @click="${resetColours}">Reset to Lock-In colours</button>
+  // Rows are keyed by their text, so a changed check is a new row (unkeyed rows keep their first text).
+  return html`<div class="warn-box" role="status" hidden="${() => badChecks().length === 0}">
+    <b>This colour may be hard to read in a pub.</b>
+    <ul>${() => badChecks().map((c) => html`<li>${c.message}</li>`.key(c.message))}</ul>
+    <span class="hint">You can still save it.</span> <button type="button" class="link" @click="${resetColour}">Reset to Lock In colours</button>
   </div>`;
 }
 
-function resetColours() {
-  for (const [k] of COLOURS) {
-    draft[k] = DEFAULT_INPUTS[k];
-    draft.coloursDefault[k] = true;
-  }
-  draft.bgColour = null;
+function resetColour() {
+  draft.accent = DEFAULT_INPUTS.accent;
+  draft.accentDefault = true;
 }
 
-/**
- * @param {"background" | "text" | "accent" | "accent2"} k
- * @param {string} label
- */
-function colourInput(k, label) {
-  return html`<label class="swatch">
-    <input type="color" value="${() => draft[k]}" @input="${(/** @type {Event} */ e) => { draft[k] = /** @type {HTMLInputElement} */ (e.target).value.toLowerCase(); draft.coloursDefault[k] = false; }}">
-    <span>${label}<br><span class="hex">${() => draft[k]}</span></span>
-  </label>`;
+/** @param {string} hex */
+function setAccent(hex) {
+  draft.accent = hex.toLowerCase();
+  draft.accentDefault = draft.accent === DEFAULT_INPUTS.accent;
 }
-
-const displayFonts = [...BUNDLED_FONT_INFO.map((f) => ({ id: f.id, label: f.look, cls: "font-" + f.look.toLowerCase() })), { id: "upload", label: "Upload", cls: "" }];
 
 function brandingTab() {
   return html`
@@ -453,94 +377,79 @@ function brandingTab() {
     <form class="form" @submit="${(/** @type {Event} */ e) => { e.preventDefault(); saveTheme(); }}">
       <div class="field">
         <label for="venue-name">Venue name</label>
-        <input id="venue-name" class="input" maxlength="60" spellcheck="true" autocomplete="off" value="${() => draft.name}" @input="${(/** @type {Event} */ e) => { draft.name = /** @type {HTMLInputElement} */ (e.target).value; }}">
-        <p class="hint">Shown on the display and phones, and in lines like "Thanks for playing at ${() => draft.name.trim() || "your pub"}".</p>
+        <input id="venue-name" class="input" maxlength="60" spellcheck="true" autocomplete="off" placeholder="The Example Arms" value="${() => draft.name}" @input="${(/** @type {Event} */ e) => { draft.name = /** @type {HTMLInputElement} */ (e.target).value; }}">
+        <p class="hint">On the TV, the phones and the phone's app name, and in lines like "Thanks for playing at ${() => draft.name.trim() || "your pub"}".</p>
       </div>
 
       <div class="field">
         <span class="l">Logo</span>
         <div class="logo-box">
-          <div class="logo-thumb" style="${() => "background:" + draft.background}"><img src="${logoSrc}" alt="${() => (draft.logo ? "Your logo" : "The Lock-In padlock")}"></div>
+          <div class="logo-thumb">
+            <img class="${() => (draft.logo ? "" : "off")}" src="${logoSrc}" alt="Your logo">
+            <span class="${() => (draft.logo ? "off" : "logo-mark")}">${mark(html)}</span>
+          </div>
           <div class="row">
-            <label class="btn ghost small file-btn">${() => (ui.uploading === "logo" ? "Uploading…" : "Upload PNG, SVG or JPEG")}
+            <label class="btn small file-btn">${() => (ui.uploading === "logo" ? "Uploading…" : draft.logo ? "Change logo" : "Upload a logo")}
               <input type="file" accept="image/png,image/svg+xml,image/jpeg" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "logo"); if (f) draft.logo = f; }}">
             </label>
-            ${() => (draft.logo ? html`<button type="button" class="btn ghost small" @click="${() => { draft.logo = null; }}">Use the Lock-In padlock</button>` : "")}
+            <button type="button" class="btn quiet small" hidden="${() => !draft.logo}" @click="${() => { draft.logo = null; }}">Use the lock in mark</button>
           </div>
         </div>
-        <p class="hint">A light logo on a transparent background works best. Up to 2 MB.</p>
+        <p class="hint">PNG, SVG or JPEG, up to 2 MB. A light logo on a transparent background works best.</p>
       </div>
 
       <div class="field">
-        <span class="l">Colours</span>
-        <div class="swatches">${COLOURS.map(([k, label]) => colourInput(k, label))}</div>
+        <span class="l">Main colour</span>
+        <div class="colour-row">
+          <label class="swatch" aria-label="Main colour">
+            <input type="color" value="${() => draft.accent}" @input="${(/** @type {Event} */ e) => setAccent(/** @type {HTMLInputElement} */ (e.target).value)}">
+          </label>
+          <span class="hex">${() => draft.accent}</span>
+          <span class="hint">${() => (draft.accentDefault ? "Lock In mint" : "")}</span>
+        </div>
+        <div class="suggest" role="group" aria-label="Suggested colours">${SUGGESTED.map((c) => html`
+          <button type="button" class="sw" style="${"background:" + c}" aria-label="${"Use " + c}" aria-pressed="${() => String(draft.accent === c)}" @click="${() => setAccent(c)}"></button>`)}
+        </div>
+        <p class="hint">Buttons, the countdown, the leader and the right answer. Everything else stays Lock In's, so every pub's night stays readable.</p>
+      </div>
+      ${warnings()}
+
+      <div class="field">
+        <span class="l">Countdown</span>
+        <div class="cd-pick" role="radiogroup" aria-label="Countdown style">${COUNTDOWNS.map((c) => html`
+          <button type="button" role="radio" aria-checked="${() => String(draft.countdown === c.id)}" @click="${() => { draft.countdown = c.id; }}">
+            <span class="${"cd-glyph g-" + c.id}" aria-hidden="true"><i></i><i></i><i></i></span>${c.label}</button>`)}
+        </div>
+        <p class="hint">How the time left looks on the TV, the phones and here. The last ten seconds turn orange.</p>
       </div>
 
       <div class="field">
-        <span class="l">Display background</span>
-        <div class="seg" role="group" aria-label="Display background">
-          <button type="button" aria-pressed="${() => String(draft.bgMode === "colour")}" @click="${() => { draft.bgMode = "colour"; }}">Colour</button>
+        <span class="l">TV background</span>
+        <div class="seg" role="group" aria-label="TV background">
+          <button type="button" aria-pressed="${() => String(draft.bgMode === "ink")}" @click="${() => { draft.bgMode = "ink"; }}">Black</button>
           <button type="button" aria-pressed="${() => String(draft.bgMode === "picture")}" @click="${() => { draft.bgMode = "picture"; }}">Picture</button>
         </div>
-        ${() => draft.bgMode === "colour"
-          ? html`<div class="row" style="margin-top:8px"><label class="swatch">
-              <input type="color" value="${() => draft.bgColour || draft.background}" @input="${(/** @type {Event} */ e) => { draft.bgColour = /** @type {HTMLInputElement} */ (e.target).value.toLowerCase(); }}">
-              <span>${() => (draft.bgColour ? "Own colour" : "Same as the background")}</span></label>
-              ${() => (draft.bgColour ? html`<button type="button" class="link" @click="${() => { draft.bgColour = null; }}">Use the background colour</button>` : "")}</div>`
-          : html`<div><div class="row" style="margin-top:8px">
-              <label class="btn ghost small file-btn">${() => (ui.uploading === "displayBackground" ? "Uploading…" : draft.bgImage ? "Change picture" : "Upload JPEG, PNG or WebP")}
-                <input type="file" accept="image/jpeg,image/png,image/webp" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "displayBackground"); if (f) draft.bgImage = f; }}">
-              </label></div>
-              <p class="hint">Busy photos make questions harder to read. Pick something calm. Up to 5 MB.</p></div>`}
-      </div>
-
-      <div class="field">
-        <span class="l">Headline font</span>
-        <div class="seg" role="group" aria-label="Headline font">${displayFonts.map((f) => html`
-          <button type="button" class="${f.cls}" aria-pressed="${() => String(draft.displayFont === f.id)}" @click="${() => { draft.displayFont = f.id; }}">${f.label}</button>`)}
+        <div class="row pic-row" hidden="${() => draft.bgMode !== "picture"}">
+          <label class="btn small file-btn">${() => (ui.uploading === "displayBackground" ? "Uploading…" : draft.bgImage ? "Change picture" : "Upload a picture")}
+            <input type="file" accept="image/jpeg,image/png,image/webp" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "displayBackground"); if (f) draft.bgImage = f; }}">
+          </label>
+          <span class="hint">${() => (draft.bgImage ? "It sits under a dark layer so the words stay easy to read." : "JPEG, PNG or WebP, up to 5 MB. Calm pictures work best.")}</span>
         </div>
-        ${() => (draft.displayFont === "upload" ? fontUpload("display") : "")}
-        <p class="hint">Used for big titles and the host's lines, never for questions or team names.</p>
       </div>
 
-      <div class="field">
-        <span class="l">Body font</span>
-        <div class="seg" role="group" aria-label="Body font">
-          <button type="button" class="font-plain" aria-pressed="${() => String(draft.bodyFont !== "upload")}" @click="${() => { draft.bodyFont = "atkinson-hyperlegible"; }}">Plain (recommended)</button>
-          <button type="button" aria-pressed="${() => String(draft.bodyFont === "upload")}" @click="${() => { draft.bodyFont = "upload"; }}">Upload</button>
-        </div>
-        ${() => (draft.bodyFont === "upload" ? html`<div>${fontUpload("body")}<p class="hint" style="color:var(--color-warning)">Questions and team names must be easy to read from across the room. A plain font works best.</p></div>` : "")}
-      </div>
-
-      ${warnings()}
       ${message()}
 
       <div class="actions">
-        <button type="submit" class="btn primary" disabled="${() => ui.saving || !themeDirty() || (draft.displayFont === "upload" && !draft.displayFontFile) || (draft.bodyFont === "upload" && !draft.bodyFontFile)}">${() => (ui.saving ? "Saving…" : "Save")}</button>
-        <button type="button" class="btn ghost" disabled="${() => !themeDirty()}" @click="${() => { draftFromTheme(JSON.parse(page.savedTheme)); ui.message = null; }}">Cancel</button>
+        <button type="submit" class="btn primary" disabled="${() => ui.saving || !themeDirty()}">${() => (ui.saving ? "Saving…" : "Save")}</button>
+        <button type="button" class="btn" disabled="${() => !themeDirty()}" @click="${() => { draftFromTheme(JSON.parse(page.savedTheme)); ui.message = null; }}">Cancel</button>
         <span class="status">${() => (themeDirty() ? "Not saved yet" : "")}</span>
       </div>
     </form>
 
     <div class="preview-col">
-      <h2>Preview</h2>
+      <p class="label">Preview</p>
       <div class="preview-wrap">${previewDisplay()}${previewPhone()}</div>
     </div>
-  </div>`;
-}
-
-/** @param {"display" | "body"} role */
-function fontUpload(role) {
-  const file = () => (role === "display" ? draft.displayFontFile : draft.bodyFontFile);
-  return html`<div class="row" style="margin-top:8px">
-    <label class="btn ghost small file-btn">${() => (ui.uploading === "font" ? "Uploading…" : file() ? "Change font file" : "Upload WOFF2, WOFF or TTF")}
-      <input type="file" accept=".woff2,.woff,.ttf,font/woff2,font/woff,font/ttf" @change="${async (/** @type {Event} */ e) => {
-        const f = await upload(e, "font");
-        if (!f) return;
-        if (role === "display") draft.displayFontFile = f; else draft.bodyFontFile = f;
-      }}">
-    </label>
-    <span class="hint">${() => (file() ? "Font uploaded." : "Up to 2 MB.")}</span>
   </div>`;
 }
 
@@ -698,7 +607,7 @@ window.addEventListener("beforeunload", (e) => {
   if (themeDirty() || venueDirty()) e.preventDefault();
 });
 
-// Keep the uploaded-font @font-face rules in step with the draft.
-watch(() => { syncPreviewFonts(); });
+// The preview's countdown runs on its own, a 30 s loop, so the style can be seen moving.
+setInterval(() => { preview.now = Date.now(); }, 250);
 
 load();

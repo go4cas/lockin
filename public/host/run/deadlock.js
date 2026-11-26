@@ -38,7 +38,7 @@ function whoAnswered() {
   return html`<table class="answers-table">
     <thead><tr><th>Team</th><th>Answer</th></tr></thead>
     <tbody>${pool(() => sd()?.teams || [], (t) => html`<tr hidden="${() => !t()}">
-      <td><span class="tname">${dot(() => t()?.colour || 1)}${() => t()?.name || ""}</span></td>
+      <td><span class="tname">${dot(() => t()?.colour || 1, () => t()?.name || "")}${() => t()?.name || ""}</span></td>
       <td class="${() => (teamById(t()?.id || "")?.answeredCurrent ? "" : "muted")}">${() => (teamById(t()?.id || "")?.answeredCurrent ? "Answered" : sd()?.status === "open" ? "Waiting" : "No answer")}</td></tr>`)}</tbody>
   </table>`;
 }
@@ -47,7 +47,7 @@ function outcome() {
   const right = () => new Set(sd()?.rightIds || []);
   return html`<div class="card">
     <ul class="chips">${pool(() => (sd()?.teams || []).concat(sd()?.out || []), (t) => html`<li class="${() => (right().has(t()?.id || "") ? "right" : "wrong")}" hidden="${() => !t()}">
-      ${dot(() => t()?.colour || 1)}${() => t()?.name || ""} <b>${() => (right().has(t()?.id || "") ? "✓ right" : "wrong")}</b></li>`)}</ul>
+      ${dot(() => t()?.colour || 1, () => t()?.name || "")}${() => t()?.name || ""} <b>${() => (right().has(t()?.id || "") ? "✓ right" : "wrong")}</b></li>`)}</ul>
     <p class="qbig">${() => {
       const o = sd()?.outcome;
       if (!o) return "Nobody settled it. Ask the next question.";

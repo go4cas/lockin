@@ -46,11 +46,13 @@ export function nextButton(get) {
 }
 
 /**
- * Team colour dot. Colour is never the only marker: the name always sits next to it.
+ * Team bubble: the team colour with its initials. Colour is never the only marker: the name
+ * always sits next to it. Without a name it is a plain colour dot.
  * @param {() => number} colour
+ * @param {() => string} [name]
  */
-export function dot(colour) {
-  return html`<span class="dot" style="${() => `background: var(--team-${colour() || 1})`}"></span>`;
+export function dot(colour, name) {
+  return html`<span class="${name ? "bubble" : "dot"}" style="${() => (name ? `--b: var(--team-${colour() || 1})` : `background: var(--team-${colour() || 1})`)}">${() => (name ? window.LockIn.view.initials(name()) : "")}</span>`;
 }
 
 /**
@@ -69,10 +71,10 @@ export function phonePill(team, answered) {
   const text = () => {
     const s = state();
     if (s === "off") return "Offline";
-    if (s === "wait") return "Not yet";
-    return answered ? "Answered" : "Connected";
+    if (s === "wait") return "Waiting";
+    return answered ? "In" : "Connected";
   };
-  return html`<span class="${() => `pill ${state() === "off" ? "warn" : state() === "ok" ? "ok" : ""}`}"><i></i>${text}</span>`;
+  return html`<span class="${() => `tstatus ${state() === "off" ? "bad" : state() === "ok" ? "ok" : "wait"}`}"><i></i>${text}</span>`;
 }
 
 /**

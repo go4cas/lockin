@@ -106,6 +106,7 @@ describe("reading the view", () => {
   test("decidedLine", () => {
     expect(L.decidedLine({ shared: false, decidedBy: "tie_breaker" })).toBe("Tied on points, ahead on round wins");
     expect(L.decidedLine({ shared: true, decidedBy: "shared" })).toBe("Shared with another team");
+    expect(L.decidedLine({ shared: true, decidedBy: "shared" }, 2)).toBe("Shared with 2 other teams");
     expect(L.decidedLine({ shared: false, decidedBy: "points" })).toBe("");
   });
   test("prizeFor", () => {
@@ -126,7 +127,7 @@ describe("reading the view", () => {
   });
   test("progressLabel", () => {
     const v = fx("asking");
-    expect(L.progressLabel(v, v.questions[0]!)).toBe("R3 · Q2 of 5");
+    expect(L.progressLabel(v, v.questions[0]!)).toBe("R3 · 02/05");
     expect(L.progressLabel(fx("asking-round"), null)).toBe("Round 3");
   });
   test("timerLeft for each timer state", () => {

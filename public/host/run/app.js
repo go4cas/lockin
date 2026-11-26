@@ -2,9 +2,10 @@
 // Run night (B5): renders HostView for every phase and sends the host commands (TECH-SPEC
 // 7.2, 10.3). Built with Arrow (3.4); the server decides what is allowed through `view.can`.
 import { html } from "/vendor/arrow/index.mjs";
+import { lockup } from "/static/shared/mark.mjs";
 import { askingScreen, roundIntroScreen } from "./asking.js";
 import { deadlockScreen } from "./deadlock.js";
-import { displayNow, endAction, primaryAction, topTitle } from "./logic.js";
+import { displayNow, endAction, phaseSteps, primaryAction, topTitle } from "./logic.js";
 import { idleEnter, idleScreen, lobbyEnter, lobbyScreen, openDisplay, prizesDialog } from "./lobby.js";
 import { markingScreen, pendingNote } from "./marking.js";
 import { disputeDialog, endedScreen, halftimeScreen, leaderboardScreen, loadDetail, revealScreen } from "./results.js";
@@ -50,27 +51,33 @@ const DIALOGS = {
 function topBar() {
   const t = () => topTitle(page.view);
   return html`<header class="topbar">
+    <a class="host-brand" href="/host">${lockup(html)}</a>
     <span class="${() => `title${page.view?.phase === "sudden_death" ? " deadlock-word" : ""}`}">${() => t().title}</span>
-    <span class="muted s">${() => t().sub}</span>
-    <span class="pill warn" hidden="${() => !(page.view?.marking && page.view.marking.pendingTotal > 0 && (page.view.phase === "marking" || page.view.phase === "asking"))}">${() => `${page.view?.marking?.pendingTotal || 0} left to mark`}</span>
-    <span class="spacer"></span>
-    <span class="s muted" hidden="${() => !page.view?.night}">Room <b class="code">${() => page.view?.night?.roomCode || ""}</b></span>
+    <span class="room">Room <b class="code">${() => page.view?.night?.roomCode || ""}</b></span>
+    <span class="pill warn" hidden="${() => !(page.view?.marking && page.view.marking.pendingTotal > 0 && (page.view.phase === "marking" || page.view.phase === "asking"))}"><i></i>${() => `${page.view?.marking?.pendingTotal || 0} left to mark`}</span>
     <button type="button" class="pill warn as-btn" hidden="${() => !offlineCount()}" @click="${() => openDialog("teams")}"><i></i>${() => `${offlineCount()} team${offlineCount() === 1 ? "" : "s"} offline`}</button>
-    <button type="button" class="btn ghost" hidden="${() => !page.view?.night}" @click="${openDisplay}">Open display</button>
-    <button type="button" class="btn ghost menu-btn" aria-haspopup="dialog" @click="${() => openDialog("menu")}">Night menu ▾</button>
+    <nav class="phase-steps" aria-label="Where the night is">${PHASE_STEPS.map((label, i) => html`<span class="${() => (phaseSteps(page.view) === i ? "now" : phaseSteps(page.view) > i ? "done" : "")}">${label}</span>`)}</nav>
+    <button type="button" class="btn menu-btn" aria-haspopup="menu" aria-expanded="${() => String(ui.dialog === "menu")}" @click="${() => (ui.dialog === "menu" ? closeDialog() : openDialog("menu"))}">Night menu ▾</button>
   </header>`;
+}
+
+const PHASE_STEPS = ["Lobby", "Ask", "Lock", "Reveal", "Table"];
+
+function runFoot() {
+  return html`<div class="run-foot" hidden="${() => page.screen === "idle" || page.screen === "loading"}">
+    <div class="display-now">
+      <p class="label">On the display now</p>
+      <div class="displayprev">${() => displayNow(page.view)}</div>
+    </div>
+    ${nextButton(() => primaryAction(page.view, page.now))}
+  </div>`;
 }
 
 function sidePanel() {
   return html`<aside class="side" hidden="${() => page.screen === "idle" || page.screen === "loading"}">
-    <div class="sec">
-      <h3 class="label">On the display now</h3>
-      <div class="displayprev">${() => displayNow(page.view)}</div>
-    </div>
     <div class="sec muted s" hidden="${() => page.screen !== "lobby"}">Joining closes when you start. Teams that drop out can still rejoin.</div>
     <div class="sec s" hidden="${() => page.screen !== "marking"}"><b>${pendingNote}</b><p class="muted">The reveal waits until every answer is marked.</p></div>
     <div hidden="${() => !(page.view?.night && page.view.phase !== "lobby")}">${sideTeams(() => page.view?.phase === "asking" && !!page.view.current && page.view.current.status === "open")}</div>
-    ${nextButton(() => primaryAction(page.view, page.now))}
     <div class="sec secondary" hidden="${() => page.screen !== "marking" && page.screen !== "reveal"}">${cmdButton("leaderboard.show", "Skip the reveal, go to the leaderboard", { cls: "ghost wide" })}</div>
   </aside>`;
 }
@@ -83,16 +90,19 @@ function banners() {
 // ---- Night menu and confirmations ---------------------------------------------
 
 function menuDialog() {
-  return dialogFrame("Night menu", html`<div class="stack">
-    <button type="button" class="btn" hidden="${() => !page.view?.night}" @click="${() => { closeDialog(); openDisplay(); }}">Open display in a new window</button>
-    <button type="button" class="btn" hidden="${() => !page.view?.night}" @click="${() => openDialog("teams")}">Teams: rename, move to a new phone, remove</button>
-    <button type="button" class="btn" hidden="${() => !(page.view?.night && enabled("night.update"))}" @click="${() => openDialog("prizes", { prizes: (page.view?.night?.prizes || []).map((p) => ({ text: p.text })) })}">Prizes tonight</button>
-    <button type="button" class="${() => (endAction(page.view)?.tone === "danger" ? "btn danger" : "btn")}" hidden="${() => !endAction(page.view)}"
-      @click="${() => { const a = endAction(page.view); if (a) openDialog("confirmEnd", { action: a }); }}">${() => endAction(page.view)?.label || ""}</button>
-    <button type="button" class="btn danger" hidden="${() => !(page.view?.phase === "lobby" && enabled("night.close"))}" @click="${() => openDialog("closeNight")}">Close the night without starting</button>
-    <button type="button" class="btn" aria-pressed="${() => (ui.hideAnswers ? "true" : "false")}" @click="${toggleHideAnswers}">${() => (ui.hideAnswers ? "Show answers on this screen" : "Hide answers on this screen")}</button>
-    <a class="btn ghost" href="/host">Back to the console menu</a>
-  </div>`);
+  return html`<div class="menu-layer" @click="${(/** @type {Event} */ e) => { if (e.target === e.currentTarget) closeDialog(); }}">
+    <div class="menu night-menu" role="menu" aria-label="Night menu">
+      <button type="button" role="menuitem" hidden="${() => !page.view?.night}" @click="${() => { closeDialog(); openDisplay(); }}">Open display in a new window</button>
+      <button type="button" role="menuitem" hidden="${() => !page.view?.night}" @click="${() => openDialog("teams")}">Teams: rename, move to a new phone, remove</button>
+      <button type="button" role="menuitem" hidden="${() => !(page.view?.night && enabled("night.update"))}" @click="${() => openDialog("prizes", { prizes: (page.view?.night?.prizes || []).map((p) => ({ text: p.text })) })}">Prizes tonight</button>
+      <button type="button" role="menuitemcheckbox" aria-checked="${() => (ui.hideAnswers ? "true" : "false")}" @click="${toggleHideAnswers}">Hide answers on this screen<span class="${() => (ui.hideAnswers ? "mini-switch on" : "mini-switch")}" aria-hidden="true"></span></button>
+      <hr>
+      <button type="button" role="menuitem" class="${() => (endAction(page.view)?.tone === "danger" ? "danger-text" : "")}" hidden="${() => !endAction(page.view)}"
+        @click="${() => { const a = endAction(page.view); if (a) openDialog("confirmEnd", { action: a }); }}">${() => { const l = endAction(page.view)?.label || ""; return endAction(page.view)?.tone === "danger" ? l + "…" : l; }}</button>
+      <button type="button" role="menuitem" class="danger-text" hidden="${() => !(page.view?.phase === "lobby" && enabled("night.close"))}" @click="${() => openDialog("closeNight")}">Close the night without starting…</button>
+      <a role="menuitem" class="muted" href="/host">Back to the console menu</a>
+    </div>
+  </div>`;
 }
 
 function confirmEndDialog() {
@@ -118,7 +128,7 @@ function closeNightDialog() {
 html`${banners()}
   ${topBar()}
   <div class="${() => `runbody${page.screen === "idle" || page.screen === "loading" ? " no-side" : ""}${page.status === "offline" ? " is-offline" : ""}${ui.hideAnswers ? " hide-answers" : ""}`}">
-    <main class="main" id="host-main"></main>
+    <div class="main-col"><main class="main" id="host-main"></main>${runFoot()}</div>
     ${sidePanel()}
   </div>
   <div class="dialogs"></div>`(/** @type {HTMLElement} */ (document.getElementById("app")));
@@ -139,6 +149,10 @@ const client = window.LockIn.connect({
   role: "host",
   onState(/** @type {HostView} */ view) {
     page.view = view;
+    // While a night is open the run header replaces the console nav (Last Call, "Running a question").
+    const open = !!view.night;
+    document.body.classList.toggle("night-open", open);
+    window.LockIn.nav?.setNight(open && view.night ? view.night.roomCode : null);
     if (page.screen !== view.phase) {
       page.screen = view.phase;
       ui.markQ = "";

@@ -61,7 +61,7 @@ export async function startFixtureServer(port = 8081, log: (m: string) => void =
       let res: Response;
       if (p === "/fixtures") res = indexPage();
       else if (p.startsWith("/static/")) {
-        const path = staticPath(p.slice("/static/".length), files);
+        const path = staticPath(p.slice("/static/".length));
         res = (path && (await serveFile(req, files, path))) || new Response("Not found", { status: 404 });
       } else if (p.startsWith("/vendor/")) {
         const path = vendorPath(p.slice("/vendor/".length));

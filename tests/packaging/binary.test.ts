@@ -36,7 +36,7 @@ describe("what gets embedded", () => {
     expect(paths.filter((p) => !p.startsWith("public/") && !p.startsWith("assets/"))).toEqual([]);
   });
   test("every bundled font ships with its licence", () => {
-    const families = new Set(paths.filter((p) => /^assets\/fonts\/.+\.woff2$/.test(p)).map((p) => p.slice("assets/fonts/".length).replace(/(-\d{3})?\.woff2$/, "")));
+    const families = new Set(paths.filter((p) => /^assets\/fonts\/.+\.woff2$/.test(p)).map((p) => p.slice("assets/fonts/".length).replace(/(-\d{3}|-wght(-italic)?)?\.woff2$/, "")));
     expect(families.size).toBeGreaterThan(0);
     for (const f of families) expect(paths).toContain(`assets/fonts/OFL-${f}.txt`);
   });

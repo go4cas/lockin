@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { validateQuiz, type QuizFile, type Problem, type VenueFile } from "../../shared/formats.ts";
+import { DEFAULT_COUNTDOWN, validateQuiz, type CountdownStyle, type QuizFile, type Problem, type VenueFile } from "../../shared/formats.ts";
 import type { BrandingStore } from "../branding/store.ts";
 
 export type QuizLoad = { ok: true; quiz: QuizFile } | { ok: false; code: "not_found" | "quiz_not_ready"; problems: Problem[] };
@@ -15,6 +15,7 @@ export const DEFAULT_VENUE_NAME = "Lock-In";
 export interface VenueInfo {
   name: string;
   themeVersion: string;
+  countdown: CountdownStyle;
   venue: VenueFile;
 }
 
@@ -29,8 +30,11 @@ const QUIZ_ID = /^[a-z0-9-]{1,60}$/;
 const SAFE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 /** The venue as the engine sees it, from the branding store (the store's name is null when unset). */
-export function venueFrom(branding: Pick<BrandingStore, "venueName" | "themeVersion" | "venue">): () => VenueInfo {
-  return () => ({ name: branding.venueName() ?? DEFAULT_VENUE_NAME, themeVersion: branding.themeVersion(), venue: branding.venue() });
+export function venueFrom(branding: Pick<BrandingStore, "venueName" | "themeVersion" | "venue" | "theme">): () => VenueInfo {
+  return () => ({
+    name: branding.venueName() ?? DEFAULT_VENUE_NAME, themeVersion: branding.themeVersion(),
+    countdown: branding.theme().countdown ?? DEFAULT_COUNTDOWN, venue: branding.venue(),
+  });
 }
 
 /** Quizzes and pictures from the data folder; the venue from `venueInfo`. */

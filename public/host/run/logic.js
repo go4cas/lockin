@@ -186,6 +186,25 @@ export function steps(view) {
   return out;
 }
 
+/**
+ * Where the night is on the header's step line Lobby · Ask · Lock · Reveal · Table:
+ * 0 to 4, or -1 when no night is open.
+ * @param {HostView | null} view
+ */
+export function phaseSteps(view) {
+  if (!view || !view.night) return -1;
+  switch (view.phase) {
+    case "lobby": return 0;
+    case "round_intro": return 1;
+    case "asking": return view.current && view.current.status === "locked" ? 2 : 1;
+    case "marking": return 2;
+    case "reveal": return 3;
+    case "leaderboard": case "halftime": case "ended": return 4;
+    case "sudden_death": return view.suddenDeath && view.suddenDeath.status === "revealed" ? 3 : view.suddenDeath && view.suddenDeath.status === "locked" ? 2 : 1;
+    default: return -1;
+  }
+}
+
 /** @param {TimerView} t */
 function timerWord(t) {
   if (t.state === "running") return "timer running";

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { PAGE_CSP, Router } from "../../src/server/http.ts";
-import { TOKENS_PATH, diskSource, safeRelative, staticPath } from "../../src/server/static.ts";
+import { TOKENS_PATH, safeRelative, staticPath } from "../../src/server/static.ts";
 import { startTestServer, type TestServer } from "../helpers/server.ts";
 
 let s: TestServer;
@@ -71,14 +71,14 @@ describe("static files (TECH-SPEC 9.1, 4.5)", () => {
     expect(res.headers.get("content-type")).toBe("text/css; charset=utf-8");
   });
 
-  test("bundled fonts are served by id and by file name, and the logo from docs/design", async () => {
-    const byId = await s.fetch("/static/fonts/caveat-brush.woff2");
-    expect(byId.status).toBe(200);
-    expect(byId.headers.get("content-type")).toBe("font/woff2");
-    expect(new Uint8Array(await byId.arrayBuffer())).toEqual(new Uint8Array(readFileSync("assets/fonts/caveat-brush-400.woff2")));
-    expect((await s.fetch("/static/fonts/atkinson-hyperlegible-700.woff2")).status).toBe(200);
-    expect((await s.fetch("/static/fonts/OFL-caveat-brush.txt")).status).toBe(200);
-    const logo = await s.fetch("/static/logo/lockin-mark.svg");
+  test("the Funnel fonts, their licences and the Lock In logo are served from assets/", async () => {
+    const font = await s.fetch("/static/fonts/funnel-display-wght.woff2");
+    expect(font.status).toBe(200);
+    expect(font.headers.get("content-type")).toBe("font/woff2");
+    expect(new Uint8Array(await font.arrayBuffer())).toEqual(new Uint8Array(readFileSync("assets/fonts/funnel-display-wght.woff2")));
+    expect((await s.fetch("/static/fonts/funnel-sans-wght.woff2")).status).toBe(200);
+    expect((await s.fetch("/static/fonts/OFL-funnel-sans.txt")).status).toBe(200);
+    const logo = await s.fetch("/static/logo/lockin-favicon.svg");
     expect(logo.status).toBe(200);
     expect(logo.headers.get("content-type")).toBe("image/svg+xml");
   });
@@ -91,7 +91,7 @@ describe("static files (TECH-SPEC 9.1, 4.5)", () => {
     expect(safeRelative("a/../b")).toBeNull();
     expect(safeRelative("a\\b")).toBeNull();
     expect(safeRelative("shared/base.css")).toBe("shared/base.css");
-    expect(staticPath("fonts/caveat-brush-400.woff2", diskSource())).toBe("assets/fonts/caveat-brush-400.woff2");
+    expect(staticPath("fonts/funnel-sans-wght.woff2")).toBe("assets/fonts/funnel-sans-wght.woff2");
   });
 
   test("missing files are 404", async () => {

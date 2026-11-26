@@ -80,5 +80,23 @@
     return "var(--team-" + index + ")";
   }
 
-  LockIn.view = { el: el, replace: replace, countdown: countdown, joinNames: joinNames, teamColour: teamColour };
+  /**
+   * A team's initials for its bubble: the first letter of up to two words, skipping "The"
+   * and "&" ("The Quizzly Bears" -> "QB", "Wings" -> "W", "Hops & Bobs" -> "HB").
+   * @param {string} name
+   */
+  function initials(name) {
+    var words = String(name || "").replace(/&/g, " ").split(/\s+/).filter(function (w) {
+      return w && w.toLowerCase() !== "the" && /[0-9A-Za-z\u00C0-\uFFFF]/.test(w);
+    });
+    if (words.length === 0) words = String(name || "").split(/\s+/).filter(Boolean);
+    var out = "";
+    for (var i = 0; i < words.length && out.length < 2; i++) {
+      var m = /[0-9A-Za-z\u00C0-\uFFFF]/.exec(words[i] || "");
+      if (m) out += m[0];
+    }
+    return out.toUpperCase();
+  }
+
+  LockIn.view = { el: el, replace: replace, countdown: countdown, joinNames: joinNames, teamColour: teamColour, initials: initials };
 })(typeof window !== "undefined" ? window : globalThis);

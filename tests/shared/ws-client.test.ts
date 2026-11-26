@@ -89,7 +89,7 @@ describe("ws-client.js against the server", () => {
     await s1.stop();
     await until(() => c.status === "offline");
     const s2 = await server({ dataDir: s1.dataDir, config: { port } });
-    s2.app.ws.setViewProvider((conn) => ({ seq: 3, view: { ...(c.view), venue: { name: "after restart", themeVersion: "v", teamColours: 8 }, role: conn.role } }));
+    s2.app.ws.setViewProvider((conn) => ({ seq: 3, view: { ...(c.view), venue: { name: "after restart", themeVersion: "v", teamColours: 8, countdown: "ring" }, role: conn.role } }));
     await until(() => c.status === "online", 8000);
     expect(c.view.venue.name).toBe("after restart");
     expect(events.filter((e) => e.t === "welcome")).toHaveLength(2);

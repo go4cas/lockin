@@ -46,7 +46,8 @@ Open `http://localhost:8080/host` for the host console. On first start the serve
 - [Brief](docs/BRIEF.md): where it started
 - [Requirements](docs/REQUIREMENTS.md): what each screen does, ranked for the first release
 - [Tech spec](docs/TECH-SPEC.md): architecture, data formats and the build plan
-- [Design](docs/design/README.md): tokens, venue branding, wireframes and key moments
+- [Design system](docs/DESIGN-SYSTEM.md): Last Call tokens, components, venue branding and screenshots
+- [Copy](docs/COPY.md): where each copy pool shows
 - [Release and server guide](docs/RELEASE.md): cutting a release, setting up the server behind Cloudflare, backups, moving servers
 - [Host run sheet](docs/RUN-SHEET.md): the quizmaster's checklist for a night
 - [Notes](docs/NOTES.md): decisions made along the way

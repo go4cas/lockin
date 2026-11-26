@@ -109,20 +109,15 @@ export interface ThemeFile {
   format: "lockin.theme/1";
   name: string | null;                         // venue name, fills {pub}; 1..60 chars
   logo: string | null;                         // "assets/<file>", PNG, SVG or JPEG, <= 2 MB
-  colours: {
-    background: Hex | null;
-    text: Hex | null;
-    accent: Hex | null;
-    accent2: Hex | null;
-  };
-  fonts: { display: FontRef | null; body: FontRef | null };
-  displayBackground: { colour: Hex } | { image: string } | null;   // image: "assets/<file>", JPEG/PNG/WebP <= 5 MB
+  colours: { accent: Hex | null };             // Branding "Main colour" (--venue); default Mint #7df0c3
+  countdown: CountdownStyle | null;            // countdown style on all three screens; default "ring"
+  displayBackground: { image: string } | null; // TV picture under a 78% Ink scrim: "assets/<file>", JPEG/PNG/WebP <= 5 MB
   copy: Record<string, { mode: "replace" | "add"; lines: string[] }>;  // key = copy pool key
 }
 export type Hex = string;                      // "#rrggbb", sRGB
-export type FontRef = { bundled: string }      // display: "caveat-brush" (default), "alfa-slab-one", "bebas-neue",
-                                               //   "atkinson-hyperlegible"; body: "atkinson-hyperlegible" (default)
-                    | { file: string };        // "assets/<file>", WOFF2, WOFF or TTF <= 2 MB
+export type CountdownStyle = "number" | "ring" | "bar" | "dashed" | "flip";
+export const COUNTDOWN_STYLES: readonly CountdownStyle[] = ["number", "ring", "bar", "dashed", "flip"];
+export const DEFAULT_COUNTDOWN: CountdownStyle = "ring";
 
 // ---------------------------------------------------------------------------
 // 5.4 Venue settings: venue.json
@@ -164,18 +159,13 @@ export const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
 
 export const HOLDING_PANELS: readonly HoldingPanel[] = ["countdown", "teams", "join", "install", "animation", "prizes"];
 
-/** Bundled font ids (Design, docs/design/branding.md). Display may use any of them. */
-export const BUNDLED_FONTS: readonly string[] = ["caveat-brush", "alfa-slab-one", "bebas-neue", "atkinson-hyperlegible"];
-/** The only bundled body font (Design, docs/design/branding.md). */
-export const BUNDLED_BODY_FONTS: readonly string[] = ["atkinson-hyperlegible"];
-
 export function defaultTheme(): ThemeFile {
   return {
     format: THEME_FORMAT,
     name: null,
     logo: null,
-    colours: { background: null, text: null, accent: null, accent2: null },
-    fonts: { display: null, body: null },
+    colours: { accent: null },
+    countdown: null,
     displayBackground: null,
     copy: {},
   };
@@ -549,25 +539,6 @@ function assetPath(v: unknown, exts: string[]): boolean {
   return exts.includes(ext);
 }
 
-function validateFont(v: unknown, path: string, label: "display" | "body", add: (p: string, m: string) => void): FontRef | null | undefined {
-  if (v === null || v === undefined) return null;
-  if (isObj(v) && typeof v.bundled === "string") {
-    const allowed = label === "body" ? BUNDLED_BODY_FONTS : BUNDLED_FONTS;
-    if (allowed.includes(v.bundled)) return { bundled: v.bundled };
-    add(path, label === "body" && BUNDLED_FONTS.includes(v.bundled)
-      ? `"${v.bundled}" is a headline font. The body font must be Atkinson Hyperlegible or an uploaded font.`
-      : `The ${label} font "${v.bundled}" is not one of Lock-In's bundled fonts.`);
-    return undefined;
-  }
-  if (isObj(v) && v.file !== undefined) {
-    if (assetPath(v.file, ["woff2", "woff", "ttf"])) return { file: v.file as string };
-    add(path, `The ${label} font file must be a WOFF2, WOFF or TTF file in the theme's assets folder.`);
-    return undefined;
-  }
-  add(path, `The ${label} font must be a bundled font or an uploaded font file.`);
-  return undefined;
-}
-
 /** Validates a theme file (TECH-SPEC 5.3). Missing fields mean "use the default". */
 export function validateTheme(json: unknown): Validated<ThemeFile> {
   const problems: Problem[] = [];
@@ -591,38 +562,30 @@ export function validateTheme(json: unknown): Validated<ThemeFile> {
     else add("logo", "The logo must be a PNG, SVG or JPEG file in the theme's assets folder.");
   }
 
+  // v1 themes also had background, text and accent2 colours, fonts and a background colour:
+  // they still load, and those fields are ignored (the Last Call look fixes them).
   if (json.colours !== undefined && json.colours !== null) {
     if (!isObj(json.colours)) add("colours", "The colours are not a JSON object.");
     else {
-      const names = { background: "background", text: "text", accent: "main", accent2: "second" } as const;
-      for (const key of Object.keys(names) as (keyof typeof names)[]) {
-        const c = json.colours[key];
-        if (c === undefined || c === null) continue;
-        if (typeof c === "string" && HEX.test(c)) t.colours[key] = c.toLowerCase();
-        else add(`colours.${key}`, `The ${names[key]} colour must be a colour code like #1a2b3c.`);
+      const c = json.colours.accent;
+      if (c !== undefined && c !== null) {
+        if (typeof c === "string" && HEX.test(c)) t.colours.accent = c.toLowerCase();
+        else add("colours.accent", "The main colour must be a colour code like #1a2b3c.");
       }
     }
   }
 
-  if (json.fonts !== undefined && json.fonts !== null) {
-    if (!isObj(json.fonts)) add("fonts", "The fonts are not a JSON object.");
-    else {
-      const d = validateFont(json.fonts.display, "fonts.display", "display", add);
-      if (d !== undefined) t.fonts.display = d;
-      const b = validateFont(json.fonts.body, "fonts.body", "body", add);
-      if (b !== undefined) t.fonts.body = b;
-    }
+  if (json.countdown !== undefined && json.countdown !== null) {
+    if (oneOf(json.countdown, COUNTDOWN_STYLES)) t.countdown = json.countdown;
+    else add("countdown", "The countdown style must be number, ring, bar, dashed or flip.");
   }
 
   if (json.displayBackground !== undefined && json.displayBackground !== null) {
     const bg = json.displayBackground;
-    if (isObj(bg) && bg.colour !== undefined) {
-      if (typeof bg.colour === "string" && HEX.test(bg.colour)) t.displayBackground = { colour: bg.colour.toLowerCase() };
-      else add("displayBackground.colour", "The display background colour must be a colour code like #1a2b3c.");
-    } else if (isObj(bg) && bg.image !== undefined) {
+    if (isObj(bg) && bg.image !== undefined) {
       if (assetPath(bg.image, ["jpg", "jpeg", "png", "webp"])) t.displayBackground = { image: bg.image as string };
       else add("displayBackground.image", "The display background picture must be a JPEG, PNG or WebP file in the theme's assets folder.");
-    } else add("displayBackground", "The display background must be a colour or a picture.");
+    } else if (!(isObj(bg) && bg.colour !== undefined)) add("displayBackground", "The display background must be a picture.");
   }
 
   if (json.copy !== undefined && json.copy !== null) {

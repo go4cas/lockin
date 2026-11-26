@@ -50,10 +50,15 @@ export interface LockInGlobal {
   createClock(): LockInClock;
   /** Where this build's source is (AGPL section 13), set in public/shared/source.js. */
   readonly SOURCE_URL?: string;
+  /** The lock in lockup as a DOM node (host console, public/host/nav.js). */
+  readonly lockup?: (mono: boolean) => HTMLElement;
+  /** The host console's top nav (public/host/nav.js): marks Run night while a night is open. */
+  readonly nav?: { setNight(roomCode: string | null): void };
   readonly view: {
     countdown(ms: number, short?: boolean): string;
     joinNames(names: string[]): string;
     teamColour(index: number): string;
+    initials(name: string): string;
     el(tag: string, attrs?: Record<string, unknown>, children?: unknown[]): HTMLElement;
     replace(node: Element, children: unknown[]): void;
   };

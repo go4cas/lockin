@@ -39,9 +39,9 @@ describe("public/display/index.html", () => {
     expect(page).not.toContain("importmap");
   });
 
-  test("shows the Powered by Lock-In credit and the reconnecting badge (T-10, T-11)", () => {
+  test("shows the Powered by lock in credit and the reconnecting badge (T-10, T-11)", () => {
     const mod = read("public/display/display.mjs");
-    expect(mod).toContain("Powered by <b>Lock-In</b>");
+    expect(mod).toContain('<span class="credit-by">Powered by</span>${lockup(html, "mono")}');
     expect(mod).toContain("Reconnecting…");
   });
 });
@@ -106,7 +106,7 @@ describe("GET /display (TECH-SPEC 9.1)", () => {
   });
 
   test("its scripts and styles are served from /static/display/", async () => {
-    for (const f of ["check.js", "display.mjs", "logic.mjs", "display.css", "fonts.css"]) {
+    for (const f of ["check.js", "display.mjs", "logic.mjs", "display.css"]) {
       const res = await s.fetch(`/static/display/${f}`, { origin: null });
       expect(res.status).toBe(200);
     }

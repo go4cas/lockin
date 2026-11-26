@@ -290,12 +290,20 @@ export function myRow(view) {
   return view.standings.rows.find((r) => r.teamId === id) ?? null;
 }
 
+/** How many other teams share this team's place. @param {TeamView | null} view */
+export function sharedWith(view) {
+  const me = myRow(view);
+  if (!me || !view || !view.standings) return 0;
+  return view.standings.rows.filter((r) => r.position === me.position && r.teamId !== me.teamId).length;
+}
+
 /**
  * One plain line on how the place was decided.
  * @param {{ shared: boolean; decidedBy: string }} row
+ * @param {number} [others]  how many other teams share the place
  */
-export function decidedLine(row) {
-  if (row.shared) return "Shared with another team";
+export function decidedLine(row, others = 1) {
+  if (row.shared) return others > 1 ? `Shared with ${others} other teams` : "Shared with another team";
   if (row.decidedBy === "tie_breaker") return "Tied on points, ahead on round wins";
   if (row.decidedBy === "sudden_death") return "Decided by sudden death";
   return "";
@@ -319,7 +327,7 @@ export function progressLabel(view, q) {
   const r = view?.night?.round;
   if (!r) return "";
   if (view?.night?.lockMode === "round" || !q) return `Round ${r.index + 1}`;
-  return `R${r.index + 1} · Q${q.number} of ${r.questionCount}`;
+  return `R${r.index + 1} · ${String(q.number).padStart(2, "0")}/${String(r.questionCount).padStart(2, "0")}`;
 }
 
 /**

@@ -69,7 +69,7 @@ async function routes(page, state, mutate, opts) {
     const p = new URL(r.request().url()).pathname;
     r.fulfill({ path: path.join(ROOT, "public", p), contentType: "text/javascript" });
   });
-  await page.route(/\/qr\/join\.svg/, (r) => r.fulfill({ path: path.join(ROOT, "docs/design/wireframes/qr-placeholder.svg"), contentType: "image/svg+xml" }));
+  await page.route(/\/qr\/join\.svg/, (r) => r.fulfill({ body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><rect width="29" height="29" fill="#fff"/><path d="M2 2h7v7H2zM20 2h7v7h-7zM2 20h7v7H2z" fill="#000"/></svg>', contentType: "image/svg+xml" }));
   await page.route(/\/media\/q\//, (r) => r.fulfill({ body: PICTURE, contentType: "image/svg+xml" }));
   if (mutate) {
     await page.routeWebSocket(/\/ws/, (ws) => {

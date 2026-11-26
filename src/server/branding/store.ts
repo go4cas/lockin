@@ -71,9 +71,7 @@ export class BrandingStore {
   private missingAssets(t: ThemeFile): Problem[] {
     const refs: [string, string | undefined][] = [
       ["logo", t.logo ?? undefined],
-      ["fonts.display", t.fonts.display && "file" in t.fonts.display ? t.fonts.display.file : undefined],
-      ["fonts.body", t.fonts.body && "file" in t.fonts.body ? t.fonts.body.file : undefined],
-      ["displayBackground.image", t.displayBackground && "image" in t.displayBackground ? t.displayBackground.image : undefined],
+      ["displayBackground.image", t.displayBackground?.image],
     ];
     const problems: Problem[] = [];
     for (const [path, ref] of refs) {

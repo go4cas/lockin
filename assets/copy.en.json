@@ -1,5 +1,5 @@
 {
-  "$comment": "Lock-In copy pools. The app picks a random line from a pool, avoiding the last one shown. Placeholders: {team}, {pub}, {round}, {n}, {seconds}. A line is skipped when a placeholder has no value, and a line with {n} is skipped when n is less than 2. Where each pool is shown: docs/design/copy-review.md. A venue theme can override or extend any pool.",
+  "$comment": "Lock-In copy pools. The app picks a random line from a pool, avoiding the last one shown. Placeholders: {team}, {pub}, {round}, {n}, {seconds}. A line is skipped when a placeholder has no value, and a line with {n} is skipped when n is less than 2. Where each pool is shown: docs/COPY.md. A venue theme can override or extend any pool.",
   "taglines": [
     "Lock in your answers.",
     "The quiz that stays open late.",

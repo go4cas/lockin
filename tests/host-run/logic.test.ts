@@ -225,9 +225,9 @@ describe("console code", () => {
 
   test("hide answers: every place the console shows an answer before the reveal can blur", () => {
     const asking = readFileSync(join(dir, "asking.js"), "utf8");
-    expect(asking).toContain(`Answer: <b class="secret"`);
+    expect(asking).toContain(`<span class="label-s">Answer</span><b class="secret ans-text"`);
     expect(asking.match(/class="a secret"/g)?.length).toBe(2);   // the round script and "shown so far"
-    expect(asking).toContain(`<span class="secret">\${() => q()?.note`);
+    expect(asking).toContain(`<span class="secret fog">\${() => q()?.note`);
     expect(readFileSync(join(dir, "marking.js"), "utf8")).toContain(`class="accepted secret"`);
     const css = readFileSync(join(dir, "run.css"), "utf8");
     expect(css).toContain(".hide-answers .secret:not([data-peek])");
@@ -248,7 +248,7 @@ describe("console code", () => {
 
   test("Arrow comes from the vendored path only", () => {
     const imports = [...code.matchAll(/from "([^"]+)"/g)].map((m) => m[1]!);
-    for (const i of imports) expect(i === "/vendor/arrow/index.mjs" || i === "/static/shared/parts.mjs" || i.startsWith("./")).toBe(true);
+    for (const i of imports) expect(i === "/vendor/arrow/index.mjs" || /^\/static\/shared\/(parts|countdown|mark)\.mjs$/.test(i) || i.startsWith("./")).toBe(true);
   });
 });
 

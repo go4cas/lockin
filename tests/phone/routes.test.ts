@@ -58,22 +58,22 @@ describe("manifest", () => {
     for (const icon of m.icons) expect((await s.fetch(icon.src)).status).toBe(200);
   });
 
-  test("with a theme: the venue's name, logo and background colour", async () => {
+  test("with a theme: the venue's name and logo; the colours stay Ink", async () => {
     mkdirSync(join(s.dataDir, "theme"), { recursive: true });
     writeFileSync(join(s.dataDir, "theme", "theme.json"), JSON.stringify({
       ...defaultTheme(), name: "The Example Arms", logo: "assets/logo-1a2b.png",
-      colours: { background: "#102030", text: null, accent: null, accent2: null },
+      colours: { accent: "#d9a441" },
     }));
     const m = await (await s.fetch("/manifest.webmanifest")).json();
     expect(m.name).toBe("The Example Arms");
     expect(m.short_name).toBe("The Example");
-    expect(m.background_color).toBe("#102030");
+    expect(m.background_color).toBe("#0b0b0c");
     expect(m.icons[0]).toEqual({ src: "/theme/assets/logo-1a2b.png", sizes: "512x512", type: "image/png", purpose: "any" });
     const page = await (await s.fetch("/j/BKTW")).text();
     expect(page).toContain("<title>The Example Arms</title>");
     expect(page).toContain('<meta name="apple-mobile-web-app-title" content="The Example Arms">');
     expect(page).toContain('<link rel="apple-touch-icon" href="/theme/assets/logo-1a2b.png">');
-    expect(page).toContain('<meta name="theme-color" content="#102030">');
+    expect(page).toContain('<meta name="theme-color" content="#0b0b0c">');
   });
 
   test("a broken theme file falls back to Lock-In", async () => {
@@ -98,7 +98,7 @@ describe("manifest", () => {
   test("the placeholders personalise() replaces are all in the page", () => {
     const page = readFileSync(join(ROOT, "public/phone/index.html"), "utf8");
     for (const s of ["<title>Lock-In</title>", '<meta name="apple-mobile-web-app-title" content="Lock-In">',
-      '<link rel="apple-touch-icon" href="/static/phone/icons/apple-touch-icon.png">', '<meta name="theme-color" content="#17191b">']) {
+      '<link rel="apple-touch-icon" href="/static/phone/icons/apple-touch-icon.png">', '<meta name="theme-color" content="#0b0b0c">']) {
       expect(page).toContain(s);
     }
   });
@@ -119,7 +119,7 @@ describe("service worker app shell", () => {
     for (const url of shell) {
       if (url === "/") continue;
       const file = url.startsWith("/vendor/") ? join(ROOT, "public", url)
-        : url.startsWith("/static/fonts/") ? join(ROOT, "assets/fonts", url.slice(14).replace(/^([a-z-]+)\.woff2$/, "$1-400.woff2"))
+        : url.startsWith("/static/fonts/") ? join(ROOT, "assets/fonts", url.slice(14))
         : url.startsWith("/static/logo/") ? join(ROOT, "assets/logo", url.slice(13))
         : url === "/static/shared/tokens.css" ? join(ROOT, "assets/tokens.css")
         : join(ROOT, "public", url.slice(8));

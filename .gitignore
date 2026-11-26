@@ -12,6 +12,7 @@ dist/
 src/server/embedded.ts
 
 # Tooling
+tests/phone/screens/
 node_modules/
 .DS_Store
 *.log

@@ -9,7 +9,7 @@
 // "default" walks a whole night in the out-of-the-box theme; "branded" walks a short
 // night with a made-up venue theme, to show what branding changes.
 
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "../../tools/browser/playwright.mjs";
 import { DEFAULT_QUIZ_SETTINGS, QUIZ_FORMAT, type Question, type QuizFile } from "../../src/shared/formats.ts";
@@ -147,7 +147,15 @@ async function snap(step: string, note: string, only?: (c: Client) => boolean, s
     if (c.page.isClosed()) continue;
     const file = `${c.folder}/${String(n).padStart(3, "0")}-${step}${c.folder === "phone" ? `--${c.name.replace(/\W+/g, "-").toLowerCase()}` : ""}.png`;
     mkdirSync(join(OUT, c.folder), { recursive: true });
-    await c.page.screenshot({ path: join(OUT, file), fullPage: c.full });
+    if (c.full) {
+      // Grow the viewport to the page so sticky parts (the run footer) sit where a person
+      // scrolled to the bottom would see them, not over the middle of a long page.
+      const size = c.page.viewportSize();
+      const h = await c.page.evaluate(() => document.documentElement.scrollHeight);
+      if (size && h > size.height) await c.page.setViewportSize({ width: size.width, height: h });
+      await c.page.screenshot({ path: join(OUT, file) });
+      if (size && h > size.height) await c.page.setViewportSize(size);
+    } else await c.page.screenshot({ path: join(OUT, file) });
     files.push(file);
   }
   index.push({ step: `${String(n).padStart(3, "0")} ${step}`, note, files });
@@ -185,11 +193,14 @@ async function main() {
     mkdirSync(join(dataDir, "theme", "assets"), { recursive: true });
     writeFileSync(join(dataDir, "theme", "assets", "logo.svg"),
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="94" fill="#d9a441"/><circle cx="100" cy="100" r="80" fill="none" stroke="#1f2a24" stroke-width="6"/><path d="M52 70 L78 48 L92 80 L108 80 L122 48 L148 70 L132 120 L100 150 L68 120 Z" fill="#1f2a24"/></svg>`);
+    copyFileSync(join(import.meta.dir, "pub-picture.jpg"), join(dataDir, "theme", "assets", "tv-picture.jpg"));
     writeFileSync(join(dataDir, "theme", "theme.json"), JSON.stringify({
       format: "lockin.theme/1", name: "The Crooked Fox", logo: "assets/logo.svg",
+      // background/text/accent2 and fonts are pre-Last Call keys: still accepted, ignored.
       colours: { background: "#1f2a24", text: "#f3ead7", accent: "#d9a441", accent2: "#7fc4a8" },
       fonts: { display: { bundled: "alfa-slab-one" }, body: { bundled: "atkinson-hyperlegible" } },
-      displayBackground: null, copy: {},
+      countdown: "bar",
+      displayBackground: { image: "assets/tv-picture.jpg" }, copy: {},
     }, null, 2));
   }
 

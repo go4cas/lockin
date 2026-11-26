@@ -1,14 +1,13 @@
 // B4: venue theme, venue settings, /theme.css and the copy pools
-// (TECH-SPEC 5.3 to 5.5, 8.6, 9; docs/design/branding.md).
+// (TECH-SPEC 5.3 to 5.5, 8.6, 9; docs/DESIGN-SYSTEM.md).
 //
 // The store and the copy picker are built by the composition root (services.ts,
 // code review LI-020); other modules use app.services.branding and
 // app.services.copyPicker.
 
 import type { App } from "../app.ts";
-import { BUNDLED_FONTS, validateTheme } from "../../shared/formats.ts";
+import { COUNTDOWN_STYLES, validateTheme } from "../../shared/formats.ts";
 import { UPLOAD_CSP, errorResponse, json, BodyTooLarge, readFormBody, readJsonBody } from "../http.ts";
-import { BUNDLED_FONT_INFO } from "./derive.ts";
 import { ASSET_KINDS, ASSET_RULES, type AssetKind } from "./assets.ts";
 import { themeCss } from "./theme-css.ts";
 
@@ -16,7 +15,6 @@ export { BrandingStore } from "./store.ts";
 
 const CONTENT_TYPES: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", svg: "image/svg+xml",
-  woff2: "font/woff2", woff: "font/woff", ttf: "font/ttf",
 };
 
 function cssResponse(req: Request, css: string): Response {
@@ -55,9 +53,7 @@ export function register(app: App): void {
 
   // --- host API (9.2) ---------------------------------------------------------
 
-  const bundledFonts = BUNDLED_FONTS.map((id) => ({ id, name: BUNDLED_FONT_INFO.find((f) => f.id === id)?.family ?? id }));
-
-  app.route("GET", "/api/theme", () => json({ theme: store.theme(), version: store.themeVersion(), bundledFonts, problems: store.themeProblems() }), { host: true });
+  app.route("GET", "/api/theme", () => json({ theme: store.theme(), version: store.themeVersion(), countdownStyles: COUNTDOWN_STYLES, problems: store.themeProblems() }), { host: true });
 
   app.route("PUT", "/api/theme", async (req) => {
     const body = await readJsonBody(req);
@@ -69,19 +65,19 @@ export function register(app: App): void {
 
   app.route("POST", "/api/theme/assets", async (req) => {
     const length = Number(req.headers.get("content-length") ?? "0");
-    if (length > 6 * 1024 * 1024) return errorResponse(413, "too_big", "That file is too big. Logos and fonts can be up to 2 MB, pictures up to 5 MB.");
+    if (length > 6 * 1024 * 1024) return errorResponse(413, "too_big", "That file is too big. Logos can be up to 2 MB, pictures up to 5 MB.");
     // Counted while it is read, so a chunked body is stopped at the limit too (SA-02).
     let form: FormData | null;
     try {
       form = await readFormBody(req, 6 * 1024 * 1024);
     } catch (e) {
       if (!(e instanceof BodyTooLarge)) throw e;
-      return errorResponse(413, "too_big", "That file is too big. Logos and fonts can be up to 2 MB, pictures up to 5 MB.");
+      return errorResponse(413, "too_big", "That file is too big. Logos can be up to 2 MB, pictures up to 5 MB.");
     }
     if (!form) return errorResponse(400, "bad_request", "Send the file as a form upload.");
     const kind = form.get("kind");
     if (typeof kind !== "string" || !(ASSET_KINDS as readonly string[]).includes(kind)) {
-      return errorResponse(400, "bad_request", "Say whether the file is the logo, the display background or a font.");
+      return errorResponse(400, "bad_request", "Say whether the file is the logo or the display background picture.");
     }
     const file = form.get("file");
     if (!file || typeof file === "string") return errorResponse(400, "bad_request", "No file was sent.");
@@ -120,6 +116,6 @@ export function register(app: App): void {
         status: 400, headers: { "Content-Type": "text/css; charset=utf-8" },
       });
     }
-    return cssResponse(req, themeCss(v.value, { selector: ".lockin-preview", familyPrefix: "Lock-In Preview" }));
+    return cssResponse(req, themeCss(v.value, { selector: ".lockin-preview" }));
   }, { host: true });
 }

@@ -14,7 +14,7 @@ import { imageUrl } from "./media.ts";
 
 function common(e: Engine): Omit<Common, "flash"> {
   const v = e.venue();
-  return { phase: e.m ? e.state.phase : "idle", venue: { name: v.name, themeVersion: v.themeVersion, teamColours: TEAM_COLOURS }, night: nightInfo(e) };
+  return { phase: e.m ? e.state.phase : "idle", venue: { name: v.name, themeVersion: v.themeVersion, teamColours: TEAM_COLOURS, countdown: v.countdown }, night: nightInfo(e) };
 }
 
 function roundInfo(e: Engine, r: number): RoundInfo {
@@ -80,8 +80,12 @@ function timerView(e: Engine, qid: string): TimerView {
   return { state: "idle", durationMs, locksAt: null, remainingMs: null };
 }
 
+function answeredIds(e: Engine, qid: string): string[] {
+  return e.participants(qid).filter((t) => !!e.answer(t, qid)?.value);
+}
+
 function answeredCount(e: Engine, qid: string): number {
-  return e.participants(qid).filter((t) => !!e.answer(t, qid)?.value).length;
+  return answeredIds(e, qid).length;
 }
 
 function questionPublic(e: Engine, qid: string): QuestionPublic {
@@ -98,6 +102,7 @@ function questionPublic(e: Engine, qid: string): QuestionPublic {
     status: e.state.questions[qid]?.status === "locked" ? "locked" : "open",
     timer: timerView(e, qid),
     answered: answeredCount(e, qid),
+    answeredIds: answeredIds(e, qid),
     of: e.participants(qid).length,
   };
 }

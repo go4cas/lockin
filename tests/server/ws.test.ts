@@ -170,7 +170,7 @@ describe("plug-in points for the engine", () => {
     let seq = 7;
     s.app.ws.setViewProvider((conn) => ({
       seq,
-      view: { ...(JSON.parse(JSON.stringify(idle(conn.role!)))), venue: { name: `for ${conn.teamId ?? conn.role}`, themeVersion: "v", teamColours: 8 } },
+      view: { ...(JSON.parse(JSON.stringify(idle(conn.role!)))), venue: { name: `for ${conn.teamId ?? conn.role}`, themeVersion: "v", teamColours: 8, countdown: "ring" } },
     }));
     try {
       const team = await client({ role: "team" });
