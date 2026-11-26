@@ -9,9 +9,11 @@ import { html, reactive, nextTick } from "/vendor/arrow/index.mjs";
 import {
   FLASH_MS, PAGE_FLIP_MS, PANEL_MS,
   boardLayout, byId, choiceIndex, clockTime, countdownText, endStage, footerLine, movement, holdingPanels, letter,
-  lockShouldSnap, ordinal, pageBrand, questionSize, revealProgress, screenFor, themeReloadDue, timerNow, wonTieBreak,
+  lockShouldSnap, ordinal, pageBrand, questionSize, revealProgress, screenFor, themeReloadDue, wonTieBreak,
 } from "./logic.mjs";
 import { recovery } from "/static/shared/parts.mjs";
+import { countdown } from "/static/shared/countdown.mjs";
+import { lockup, mark } from "/static/shared/mark.mjs";
 
 /** @typedef {import("../../src/shared/protocol").DisplayView} DisplayView */
 /** @typedef {import("../../src/shared/protocol").TeamChip} TeamChip */
@@ -58,7 +60,7 @@ function start() {
   // Remount only for errors from rendering code (Arrow and the display's own modules), at
   // most 3 times a minute, so an error that comes straight back can't loop (code review
   // LI-017). The old tree is disposed first: its timers and QR fetch stop touching the page.
-  const recover = recovery({ limit: 3, windowMs: 60_000, sources: ["/vendor/arrow/", "/static/display/", "/static/shared/parts.mjs"] });
+  const recover = recovery({ limit: 3, windowMs: 60_000, sources: ["/vendor/arrow/", "/static/display/", "/static/shared/parts.mjs", "/static/shared/countdown.mjs", "/static/shared/mark.mjs"] });
   let remounting = false;
   window.addEventListener("error", function (e) {
     if (remounting || !recover.isRenderError(e, window.location.origin)) return;
@@ -286,45 +288,53 @@ function createDisplay(root, now) {
 
   /** Stand-ins used for one last redraw of a screen whose data just left the view. */
   /** @type {QuestionPublic} */
-  const EMPTY_Q = { id: "", roundIndex: 0, number: 0, text: "", image: null, input: { type: "text" }, status: "locked", timer: { state: "done", durationMs: 1, locksAt: null, remainingMs: null }, answered: 0, of: 0 };
+  const EMPTY_Q = { id: "", roundIndex: 0, number: 0, text: "", image: null, input: { type: "text" }, status: "locked", timer: { state: "done", durationMs: 1, locksAt: null, remainingMs: null }, answered: 0, answeredIds: [], of: 0 };
   /** @type {NonNullable<DisplayView["suddenDeath"]>} */
   const EMPTY_SD = { position: 1, teams: [], out: [], questionNumber: 0, maxQuestions: 0, question: null, status: "waiting", rightIds: null, outcome: null };
 
   /** A fresh tick each time: one template instance must not be mounted in two places. */
   const tick = () => html`<svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-  /** The Lock-In padlock. Inline (not <use>) so CSS can move the shackle on its own. @param {string} cls */
-  function padlock(cls) {
-    return html`<svg class="${cls}" viewBox="0 0 100 120" aria-hidden="true"><path class="shackle" d="M28 58 V36 A22 22 0 0 1 72 36 V58"/><rect class="body" x="10" y="54" width="80" height="62" rx="13"/><path class="qmark" d="M40 75 A10 10 0 1 1 55.5 83.3 C51.5 86 50 88 50 92"/><circle class="hole" cx="50" cy="104" r="4.6"/></svg>`;
+  /** The venue's logo, or the lock in lockup when the venue has none. @param {string} cls */
+  function brandMark(cls) {
+    return BRAND.logo ? html`<img class="${"venue-logo " + cls}" src="${BRAND.logo}" alt="">` : lockup(html, cls);
   }
 
-  /** The venue logo (the Lock-In mark when the venue has none) and venue name. */
+  /** A team bubble: team colour with initials, or an empty ring while waiting. @param {TeamChip} c @param {string} [cls] */
+  function bubble(c, cls) {
+    return html`<span class="${"bubble" + (cls ? " " + cls : "")}" style="${"--b:" + LockIn.view.teamColour(c.colour)}">${LockIn.view.initials(c.name)}</span>`;
+  }
+
+  /**
+   * The venue's own name, or "" when the theme names none: the server then sends Lock-In's
+   * name (DEFAULT_VENUE_NAME in src/server/night/sources.ts) and the lockup stands in for it.
+   */
+  const venueName = () => {
+    const n = page.view ? v().venue.name : "";
+    return n === "Lock-In" ? "" : n;
+  };
+
+  /** Header: venue logo and name (or the screen's title), round and topic, question number. */
   function head() {
+    const showLockup = () => !BRAND.logo && !sp().title && !venueName();
     return html`<div class="display-head">
-      <div class="display-logo">${BRAND.logo ? html`<img class="venue-logo" src="${BRAND.logo}" alt="">` : padlock("mark")}<span>${() => (page.view ? v().venue.name : "")}</span></div>
-      <div class="display-strip"><span class="strip-in">${() => sp().a}<b>${() => sp().b}</b>${() => sp().c}<b>${() => sp().d}</b>${() => sp().e}<span class="display-pips">${() => stripPips()}</span></span></div>
+      <div class="head-venue">${BRAND.logo ? html`<img class="venue-logo" src="${BRAND.logo}" alt="">` : ""}<span class="head-lockup" hidden="${() => !showLockup()}">${lockup(html)}</span><span class="head-name">${() => sp().title || venueName()}</span></div>
+      <div class="head-strip">${() => sp().strip}</div>
+      <div class="head-right"><span class="head-num">${() => sp().num}</span><span class="head-of">${() => sp().of}</span><span class="head-venue-r">${() => sp().right}</span></div>
     </div>`;
   }
 
-  /** @param {TeamChip} c @param {boolean} [joker] */
+  /** A team in a list: bubble, name, and the JOKER tag when it plays one. @param {TeamChip} c @param {boolean} [joker] */
   function chip(c, joker) {
-    return html`<div class="chip"><i style="${"background:" + LockIn.view.teamColour(c.colour)}"></i><span class="chip-name">${c.name}</span><span class="${joker ? "joker" : "off"}">${joker ? "JOKER" : ""}</span></div>`.key(c.id);
-  }
-
-  /** Question pips in the header: done, now, to come. @param {number} current 1-based */
-  function pips(/** @type {number} */ count, current) {
-    const out = [];
-    for (let i = 1; i <= count; i++) out.push(html`<i class="${i < current ? "done" : i === current ? "now" : ""}"></i>`.key(i));
-    return out;
+    return html`<div class="chip">${bubble(c)}<span class="chip-name">${c.name}</span><span class="${joker ? "joker-tag" : "off"}">${joker ? "JOKER" : ""}</span></div>`.key(c.id);
   }
 
   /** The join block: QR (B8's /qr/join.svg), address and room code. @param {boolean} small */
   function joinBlock(small) {
-    return html`<div class="${small ? "join panel join-side" : "join join-main"}">
-      ${small ? html`<div class="t-xs b join-title">Join now</div>` : ""}
+    return html`<div class="${small ? "join join-side" : "join join-main"}">
       <div class="qr"><img src="${() => page.qr}" alt="" hidden="${() => !page.qr}"></div>
       <div class="join-url">${small ? "" : "Scan, or go to "}<b>${() => hostOf(withNight((n) => n.joinUrl, ""))}</b></div>
-      ${small ? "" : html`<div class="code-label">Room code</div>`}
+      <div class="overline code-label">Room code</div>
       <div class="code">${() => withNight((n) => n.roomCode, "")}</div>
     </div>`;
   }
@@ -349,9 +359,9 @@ function createDisplay(root, now) {
 
   function idleScreen() {
     return html`<div class="display-main col center">
-      ${BRAND.logo ? html`<img class="idle-logo" src="${BRAND.logo}" alt="">` : padlock("lock idle-mark")}
-      <div class="t-xl b mt3 venue-name">${() => (page.view ? v().venue.name : "")}</div>
-      <div class="display t-l mt2 status-colour">${BRAND.tagline}</div>
+      ${brandMark("idle-mark")}
+      <div class="moment-title mt3 venue-name">${venueName}</div>
+      <div class="voice-line mt2">${BRAND.tagline}</div>
     </div>`;
   }
 
@@ -361,35 +371,37 @@ function createDisplay(root, now) {
   /** Not paired yet (REVIEW finding 4): only the pairing code, which the host types on the console. */
   function pairingScreen() {
     return html`<div class="display-main col center">
-      ${BRAND.logo ? html`<img class="idle-logo" src="${BRAND.logo}" alt="">` : padlock("lock idle-mark")}
-      <div class="t-l b mt3 venue-name">${() => (page.view ? v().venue.name : "")}</div>
-      <div class="t-s muted mt3">${() => (pairCode() ? 'Quizmaster: to show the quiz here, type this code on the console under "Pair a display".' : "Too many screens are waiting to be paired. Reload this page in a minute.")}</div>
-      <div class="pair-code mt2">${() => pairCode()}</div>
+      ${brandMark("idle-mark small")}
+      <div class="t-s fog mt4 pair-help">${() => (pairCode() ? 'Quizmaster: to show the quiz here, type this code on the console under "Pair a display".' : "Too many screens are waiting to be paired. Reload this page in a minute.")}</div>
+      <div class="pair-code mt3">${() => pairCode()}</div>
+      <div class="t-xs muted mt3">${venueName}</div>
     </div>`;
   }
 
   function connectingScreen() {
     return html`<div class="display-main col center">
-      ${padlock("lock idle-mark")}
-      <div class="t-s muted mt3">Connecting to the quiz…</div>
+      ${lockup(html, "idle-mark")}
+      <div class="t-xs muted mt4">Connecting to the quiz…</div>
     </div>`;
   }
 
   function lobbyScreen() {
-    return html`<div class="display-main row">
+    return html`<div class="display-main row lobby-main">
       ${joinBlock(false)}
-      <div class="grow col">
-        <div class="display t-l">${() => v().lines.lobby || "Scan the code to join."}</div>
-        <div class="t-xs muted mt3">${() => teamCountText(v().teams.length)}</div>
-        <div class="${() => "chips lobby-chips mt2" + (v().teams.length <= 4 ? " big" : v().teams.length > 20 ? " many lots" : v().teams.length > 12 ? " many" : "")}">${() => { fitChipsSoon(); return v().teams.map(function (c) { return chip(c); }); }}</div>
+      <div class="grow col lobby-side">
+        <div class="row lobby-count"><span class="big-num">${() => pad2(v().teams.length)}</span><span class="t-s muted">${() => (v().teams.length === 1 ? "team in" : "teams in")}</span></div>
+        <div class="t-xs muted mt1">${() => (v().teams.length === 0 ? "No teams yet. Be the first." : "")}</div>
+        <div class="${() => "chips lobby-chips mt3" + (v().teams.length <= 4 ? " big" : v().teams.length > 20 ? " many lots" : v().teams.length > 12 ? " many" : "")}">${() => { fitChipsSoon(); return v().teams.map(function (c) { return chip(c); }); }}</div>
         <div class="t-xs muted chips-more" hidden="${() => page.chipsMore === 0}">${() => "+" + page.chipsMore + " more"}</div>
-        <div class="grow"></div>
         ${() => (withNight((n) => n.prizes.length > 0, false)
-          ? html`<div class="panel row prize-strip"><div class="t-xs muted mr4 nowrap">Tonight's prizes</div><div class="t-xs prize-list">${() => prizeItems(true)}</div></div>`
+          ? html`<div class="row prize-strip"><div class="overline nowrap">Tonight's prizes</div><div class="t-xs prize-list">${() => prizeItems(true)}</div></div>`
           : "")}
       </div>
     </div>`;
   }
+
+  /** Two digits for big quiet counts: "08". @param {number} n */
+  function pad2(n) { return n < 10 ? "0" + n : String(n); }
 
   /**
    * UI-05: the chips that do not fit the lobby box are hidden and counted ("+3 more"), so the
@@ -439,57 +451,55 @@ function createDisplay(root, now) {
   function holdingPanel(name) {
     const night = v().night;
     if (!night) return "";
+    const startsIn = () => countdownText(withNight((n) => n.plannedStart, /** @type {number | null} */ (null)), page.now);
     if (name === "countdown") {
       return html`<div class="grow col center fade-in">
-        <div class="t-s muted">${() => (countdownText(withNight((n) => n.plannedStart, /** @type {number | null} */ (null)), page.now) ? "The quiz starts in" : "The quiz is")}</div>
-        <div class="${() => "countdown num" + (countdownText(withNight((n) => n.plannedStart, /** @type {number | null} */ (null)), page.now) ? "" : " soon")}">${() => countdownText(withNight((n) => n.plannedStart, /** @type {number | null} */ (null)), page.now) || "Starting soon"}</div>
-        <div class="t-s">${() => (withNight((n) => (n.plannedStart !== null ? html`<span>at <b class="num">${clockTime(n.plannedStart)}</b> · </span>` : ""), ""))}<b>${() => teamCountText(v().teams.length)}</b></div>
+        <div class="overline">${() => (startsIn() ? "The quiz starts in" : "The quiz is")}</div>
+        <div class="${() => "start-count" + (startsIn() ? "" : " soon")}">${() => startsIn() || "Starting soon"}</div>
+        <div class="t-xs muted">${() => (withNight((n) => (n.plannedStart !== null ? "at " + clockTime(n.plannedStart) + " · " : ""), ""))}${() => teamCountText(v().teams.length)}</div>
       </div>`;
     }
     if (name === "teams") {
       return html`<div class="grow col fade-in">
-        <div class="t-l b">${() => teamCountText(v().teams.length)}</div>
+        <div class="row lobby-count"><span class="big-num">${() => pad2(v().teams.length)}</span><span class="t-s muted">${() => (v().teams.length === 1 ? "team in" : "teams in")}</span></div>
         <div class="chips mt3">${() => v().teams.map(function (c) { return chip(c); })}</div>
       </div>`;
     }
     if (name === "join") {
       return html`<div class="grow col fade-in panel-centre">
-        <div class="t-l b">How to join</div>
+        <div class="panel-title">How to join</div>
         <div class="steps mt3">
-          <div>Open your phone's camera and scan the code</div>
-          <div>Or go to <b>${() => hostOf(withNight((n) => n.joinUrl, ""))}</b> and type the room code</div>
-          <div>Pick a team name. One phone per team.</div>
+          <div><span class="step-n">01</span>Open your phone's camera and scan the code</div>
+          <div><span class="step-n">02</span>Or go to <b>${() => hostOf(withNight((n) => n.joinUrl, ""))}</b> and type the room code</div>
+          <div><span class="step-n">03</span>Pick a team name. One phone per team.</div>
         </div>
       </div>`;
     }
     if (name === "install") {
       return html`<div class="row fade-in panel-centre install">
-        <div class="phone-mock mr4" aria-hidden="true">
-          <div class="pm-screen"><div class="pm-title">Lock-In</div><div class="pm-line"></div><div class="pm-line short"></div></div>
-          <div class="pm-sheet"><div class="pm-sheet-row"></div><div class="pm-sheet-row add">Add to Home Screen</div><div class="pm-sheet-row"></div></div>
-          <div class="pm-home"><i></i><i></i><i></i><i class="new">${padlock("pm-icon")}</i></div>
-          <div class="bar"><i></i><i class="hl"></i><i></i><i></i></div>
-          <div class="pm-finger"></div>
+        <div class="phone-mock" aria-hidden="true">
+          <div class="pm-home"><i></i><i></i><i></i><i></i><i></i><i></i><i class="new">${mark(html)}</i></div>
+          <div class="pm-dock"><i></i><i></i><i></i><i></i></div>
         </div>
         <div class="grow col">
-          <div class="t-l b">Put the quiz on your home screen</div>
-          <div class="t-xs muted mt1">Optional. Opens full screen next week, no app store.</div>
+          <div class="panel-title">Put the quiz on your home screen</div>
+          <div class="t-xs muted mt2">Optional. Opens full screen next week, no app store.</div>
           <div class="steps mt3">
-            <div>iPhone: tap <b>Share</b>, then <b>Add to Home Screen</b></div>
-            <div>Android: tap <b>⋮</b>, then <b>Add to Home screen</b></div>
+            <div><span class="step-n">iPhone</span>Tap <b>Share</b>, then <b>Add to Home Screen</b></div>
+            <div><span class="step-n">Android</span>Tap <b>⋮</b>, then <b>Add to Home screen</b></div>
           </div>
         </div>
       </div>`;
     }
     if (name === "animation") {
       return html`<div class="grow col center fade-in">
-        ${padlock("lock brand-lock")}
-        <div class="display t-l mt3 status-colour">${BRAND.tagline}</div>
+        ${mark(html, "sweep")}
+        <div class="voice-line mt4">${BRAND.tagline}</div>
       </div>`;
     }
     if (name === "prizes") {
       return html`<div class="grow col fade-in panel-centre">
-        <div class="t-l b">Playing for</div>
+        <div class="panel-title">Playing for</div>
         <div class="prizes big mt3">${() => prizeItems(false)}</div>
       </div>`;
     }
@@ -498,12 +508,12 @@ function createDisplay(root, now) {
 
   function roundScreen() {
     const jokers = () => v().teams.filter(function (c) { return c.jokerThisRound; });
-    return html`<div class="display-main col center">
-      <div class="t-xs muted">${() => { const n = v().night; return n && n.round ? "Round " + (n.round.index + 1) + " of " + n.roundCount : ""; }}</div>
-      <div class="round-title b">${() => { const n = v().night; return n && n.round ? n.round.title : ""; }}</div>
-      ${() => (v().lines.round ? html`<div class="display t-l mt3 status-colour">${() => v().lines.round}</div>` : "")}
+    return html`<div class="display-main col round-main">
+      <div class="overline">${() => { const n = v().night; return n && n.round ? "Round " + (n.round.index + 1) + " of " + n.roundCount : ""; }}</div>
+      <div class="round-title">${() => { const n = v().night; return n && n.round ? n.round.title : ""; }}</div>
+      ${() => (v().lines.round ? html`<div class="voice-line mt3">${() => v().lines.round}</div>` : "")}
       ${() => (jokers().length
-        ? html`<div class="row mt4 jokers"><span class="t-xs muted mr3 nowrap">Jokers on this round</span><div class="chips">${() => jokers().map(function (c) { return chip(c, true); })}</div></div>`
+        ? html`<div class="jokers mt4"><div class="overline">Jokers on this round</div><div class="chips mt2">${() => jokers().map(function (c) { return chip(c, true); })}</div></div>`
         : "")}
     </div>`;
   }
@@ -511,37 +521,43 @@ function createDisplay(root, now) {
   /** @returns {QuestionPublic} */
   /** @type {any} */ let lastQ = null;
   const q = () => /** @type {QuestionPublic} */ (lastQ = (page.view && v().question) || lastQ || EMPTY_Q);
-  const tnow = () => timerNow(q().timer, page.now);
 
-  /** 5 or 6 options: the timer moves into the meta row and everything steps down a size (UI-03). */
+  /** 5 or 6 options: everything steps down a size and the countdown shrinks (UI-03). */
   const manyOpts = () => q().input.type === "choice" && /** @type {{ options: string[] }} */ (q().input).options.length > 4;
   const compact = () => !!q().image || manyOpts();
 
+  /** The venue's countdown on the TV. @param {() => any} timer */
+  function tvCountdown(timer) {
+    return countdown(html, { style: () => (page.view ? v().venue.countdown : "ring"), timer, now: () => page.now, size: "tv" });
+  }
+
   function questionScreen() {
-    return html`<div class="${() => "display-main row question-main" + (q().image ? " with-image" : "")}">
+    return html`<div class="${() => "display-main row question-main" + (q().image ? " with-image" : "") + (compact() ? " compact" : "")}">
       ${() => (q().image ? html`<div class="q-img"><img src="${() => q().image || ""}" alt=""></div>` : "")}
       <div class="grow col q-body">
-        <div class="row q-meta">
-          <div class="t-xs muted grow">${() => "Question " + q().number}</div>
-          ${() => (compact() ? timerDigits(true) : html`<span></span>`)}
-        </div>
-        <div class="${() => "q-text mt2 t-" + questionSize(q().text, compact())}">${() => q().text}</div>
+        <div class="${() => "q-text t-" + questionSize(q().text, compact())}">${() => q().text}</div>
         ${() => (q().input.type === "choice" ? html`<div class="${() => "opts" + (manyOpts() ? " many" : "")}">${() => options(-1)}</div>` : "")}
-        ${() => (compact() ? html`<div class="answered mt3">${answered}</div>` : "")}
+        <div class="answered-row">${() => answeredBubbles(q())}<span class="answered"><b>${() => q().answered}</b> of ${() => q().of} in</span></div>
       </div>
-      ${() => (compact() ? "" : html`<div class="col center timer-col">${timerDigits(false)}<div class="answered mt2">${answered}</div></div>`)}
-      <div class="${() => "timerbar" + (tnow().hot ? " hot" : "")}"><b style="${() => "transform:scaleX(" + tnow().fraction + ")"}"></b></div>
+      <div class="q-cd"><div class="q-cd-in">${tvCountdown(() => q().timer)}</div>
+        <div class="t-xs muted cd-note">${() => (q().timer.state === "paused" ? "Paused" : "")}</div></div>
     </div>`;
   }
 
-  function answered() {
-    return html`<span><b>${() => q().answered}</b> of ${() => q().of} answered</span>`;
-  }
-
-  /** @param {boolean} small */
-  function timerDigits(small) {
-    return html`<div class="timer-box"><div class="${() => "timer" + (small ? " small" : "") + (tnow().hot ? " hot" : "") + (tnow().hot && tnow().running ? " pulse" : "") + (tnow().started ? "" : " idle") + (tnow().text.length > 2 ? " long" : "")}">${() => tnow().text}</div>
-      ${() => (tnow().paused ? html`<div class="t-xs muted">Paused</div>` : "")}</div>`;
+  /**
+   * One bubble per team that can answer: filled (with initials) once it has answered, an
+   * empty ring while it is still thinking. Never shows what anyone answered. A keyed list
+   * straight in the slot; the key carries the state (UI-13).
+   * @param {QuestionPublic} question
+   */
+  function answeredBubbles(question) {
+    const done = byId(question.answeredIds.map(function (id) { return { id: id }; }));
+    const teams = v().teams;
+    const size = teams.length > 20 ? " tiny" : teams.length > 12 ? " small" : "";
+    return teams.map(function (c) {
+      const on = !!done[c.id];
+      return html`<span class="${"bubble ab" + size + (on ? "" : " waiting")}" style="${"--b:" + LockIn.view.teamColour(c.colour)}">${on && !size ? LockIn.view.initials(c.name) : ""}</span>`.key(c.id + (on ? "y" : "n"));
+    });
   }
 
   /** Multiple-choice options; `right` is the right index in a reveal, -1 while asking. @param {number} right */
@@ -549,20 +565,17 @@ function createDisplay(root, now) {
     const opts = (q().input.type === "choice" ? /** @type {{ options: string[] }} */ (q().input).options : []);
     return opts.map(function (o, i) {
       const cls = right < 0 ? "opt" : i === right ? "opt right" : "opt faded";
-      return html`<div class="${cls}"><b>${letter(i)}</b><span class="opt-text">${o}</span><span class="${i === right ? "tick-slot" : "off"}">${tick()}</span></div>`.key(i);
+      return html`<div class="${cls}"><b>${letter(i)}</b><span class="opt-text">${o}</span><span class="${i === right ? "verdict" : "off"}">${tick()}Right</span></div>`.key(i);
     });
   }
 
   function lockedScreen() {
     const snap = () => page.snap;
     return html`<div class="display-main col center locked-main">
-      <div class="lock-wrap">
-        <div class="${() => "ring" + (snap() ? "" : " still")}"></div>
-        <div class="${() => "lock-box" + (snap() ? " snap" : "")}">${padlock("lock")}</div>
-      </div>
-      <div class="${() => "t-xl b mt3 lock-word" + (snap() ? " rise" : "")}">Answers locked</div>
-      ${() => (v().lines.locked ? html`<div class="${() => "display t-l mt1" + (snap() ? " rise" : "")}">${() => v().lines.locked}</div>` : "")}
-      <div class="${() => "answered mt2" + (snap() ? " rise" : "")}">${() => lockedCount()}</div>
+      <div class="${() => "lock-mark" + (snap() ? " snap" : "")}">${mark(html, "locked")}</div>
+      <div class="${() => "moment-title mt4 lock-word" + (snap() ? " rise" : "")}">Answers locked</div>
+      ${() => (v().lines.locked ? html`<div class="${() => "voice-line mt2" + (snap() ? " rise" : "")}">${() => v().lines.locked}</div>` : "")}
+      <div class="${() => "answered mt3" + (snap() ? " rise" : "")}">${() => lockedCount()}</div>
     </div>`;
   }
 
@@ -575,9 +588,9 @@ function createDisplay(root, now) {
 
   function markingScreen() {
     return html`<div class="display-main col center">
-      ${padlock("lock lock-small")}
-      <div class="t-xl b mt3">${() => { const n = v().night; return n && n.round ? "Round " + (n.round.index + 1) + " is in" : "Answers are in"; }}</div>
-      <div class="t-s muted mt1">The quizmaster is marking. Answers next.</div>
+      ${mark(html, "marking-mark")}
+      <div class="moment-title mt4">${() => { const n = v().night; return n && n.round ? "Round " + (n.round.index + 1) + " is in" : "Answers are in"; }}</div>
+      <div class="t-s muted mt2">The quizmaster is marking. Answers next.</div>
     </div>`;
   }
 
@@ -589,11 +602,10 @@ function createDisplay(root, now) {
     const many = () => isChoice() && /** @type {{ options: string[] }} */ (rq().input).options.length > 4;
     const of = () => withNight((n) => n.teamCount, v().teams.length);
     return html`<div class="display-main col reveal-main">
-      <div class="t-xs muted">${() => "Question " + rq().number}</div>
-      <div class="${() => "mt1 q-text t-" + (isChoice() ? (many() ? "s" : "m") : "m muted")}">${() => rq().text}</div>
+      <div class="${() => "q-text reveal-q t-" + (isChoice() ? (many() ? "s" : "m") : "m")}">${() => rq().text}</div>
       ${() => (isChoice()
         ? html`<div class="${() => "opts reveal-in" + (many() ? " many" : "")}">${() => { const qq = rq(); const opts = qq.input.type === "choice" ? qq.input.options : []; return revealOptions(opts, choiceIndex(opts, r().answerText)); }}</div>`
-        : html`<div class="t-xl answer mt3 reveal-in">${tick()}<span>${() => r().answerText}</span></div>`)}
+        : html`<div class="answer reveal-in"><span class="answer-text">${() => r().answerText}</span><span class="verdict">${tick()}Right</span></div>`)}
       <div class="tally reveal-in"><span class="${() => (Math.min(of(), 30) > 15 ? "dots small" : "dots")}">${() => tallyDots(r().rightCount, of())}</span><span><b>${() => r().rightCount + " of " + of()}</b> ${() => (of() === 1 ? "team got it" : "teams got it")}</span></div>
     </div>`;
   }
@@ -602,7 +614,7 @@ function createDisplay(root, now) {
   function revealOptions(opts, right) {
     return opts.map(function (o, i) {
       const cls = i === right ? "opt right" : "opt faded";
-      return html`<div class="${cls}"><b>${letter(i)}</b><span class="opt-text">${o}</span><span class="${i === right ? "tick-slot" : "off"}">${tick()}</span></div>`.key(i);
+      return html`<div class="${cls}"><b>${letter(i)}</b><span class="opt-text">${o}</span><span class="${i === right ? "verdict" : "off"}">${tick()}Right</span></div>`.key(i);
     });
   }
 
@@ -620,22 +632,24 @@ function createDisplay(root, now) {
     return out;
   }
 
-  // ---------------------------------------------------------------- leaderboard
+  // ---------------------------------------------------------------- standings
 
   /** @returns {Row[]} */
   const rows = () => (page.view && v().standings ? /** @type {Standings} */ (v().standings).rows : []);
   const rowById = () => byId(rows().map(function (r) { return { id: r.teamId, row: r }; }));
 
   /**
-   * One standings table. Rows are keyed by team id; their contents read the
-   * current view by id, so a changed score updates the row in place.
+   * One standings table, the departures board: POS · TEAM · ROUND · MOVE · TOTAL. Rows are
+   * keyed by team id; their contents read the current view by id, so a changed score updates
+   * the row in place.
    * @param {{ mode: "leaderboard" | "compact" | "final"; perPage: number; slice: () => number[]; shown: () => number }} o
    */
   function board(o) {
     const layout = () => boardLayout(rows().length, o.perPage);
     const tb = () => wonTieBreak(rows());
     const full = () => o.mode === "leaderboard" && layout().density === "full";
-    return html`<div class="${() => "lb" + (layout().density === "dense" || o.mode !== "leaderboard" ? " dense" : "") + (layout().columns === 2 ? " two" : "") + (o.mode === "compact" ? " compact" : "")}" style="${() => "--lb-rows:" + Math.min(10, Math.max(1, sliceLen(o.slice())))}">
+    return html`<div class="${() => "lb" + (layout().density === "dense" || o.mode !== "leaderboard" ? " dense" : "") + (layout().columns === 2 ? " two" : "") + (o.mode === "compact" ? " compact" : "") + (full() ? " full" : "")}" style="${() => "--lb-rows:" + Math.min(10, Math.max(1, sliceLen(o.slice())))}">
+      <div class="lb-head"><span class="pos">Pos</span><span class="bub"></span><span class="name">Team</span><span class="${() => (full() ? "rnd" : "rnd-none")}">${() => (full() ? "Round" : "")}</span><span class="mv">${() => (o.mode === "final" ? "" : "Move")}</span><span class="tot">Total</span></div>
       ${() => {
         const s = o.slice();
         const list = rows().slice(s[0], s[1]);
@@ -652,12 +666,13 @@ function createDisplay(root, now) {
           // Plain values only, also for the optional tags (a slot that held text cannot later hold a template).
           const joker = r.jokerThisRound && o.mode !== "final";
           const tbTag = !!tags[id] && isFull;
-          return html`<div class="${"lb-row" + (r.position === 1 ? " first" : "") + state}" data-key="${id}">
+          const mv = movement(r);
+          return html`<div class="${"lb-row" + (r.position === 1 ? " first" : "") + (((s[0] || 0) + i) % 2 ? " alt" : "") + state}" data-key="${id}">
             <span class="pos">${(r.shared ? "=" : "") + r.position}</span>
-            <i class="dot" style="${"background:" + LockIn.view.teamColour(r.colour)}"></i>
-            <span class="name"><span class="name-text">${r.name}</span><span class="${joker ? "joker" : "off"}">${joker ? "JOKER" : ""}</span><span class="${tbTag ? "badge-tb" : "off"}">${tbTag ? "more round wins" : ""}</span></span>
+            <span class="bub"><span class="bubble" style="${"--b:" + LockIn.view.teamColour(r.colour)}">${LockIn.view.initials(r.name)}</span></span>
+            <span class="name"><span class="name-text">${r.name}</span><span class="${joker ? "joker-tag" : "off"}">${joker ? "JOKER" : ""}</span><span class="${tbTag ? "badge-tb" : "off"}">${tbTag ? "more round wins" : ""}</span></span>
             <span class="${isFull ? "rnd" : "rnd-none"}">${isFull ? "+" + r.roundScore : ""}</span>
-            <span class="${o.mode === "final" ? "mv" : movement(r).cls}">${o.mode === "final" ? "" : movement(r).text}</span>
+            <span class="${o.mode === "final" ? "mv" : "mv " + mv.cls}">${o.mode === "final" ? "" : mv.text}</span>
             <span class="tot">${r.total}</span>
           </div>`.key(id);
         });
@@ -674,8 +689,7 @@ function createDisplay(root, now) {
       const pages = boardLayout(rows().length).pages;
       return pages[Math.min(progress().page, pages.length - 1)] || [0, 0];
     };
-    return html`<div class="display-main col">
-      ${() => (boardLayout(rows().length).density === "full" ? html`<div class="${() => (rows().length > 6 ? "t-l" : "t-xl") + " b lb-title"}">Leaderboard</div>` : "")}
+    return html`<div class="display-main col lb-main">
       ${board({ mode: "leaderboard", perPage: 20, slice, shown: () => Math.min(progress().shown, (slice()[1] || 0) - (slice()[0] || 0)) })}
     </div>`;
   }
@@ -688,13 +702,12 @@ function createDisplay(root, now) {
     const p = Math.min(page.lbPage, pages.length - 1);
     const sl = pages[p] || [0, count];
     const r = n && n.round;
-    const after = r && n ? { a: "After round ", b: String(r.index + 1), c: " of " + n.roundCount } : { a: "", b: "", c: "" };
-    if (pages.length > 1) {
-      return parts({ ...after, c: after.c + (after.a ? " \u00b7 " : "") + "places ", d: ((sl[0] || 0) + 1) + "\u2013" + sl[1], e: " of " + count + (p < pages.length - 1 ? " \u00b7 top 20 next" : "") });
-    }
-    return count > 8 ? parts({ ...after, c: after.c + (after.a ? " \u00b7 " : ""), d: String(count), e: " teams" }) : parts(after);
+    const after = r && n ? "after round " + (r.index + 1) + " of " + n.roundCount : "";
+    let strip = after;
+    if (pages.length > 1) strip += (strip ? " · " : "") + "places " + ((sl[0] || 0) + 1) + "–" + sl[1] + " of " + count + (p < pages.length - 1 ? " · top 20 next" : "");
+    else if (count > 8) strip += (strip ? " · " : "") + count + " teams";
+    return parts({ title: "Standings", strip: strip, right: venueName() });
   }
-
 
   /** Pages that flip every PAGE_FLIP_MS (halftime and final standings with many teams). @param {number} perPage */
   function flipSlice(perPage) {
@@ -709,13 +722,13 @@ function createDisplay(root, now) {
 
   function halftimeScreen() {
     const perPage = () => (rows().length > 10 ? 20 : 10);
-    return html`<div class="display-main row">
-      <div class="grow col halftime-col">
-        <div class="display halftime-title">Halftime</div>
-        ${() => (v().lines.halftime ? html`<div class="display halftime-line mt2">${() => v().lines.halftime}</div>` : "")}
+    return html`<div class="display-main row halftime-main">
+      <div class="col halftime-col">
+        <div class="moment-title">Halftime</div>
+        ${() => (v().lines.halftime ? html`<div class="voice-line mt2">${() => v().lines.halftime}</div>` : "")}
         <div class="grow"></div>
         ${() => (withNight((n) => n.prizes.length > 0, false)
-          ? html`<div class="panel"><div class="t-xs muted panel-label">Playing for</div><div class="prizes">${() => prizeItems(false)}</div></div>`
+          ? html`<div class="playing-for"><div class="overline">Playing for</div><div class="prizes">${() => prizeItems(false)}</div></div>`
           : "")}
       </div>
       <div class="${() => "side-board" + (rows().length > 10 ? " wide" : "")}">
@@ -739,16 +752,9 @@ function createDisplay(root, now) {
   }
 
   function deadlockStrip() {
-    return html`<span class="dl-sub small">Deadlock · sudden death</span><span class="grow"></span>${() => (sd().question
-      ? html`<span>Question <b>${() => sd().questionNumber}</b> of up to ${() => sd().maxQuestions} <span class="dl-pips">${() => dlPips()}</span></span>`
-      : html`<span>For <b>${() => ordinal(sd().position)} place</b></span>`)}`;
-  }
-
-  function dlPips() {
-    const out = [];
-    const done = sd().status === "revealed" ? sd().questionNumber : sd().questionNumber - 1;
-    for (let i = 1; i <= sd().maxQuestions; i++) out.push(html`<i class="${i <= done ? "done" : ""}"></i>`.key(i));
-    return out;
+    return html`<span class="dl-sub">Deadlock · sudden death</span><span class="grow"></span>${() => (sd().question
+      ? html`<span class="dl-count">Question <b>${() => sd().questionNumber}</b><span class="dim"> / ${() => sd().maxQuestions}</span></span>`
+      : html`<span class="dl-count">For <b>${() => ordinal(sd().position)} place</b></span>`)}`;
   }
 
   /** Teams side by side with "vs" between them. @param {(c: TeamChip) => any} extra @param {string} size */
@@ -760,7 +766,7 @@ function createDisplay(root, now) {
         const c = /** @type {TeamChip} */ (all[i]);
         if (i > 0) out.push(html`<div class="mid">vs</div>`.key("vs" + i));
         const isOut = sd().out.some(function (o) { return o.id === c.id; });
-        out.push(html`<div class="${isOut ? "side out" : "side"}"><div class="nm">${c.name}</div>${extra(c)}</div>`.key(c.id));
+        out.push(html`<div class="${isOut ? "side out" : "side"}">${bubble(c, "vs-bubble")}<div class="nm">${c.name}</div>${extra(c)}</div>`.key(c.id));
       }
       return out;
     }}</div>`;
@@ -768,38 +774,36 @@ function createDisplay(root, now) {
 
   function deadlockIntro() {
     return html`<div class="display-main col center">
-      <div class="dl-sub">Sudden death</div>
-      <div class="dl-word mt1">Dead<em>lock</em></div>
-      <div class="chain mt3"></div>
+      <div class="dl-word mt1">Deadlock</div>
       <div class="t-s dl-for mt2">${() => "For " + ordinal(sd().position) + " place"}</div>
-      ${faceOff(function (c) { return html`<div class="t-xs dl-info">${tiedInfo(c.id)}</div>`; }, "big mt3")}
+      ${faceOff(function (c) { return html`<div class="t-xs dl-info">${tiedInfo(c.id)}</div>`; }, "big mt4")}
     </div>`;
   }
 
   function deadlockQuestion() {
-    const t = () => timerNow(sdq().timer, page.now);
+    const many = () => sdq().input.type === "choice" && /** @type {any} */ (sdq().input).options.length > 4;
     return html`<div class="display-main col dl-question">
       <div class="row grow dl-q-row">
-        <div class="${() => "q-text grow t-" + questionSize(sdq().text, sdq().input.type === "choice" && /** @type {any} */ (sdq().input).options.length > 4)}">${() => sdq().text}</div>
-        <div class="${() => "timer dl-timer" + (t().running ? " pulse" : "") + (t().started ? "" : " idle")}">${() => t().text}</div>
+        <div class="grow col">
+          <div class="${() => "q-text t-" + questionSize(sdq().text, many())}">${() => sdq().text}</div>
+          ${() => (sdq().input.type === "choice" ? html`<div class="${() => "opts" + (many() ? " many" : "")}">${() => { const qq = sdq(); return qq.input.type === "choice" ? qq.input.options.map(function (o, i) { return html`<div class="opt"><b>${letter(i)}</b><span class="opt-text">${o}</span></div>`.key(i); }) : []; }}</div>` : "")}
+        </div>
+        <div class="q-cd dl-cd"><div class="q-cd-in">${tvCountdown(() => sdq().timer)}</div></div>
       </div>
-      ${() => (sdq().input.type === "choice" ? html`<div class="${() => "opts" + (sdq().input.type === "choice" && /** @type {any} */ (sdq().input).options.length > 4 ? " many" : "")}">${() => { const qq = sdq(); return qq.input.type === "choice" ? qq.input.options.map(function (o, i) { return html`<div class="opt"><b>${letter(i)}</b><span class="opt-text">${o}</span></div>`.key(i); }) : []; }}</div>` : "")}
-      ${faceOff(function () { return ""; }, "")}
-      <div class="answered dl-answered"><b>${() => sdq().answered}</b> of ${() => sdq().of} answered</div>
-      <div class="timerbar"><b style="${() => "transform:scaleX(" + t().fraction + ")"}"></b></div>
+      ${faceOff(function () { return ""; }, "small")}
+      <div class="answered dl-answered"><b>${() => sdq().answered}</b> of ${() => sdq().of} in</div>
     </div>`;
   }
 
   function deadlockResult() {
     const right = () => sd().rightIds || [];
-    const outcome = () => sd().outcome;
     return html`<div class="display-main col center">
       ${() => (sdq() ? html`<div class="t-s dl-muted">${() => sdq().text}</div>` : "")}
       ${faceOff(function (c) {
         const ok = right().indexOf(c.id) >= 0;
         return html`<span class="${ok ? "state ok" : "state out"}">${ok ? "Right" : "Wrong"}</span>`;
       }, "mt4")}
-      <div class="t-l b mt4 dl-outcome">${() => outcomeText()}</div>
+      <div class="dl-outcome mt4">${() => outcomeText()}</div>
     </div>`;
   }
 
@@ -829,26 +833,25 @@ function createDisplay(root, now) {
     const winners = () => (v().final ? /** @type {any} */ (v().final).winners : /** @type {TeamChip[]} */ ([]));
     const first = () => withNight((n) => n.prizes.filter(function (p) { return p.place === 1; })[0], undefined);
     const points = () => { const w = winners()[0]; const e = w ? rowById()[w.id] : null; return e ? e.row.total : null; };
-    return html`<div class="display-main col center winner-main">
-      <div class="burst"></div>
-      <div class="display t-l lock-colour">Champions</div>
+    return html`<div class="display-main col winner-main">
+      <div class="overline">${() => (winners().length > 1 ? "Joint champions" : "Champions")}</div>
       <div class="${() => "winners mt2" + (winners().length > 1 ? " shared" : "")}">${() => winners().map(function (/** @type {TeamChip} */ c) {
-        return html`<div class="row winner-row"><i class="winner-dot" style="${"background:" + LockIn.view.teamColour(c.colour)}"></i><div class="${"crown-name" + (c.name.length > 22 ? " longer" : c.name.length > 12 ? " long" : "")}">${c.name}</div></div>`.key(c.id);
+        return html`<div class="winner-row">${bubble(c, "winner-bubble")}<div class="${"crown-name" + (c.name.length > 22 ? " longer" : c.name.length > 12 ? " long" : "")}">${c.name}</div></div>`.key(c.id);
       })}</div>
-      ${() => (points() !== null ? html`<div class="t-m mt2"><b class="num">${() => points()}</b> points</div>` : "")}
-      ${() => (v().lines.winner ? html`<div class="display t-l mt3 status-colour">${() => v().lines.winner}</div>` : "")}
-      ${() => (first() ? html`<div class="panel mt4 t-s"><b class="prize-label">1st prize</b> <span>${() => (first() ? /** @type {any} */ (first()).text : "")}</span></div>` : "")}
+      ${() => (points() !== null ? html`<div class="winner-points mt3"><span class="big-num venue">${() => points()}</span><span class="t-s muted">points</span></div>` : "")}
+      ${() => (v().lines.winner ? html`<div class="voice-line mt3">${() => v().lines.winner}</div>` : "")}
+      ${() => (first() ? html`<div class="first-prize mt4"><span class="overline">1st prize</span><span class="t-s">${() => (first() ? /** @type {any} */ (first()).text : "")}</span></div>` : "")}
     </div>`;
   }
 
   function finalScreen() {
-    return html`<div class="display-main row">
+    return html`<div class="display-main row final-main">
       <div class="${() => "final-board" + (rows().length > 10 ? " wide" : "")}">
         ${board({ mode: "final", perPage: 20, slice: flipSlice(20), shown: () => 999 })}
       </div>
       <div class="grow col final-lines">
-        ${() => (v().lines.lastPlace ? html`<div class="display t-m muted">${() => v().lines.lastPlace}</div>` : "")}
-        ${() => (v().lines.goodbye ? html`<div class="display t-l mt4 status-colour">${() => v().lines.goodbye}</div>` : "")}
+        ${() => (v().lines.lastPlace ? html`<div class="voice-line small">${() => v().lines.lastPlace}</div>` : "")}
+        ${() => (v().lines.goodbye ? html`<div class="voice-line mt4">${() => v().lines.goodbye}</div>` : "")}
       </div>
     </div>`;
   }
@@ -878,24 +881,26 @@ function createDisplay(root, now) {
   };
 
   /**
-   * The header strip as plain text parts: a <b>b</b> c <b>d</b> e, then question pips.
-   * Fixed shape with plain values only: a template that appears in a slot that
-   * first held text is printed as source code by Arrow 1.0.6 (NOTES).
-   * @typedef {{ a: string, b: string, c: string, d: string, e: string, pips: number[] | null }} StripParts
+   * The header as plain text parts: a title that replaces the venue name (Standings), the
+   * round strip, the question number and its total, and the venue name on the right when the
+   * title replaced it. Fixed shape with plain values only: a template that appears in a slot
+   * that first held text is printed as source code by Arrow 1.0.6 (NOTES).
+   * @typedef {{ title: string, strip: string, num: string, of: string, right: string }} StripParts
    */
   /** @param {Partial<StripParts>} p @returns {StripParts} */
-  const parts = (p) => ({ a: "", b: "", c: "", d: "", e: "", pips: null, ...p });
+  const parts = (p) => ({ title: "", strip: "", num: "", of: "", right: "", ...p });
   const sp = () => stripParts();
 
   /**
-   * " · Music and Film" after "Round 2", or nothing when the title only repeats the number
-   * ("Round 2", "Round number 2"), so the strip never reads "Round 2 Round 2".
+   * "Round 2 — Music and Film", or "Round 2" when the title only repeats the number
+   * ("Round 2", "Round number 2"), so the strip never reads "Round 2 Round 2" (UI-07).
    * @param {{ index: number; title: string }} r
    */
-  function roundTitleSuffix(r) {
+  function roundLabel(r) {
     const t = (r.title || "").trim();
-    if (!t || new RegExp("^round\\s*(number|no\\.?)?\\s*" + (r.index + 1) + "$", "i").test(t)) return "";
-    return " \u00b7 " + t;
+    const n = "Round " + (r.index + 1);
+    if (!t || new RegExp("^round\\s*(number|no\\.?)?\\s*" + (r.index + 1) + "$", "i").test(t)) return n;
+    return n + " — " + t;
   }
 
   /** @returns {StripParts} */
@@ -904,39 +909,34 @@ function createDisplay(root, now) {
     if (!page.view) return parts({});
     const n = v().night;
     const r = n && n.round;
-    if (s === "lobby") return n && n.plannedStart !== null ? parts({ a: "Starts at ", b: clockTime(n.plannedStart) }) : parts({ a: "Starting soon" });
+    if (s === "lobby" || s === "holding") return n && n.plannedStart !== null ? parts({ strip: "Starts at " + clockTime(n.plannedStart) }) : parts({ strip: "Starting soon" });
     // The round intro says "Round 1 of 6" in the middle of the screen already (UI-07).
     if (s === "round") return parts({});
     if (s === "question" || s === "locked") {
       const qq = v().question;
-      return r ? parts({ a: "Round ", b: String(r.index + 1), c: roundTitleSuffix(r), pips: qq ? [r.questionCount, qq.number] : null }) : parts({});
+      return r ? parts({ strip: roundLabel(r), num: qq ? pad2(qq.number) : "", of: qq ? " / " + pad2(r.questionCount) : "" }) : parts({});
     }
-    if (s === "marking") return r ? parts({ a: "Round ", b: String(r.index + 1), c: roundTitleSuffix(r) }) : parts({});
+    if (s === "marking") return r ? parts({ strip: roundLabel(r) }) : parts({});
     if (s === "reveal") {
       const rv = v().reveal;
-      return r ? parts({ a: "Round ", b: String(r.index + 1), c: " answers", pips: rv ? [r.questionCount, rv.question.number] : null }) : parts({});
+      return r ? parts({ strip: roundLabel(r) + " · answers", num: rv ? pad2(rv.question.number) : "", of: rv ? " / " + pad2(r.questionCount) : "" }) : parts({});
     }
     if (s === "leaderboard") return leaderboardStrip();
-    if (s === "halftime") return r ? parts({ a: "Halftime \u00b7 round ", b: String(r.index + 2), c: " next" }) : parts({ a: "Halftime" });
-    if (s === "ended") return parts({ a: stageNow() === "winner" ? "Final result" : "Final standings" });
+    if (s === "halftime") return r ? parts({ strip: "Halftime · round " + (r.index + 2) + " next" }) : parts({ strip: "Halftime" });
+    if (s === "ended") return stageNow() === "winner" ? parts({ strip: "Final result" }) : parts({ title: "Final standings", right: venueName() });
     return parts({});
   }
 
-  /** Question pips: done, now, to come. A keyed list from its own slot. */
-  function stripPips() {
-    const p = sp().pips;
-    return p ? pips(p[0] || 0, p[1] || 0) : [];
-  }
-
   const deadlock = () => page.screen.indexOf("dl-") === 0;
+  const bare = () => page.screen === "idle" || page.screen === "pairing" || page.screen === "connecting";
 
-  const app = html`<div class="${() => "display-screen" + (deadlock() ? " deadlock" : "") + (page.screen === "idle" || page.screen === "pairing" || page.screen === "connecting" ? " bare" : "")}">
+  const app = html`<div class="${() => "display-screen" + (deadlock() ? " deadlock" : "") + (bare() ? " bare" : "")}">
     <div class="${() => "display-safe" + (page.status === "offline" ? " stale" : "")}">
       ${() => (deadlock() ? html`<div class="display-head">${() => html`<div class="dl-strip">${deadlockStrip()}</div>`}</div>` : head())}
       ${() => (SCREENS[page.screen] || idleScreen)()}
       <div class="display-foot">
         <div class="display-voice">${() => footerLine(page.view, page.screen, page.now) || ""}</div>
-        <div class="display-credit">Powered by <b>Lock-In</b></div>
+        <div class="display-credit"><span class="credit-by">Powered by</span>${lockup(html, "mono")}</div>
       </div>
     </div>
     ${() => (page.status === "offline" ? html`<div class="reconnect" role="status"><i></i>Reconnecting…</div>` : "")}

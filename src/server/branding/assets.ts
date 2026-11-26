@@ -1,9 +1,9 @@
-// Theme asset uploads (TECH-SPEC 5.3, 9.2, 12.4): logo, display background and fonts.
+// Theme asset uploads (TECH-SPEC 5.3, 9.2, 12.4): the logo and the display background picture.
 // Files are checked by their first bytes, never by the name or type the browser sent.
 
-export type AssetKind = "logo" | "displayBackground" | "font";
+export type AssetKind = "logo" | "displayBackground";
 
-export const ASSET_KINDS: readonly AssetKind[] = ["logo", "displayBackground", "font"];
+export const ASSET_KINDS: readonly AssetKind[] = ["logo", "displayBackground"];
 
 const MB = 1024 * 1024;
 
@@ -12,7 +12,6 @@ interface KindRule { maxBytes: number; types: string[]; label: string; typesText
 export const ASSET_RULES: Record<AssetKind, KindRule> = {
   logo: { maxBytes: 2 * MB, types: ["png", "svg", "jpg"], label: "logo", typesText: "a PNG, SVG or JPEG file" },
   displayBackground: { maxBytes: 5 * MB, types: ["jpg", "png", "webp"], label: "display background picture", typesText: "a JPEG, PNG or WebP picture" },
-  font: { maxBytes: 2 * MB, types: ["woff2", "woff", "ttf"], label: "font", typesText: "a WOFF2, WOFF or TTF font file" },
 };
 
 const starts = (b: Uint8Array, sig: number[], at = 0) => sig.every((v, i) => b[at + i] === v);
@@ -23,9 +22,6 @@ export function sniffType(b: Uint8Array): string | null {
   if (starts(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "png";
   if (starts(b, [0xff, 0xd8, 0xff])) return "jpg";
   if (starts(b, ascii("RIFF")) && starts(b, ascii("WEBP"), 8)) return "webp";
-  if (starts(b, ascii("wOF2"))) return "woff2";
-  if (starts(b, ascii("wOFF"))) return "woff";
-  if (starts(b, [0x00, 0x01, 0x00, 0x00]) || starts(b, ascii("true"))) return "ttf";
   if (isSvg(b)) return "svg";
   return null;
 }

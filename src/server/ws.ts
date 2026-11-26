@@ -98,7 +98,7 @@ export function fail(code: ErrorCode, message?: string): CommandResult {
 
 /** The view every role sees while no night is open, before the engine (B1) provides real views. */
 export function idleView(role: Role, venueName = "Lock-In"): View {
-  const common = { phase: "idle" as const, venue: { name: venueName, themeVersion: "default", teamColours: 8 }, night: null, flash: null };
+  const common = { phase: "idle" as const, venue: { name: venueName, themeVersion: "default", teamColours: 8, countdown: "ring" as const }, night: null, flash: null };
   if (role === "display") {
     return { ...common, role: "display", teams: [], question: null, lockedMoment: null, reveal: null, standings: null, suddenDeath: null, final: null, lines: emptyLines() } satisfies DisplayView;
   }

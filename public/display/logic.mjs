@@ -158,7 +158,7 @@ export function timerNow(timer, now) {
 }
 
 /**
- * Question text size step (docs/design/README.md, "Legibility"): text-only
+ * Question text size step (docs/DESIGN-SYSTEM.md, "Display"): text-only
  * questions use l up to 90 characters and m to 200; picture questions m and s.
  * @param {string} text
  * @param {boolean} hasImage
@@ -199,7 +199,7 @@ export function ordinal(n) {
 }
 
 /**
- * How a leaderboard of n teams is laid out (docs/design/README.md, "Leaderboard
+ * How a leaderboard of n teams is laid out (docs/DESIGN-SYSTEM.md, "Leaderboard
  * density"): 1-8 one column with round points, 9-20 two columns of 10, 21-30
  * pages of up to 20. Pages are [start, end) slices of the rows, in the order
  * they are shown: bottom page first.

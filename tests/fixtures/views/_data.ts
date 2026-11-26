@@ -12,7 +12,7 @@ import type { AnswerGroup } from "../../../src/shared/rules-api.ts";
 export const NOW = Date.UTC(2026, 10, 20, 20, 0, 0);
 const MIN = 60_000;
 
-export const VENUE = { name: "The Example Arms", themeVersion: "fixture", teamColours: 8 };
+export const VENUE = { name: "The Example Arms", themeVersion: "fixture", teamColours: 8, countdown: "ring" as const };
 
 export const TEAM_NAMES = [
   "Quizteama Aguilera", "Les Quizerables", "Agatha Quiztie", "The Quizzly Bears", "Universally Challenged",
@@ -92,6 +92,7 @@ export function question(n: number, over: Partial<QuestionPublic> = {}, round = 
   return {
     id, roundIndex: round, number: n, text: q.text, image: q.image ? `/media/q/${id}` : null, input: q.input,
     status: "open", timer: timer.running(), answered: 4, of: 6, ...over,
+    answeredIds: over.answeredIds ?? Array.from({ length: over.answered ?? 4 }, (_, i) => teamId(i)),
   };
 }
 
@@ -162,7 +163,7 @@ export function suddenDeath(status: SuddenDeathPublic["status"], over: Partial<S
     maxQuestions: 3,
     question: status === "waiting" ? null : {
       id, roundIndex: -1, number: 1, text: "How many pints are in a gallon?", image: null, input: { type: "number" },
-      status: status === "open" ? "open" : "locked", timer: status === "open" ? timer.running(30, 18) : timer.done(30), answered: 2, of: 3,
+      status: status === "open" ? "open" : "locked", timer: status === "open" ? timer.running(30, 18) : timer.done(30), answered: 2, of: 3, answeredIds: [teamId(0), teamId(1)],
     },
     status,
     rightIds: status === "revealed" ? [teamId(1)] : null,

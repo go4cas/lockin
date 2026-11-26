@@ -1,191 +1,167 @@
 /*
- * Lock-In design tokens
- * =====================
- * The default theme ("Chalkboard") as plain CSS custom properties.
- * Read docs/design/README.md and docs/design/branding.md first.
+ * Lock-In design tokens: "Last Call"
+ * ==================================
+ * Black, quiet and confident. Lines, not boxes. Big light numbers. One colour, the
+ * venue's, means "this is happening". Source: the Lock In design system (tokens.json
+ * v2, docs/DESIGN-SYSTEM.md). Served at /static/shared/tokens.css to all three clients.
  *
- * Three layers:
- *   1. Brand tokens (--brand-*): the only tokens a venue theme changes.
- *      GET /theme.css re-declares them on :root, after this file, from
- *      data/theme/theme.json (TECH-SPEC). Tagged:
- *        @brand <theme.json field>   set directly from a branding-screen input
- *        @derived <formula id>       computed by the server from the inputs,
- *                                    following branding.md section "Derived tokens"
- *   2. Fixed tokens: Lock-In's own values (team colours, status, motion,
- *      radii). Not on the branding screen in v1.0.0.
- *   3. Surface scales: display (vh units), phone and host (px/rem units).
+ * Layers:
+ *   1. Fonts (bundled, SIL OFL 1.1; licences in assets/fonts/).
+ *   2. Palette: Ink and the greys, Ember, status, teams. Fixed in every venue.
+ *   3. Venue: --venue, --venue-tint, --on-venue and the TV background. GET /theme.css
+ *      re-declares these on :root, after this file, from theme/theme.json.
+ *   4. Roles (--color-*): what screens use, never the raw palette.
+ *   5. Type, space, radius, shadow, motion.
+ *   6. Surface scales: display (vh), phone and host (px).
  *
- * Display rule: tokens and display CSS must work on the Chromium 86 / Safari 14 baseline
- * (TECH-SPEC 3.3), which has no color-mix() or oklch(). This file holds resolved values
- * only: no color-mix(), clamp(), min() or max(). Plain var() and calc() are fine.
+ * Display rule: the TV baseline is Chromium 86 / Safari 14, which has no color-mix() or
+ * oklch(). This file holds resolved values only. Plain var() and calc() are fine.
  */
 
+/* 1. Fonts ------------------------------------------------------------------ */
+@font-face { font-family: "Funnel Display"; font-weight: 300 800; font-style: normal; font-display: swap; src: url(/static/fonts/funnel-display-wght.woff2) format("woff2"); }
+@font-face { font-family: "Funnel Sans"; font-weight: 300 800; font-style: normal; font-display: swap; src: url(/static/fonts/funnel-sans-wght.woff2) format("woff2"); }
+@font-face { font-family: "Funnel Sans"; font-weight: 300 800; font-style: italic; font-display: swap; src: url(/static/fonts/funnel-sans-wght-italic.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 200 800; font-style: normal; font-display: swap; src: url(/static/fonts/atkinson-hyperlegible-next-wght.woff2) format("woff2"); }
+
 :root {
-  /* ---------------------------------------------------------------- */
-  /* 1. Brand tokens                                                   */
-  /* ---------------------------------------------------------------- */
+  /* 2. Palette ---------------------------------------------------------------- */
+  --ink: #0b0b0c;          /* every background; Bone on it is 16.8:1 */
+  --smoke: #161618;        /* raised surfaces: answer rows, popovers, dialogs, inputs */
+  --raised: #1f1f21;       /* hover and focus fill inside Smoke; row dividers on Ink */
+  --band: #111112;         /* faint alternate band (TV standings) */
+  --line: #2a2a2c;         /* 1 px hairlines, empty tracks, unanswered bubble rings */
+  --line-strong: #3a3a3c;  /* outlined buttons and inputs */
+  --dim: #5f5f5b;          /* big quiet numerals, inactive steps; not for small text (3.2:1) */
+  --ash: #95958f;          /* labels and secondary text (6.5:1) */
+  --fog: #c4c4be;          /* supporting body text, host-voice lines */
+  --bone: #edede8;         /* primary text; tooltip ground */
+  --ember: #ff8a5c;        /* the countdown's last ten seconds. Nothing else */
 
-  /* Colours chosen on the branding screen */
-  --brand-bg: #17191b;            /* @brand colours.background  "Background colour" */
-  --brand-text: #edeae2;          /* @brand colours.text        "Text colour" */
-  --brand-accent: #ff7a5c;        /* @brand colours.accent      "Main colour" (buttons, the lock, highlights) */
-  --brand-accent-2: #3cc6b8;      /* @brand colours.accent2     "Second colour" (status, correct answers, timers) */
+  /* Status: fixed in every venue. Icon/dot colour, plus an 18% tint for pills. */
+  --status-success: #2fa866;     --status-success-tint: #11271c;
+  --status-error: #e5484d;       --status-error-tint: #321618;
+  --status-warning: #d99a1e;     --status-warning-tint: #30250f;
+  --status-active: #3a85e0;      --status-active-tint: #132132;
+  --status-disabled: #62625d;    --status-disabled-tint: #181818;
+  --status-not-started: #8f8f89; --status-not-started-tint: #232322;
 
-  /* Colours derived from the four above (formulas: branding.md) */
-  --brand-surface: #1d1f21;       /* @derived D1 mix(bg, text, 3%) */
-  --brand-surface-2: #282a2b;     /* @derived D2 mix(bg, text, 8%) */
-  --brand-line: #393a3b;          /* @derived D3 mix(bg, text, 16%) */
-  --brand-text-muted: #a9a7a2;    /* @derived D4 mix(text, bg, 32%), raised until 4.5:1 on surface-2 */
-  --brand-on-accent: #17191b;     /* @derived D5 bg or text, whichever contrasts more with accent */
-  --brand-on-accent-2: #17191b;   /* @derived D5 bg or text, whichever contrasts more with accent2 */
-  --brand-accent-soft: #412a27;   /* @derived D6 mix(bg, accent, 18%) */
-  --brand-accent-2-soft: #1e3837; /* @derived D6 mix(bg, accent2, 18%) */
+  /* Teams: 8 colours by join order, wrapping after 8. Initials in --team-on. */
+  --team-1: #7df0c3; /* mint  */
+  --team-2: #ff8a5c; /* coral */
+  --team-3: #6fb6ff; /* sky   */
+  --team-4: #ffd166; /* amber */
+  --team-5: #f58fd2; /* pink  */
+  --team-6: #b8f05a; /* lime  */
+  --team-7: #c3a8ff; /* lilac */
+  --team-8: #edede8; /* bone  */
+  --team-on: #0b0b0c;
 
-  /* Display background (displayBackground in theme.json) */
-  --brand-display-bg: #17191b;         /* @brand displayBackground.colour, else colours.background */
-  --brand-display-bg-image: none;      /* @brand displayBackground.image as url(...), else none */
-  --brand-display-scrim: rgba(0, 0, 0, 0); /* @derived D7 background at 78% when an image is set, else transparent */
-
-  /* Fonts (fonts.display / fonts.body in theme.json). The server writes the
-     @font-face rules and puts the family name first; the fallbacks stay. */
-  --brand-font-display: "Caveat Brush", "Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; /* @brand fonts.display */
-  --brand-font-body: "Atkinson Hyperlegible", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;                    /* @brand fonts.body */
-
-  /* ---------------------------------------------------------------- */
-  /* 2. Fixed tokens                                                   */
-  /* ---------------------------------------------------------------- */
-
-  /* Semantic colour roles. Screens use these, never --brand-* directly,
-     so a role can be repointed in one place. */
-  --color-bg: var(--brand-bg);
-  --color-surface: var(--brand-surface);
-  --color-surface-2: var(--brand-surface-2);
-  --color-line: var(--brand-line);
-  --color-text: var(--brand-text);
-  --color-text-muted: var(--brand-text-muted);
-  --color-action: var(--brand-accent);          /* primary buttons, the next step on the host console */
-  --color-on-action: var(--brand-on-accent);
-  --color-action-soft: var(--brand-accent-soft); /* highlight fills: the leader row, the selected answer */
-  --color-lock: var(--brand-accent);            /* the padlock and "Answers locked" */
-  --color-status: var(--brand-accent-2);        /* timers, "received", progress */
-  --color-on-status: var(--brand-on-accent-2);
-  --color-status-soft: var(--brand-accent-2-soft); /* "received" and selected-answer fills */
-  --color-correct: var(--brand-accent-2);       /* always with a tick and a word, never colour alone */
-  --color-correct-soft: var(--brand-accent-2-soft);
-  --color-wrong: var(--brand-text-muted);       /* wrong answers fade, they do not turn red: never mean */
-  --color-joker: #ffc145;                       /* the joker mark (fixed, so it reads the same in every theme) */
-  --color-danger: #ff5a5f;                      /* host console only: destructive buttons (remove team, end early) */
-  --color-warning: #ffc145;                     /* host console only: "offline", "not ready", contrast warnings */
-  --color-focus: #ffffff;                       /* focus ring, phone and host (the display has no focus) */
-
-  /* Sudden death ("Deadlock") palette. Fixed, not themed: the moment
-     should look the same, and serious, in every venue. */
+  /* Sudden death ("Deadlock"): fixed, serious, the same in every venue. */
   --deadlock-bg: #0b0b0c;
   --deadlock-ember: #ff3b2f;
   --deadlock-ember-soft: #3a1210;
   --deadlock-text: #f4f1ea;
 
-  /* Team colours: 8, cycled by join order (team 9 gets --team-1 again).
-     Each is at least 6.9:1 on the default background. Colour is never a
-     team's only marker: the name is always next to it (README, "Teams"). */
-  --team-1: #3cc6b8; /* teal  */
-  --team-2: #ff7a5c; /* coral */
-  --team-3: #ffc145; /* amber */
-  --team-4: #5ab4ff; /* sky   */
-  --team-5: #b99cff; /* lilac */
-  --team-6: #a8d84e; /* lime  */
-  --team-7: #ff8fc7; /* pink  */
-  --team-8: #e2cfa6; /* sand  */
-  --team-on: #17191b; /* text on a team-colour fill (all 8 pass 6.9:1 with this) */
+  /* 3. Venue (rewritten by /theme.css) ---------------------------------------- */
+  --venue: #7df0c3;        /* Branding, Main colour. Default Mint */
+  --venue-tint: #1d3029;   /* 16% venue over Ink */
+  --on-venue: #0b0b0c;     /* Ink, or Bone if Ink is under 4.5:1 on the venue colour */
+  --display-bg-image: none;            /* TV background picture as url(...), else none */
+  --display-scrim: rgba(11, 11, 12, 0); /* 78% Ink over the picture, else transparent */
 
-  /* Type */
-  --font-display: var(--brand-font-display); /* moment titles and host-voice lines only; never questions, answers, names or numbers */
-  --font-body: var(--brand-font-body);
-  --weight-regular: 400;
-  --weight-bold: 700;
-  --leading-tight: 1.1;
-  --leading-body: 1.3;
+  /* 4. Roles ------------------------------------------------------------------ */
+  --color-bg: var(--ink);
+  --color-surface: var(--smoke);
+  --color-surface-hover: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--bone);
+  --color-text-secondary: var(--fog);
+  --color-text-muted: var(--ash);
+  --color-text-dim: var(--dim);
+  --color-action: var(--venue);          /* buttons, the next step, links that act */
+  --color-on-action: var(--on-venue);
+  --color-action-tint: var(--venue-tint); /* selected answer and leader row fill */
+  --color-selected: var(--venue);
+  --color-correct: var(--venue);          /* always with a tick and the word "Right" */
+  --color-countdown: var(--venue);
+  --color-countdown-hot: var(--ember);
+  --color-danger: var(--status-error);
+  --color-focus: var(--bone);             /* 2 px Bone, 2 px offset */
+  --color-tooltip-bg: var(--bone);
+  --color-tooltip-text: var(--ink);
 
-  /* Radii */
-  --radius-s: 6px;
-  --radius-m: 12px;
-  --radius-l: 20px;
+  /* 5. Type, space, radius, shadow, motion ------------------------------------ */
+  --font-display: "Funnel Display", "Funnel Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-body: "Funnel Sans", "Atkinson Hyperlegible Next", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-legible: "Atkinson Hyperlegible Next", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-question: var(--font-body); /* TV question text; switch to --font-legible if Funnel Sans fails the TV test */
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 56px;
+
+  --radius-xs: 4px;   /* joker tag */
+  --radius-s: 8px;    /* tooltips, menu rows, tags */
+  --radius-m: 10px;   /* buttons, inputs */
+  --radius-l: 12px;   /* popovers, menus, toasts */
+  --radius-xl: 16px;  /* answer rows, dialogs */
   --radius-pill: 999px;
 
-  /* Motion. Transforms and opacity only (cheap on old TV engines). */
+  --shadow-popover: 0 0 0 1px #2a2a2c, 0 18px 48px rgba(0, 0, 0, 0.65);
+  --shadow-tooltip: 0 8px 24px rgba(0, 0, 0, 0.5);
+
   --motion-fast: 150ms;
   --motion-base: 250ms;
   --motion-slow: 600ms;
-  --motion-lock: 700ms;      /* the padlock snap */
-  --motion-row: 450ms;       /* one leaderboard row arriving */
-  --motion-row-gap: 900ms;   /* pause between rows in the bottom-up reveal */
+  --motion-row: 450ms;      /* one standings row arriving */
+  --motion-row-gap: 900ms;  /* between rows in the bottom-up reveal */
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-snap: cubic-bezier(0.3, 1.6, 0.5, 1); /* overshoot: the shackle slams and bounces */
 
-  /* ---------------------------------------------------------------- */
-  /* 3a. Display scale (1vh = 10.8px at 1080p, 7.2px at 720p)               */
-  /*     Readable distances: README.md, "Display legibility"                */
-  /* ---------------------------------------------------------------- */
-
-  /* Safe area: old TVs overscan (crop) up to 5% of each edge. Nothing
-     that matters goes outside it. */
+  /* 6a. Display scale (1vh = 10.8px at 1080p). Sizes come from viewing distance. */
   --display-safe-x: 5vw;
   --display-safe-y: 5vh;
+  --display-text-hero: 24vh;   /* countdown digits, winner name */
+  --display-text-xxl: 15vh;    /* room code */
+  --display-text-xl: 11vh;     /* moment titles */
+  --display-text-l: 8vh;       /* question to 90 characters, revealed answer */
+  --display-text-m: 6.5vh;     /* question 91-200, standings to 8 teams */
+  --display-text-s: 5.4vh;     /* long picture question, 9-30 teams, voice line */
+  --display-text-xs: 4vh;      /* header strip, answered count, labels */
+  --display-text-credit: 2.4vh; /* the small lock in lockup */
+  --display-header-h: 7.8vh;
+  --display-row-h: 8.2vh;
+  --display-row-h-dense: 7.4vh;
+  --display-bubble: 6.7vh;
+  --display-bubble-standings: 6vh;
+  --display-countdown-box: 46vh;
+  --display-radius: 1.1vh;
 
-  --display-text-hero: 24vh;  /* timer digits, the padlock word, winner name (short) */
-  --display-text-xxl: 15vh;   /* room code */
-  --display-text-xl: 11vh;    /* moment titles: "Round 3", "Halftime", "Deadlock" */
-  --display-text-l: 8vh;      /* text-only question up to 90 characters, the revealed answer */
-  --display-text-m: 6.5vh;    /* text-only question 91-200 characters, picture question up to 90, options, leaderboard up to 8 teams */
-  --display-text-s: 5.4vh;    /* picture question 91-200 characters, leaderboard 9-30 teams, host-voice line */
-  --display-text-xs: 4vh;     /* labels people do not need from the back: "Round 3 of 6", answered count */
-  --display-text-credit: 2.4vh; /* "Powered by Lock-In" only */
+  /* 6b. Phone scale (CSS px, 360-430 wide) */
+  --ph-gutter: 20px;
+  --ph-tap: 52px;
+  --ph-tap-gap: 10px;
+  --ph-option-h: 62px;
+  --ph-text-label: 13px;
+  --ph-text-small: 15px;
+  --ph-text-body: 18px;
+  --ph-text-option: 19px;
+  --ph-text-question: 25px;
+  --ph-text-title: 44px;
 
-  --display-space-1: 1vh;
-  --display-space-2: 2vh;
-  --display-space-3: 3.5vh;
-  --display-space-4: 6vh;
-  --display-space-5: 10vh;
-  --display-radius: 1.6vh;
-  --display-header-h: 9vh;    /* logo + round strip */
-  --display-row-h: 8.4vh;     /* leaderboard row, up to 8 teams in one column */
-  --display-row-h-dense: 7.4vh; /* 9-20 teams in two columns of 10 */
-  --display-chip: 2.6vh;      /* team colour dot */
-
-  /* ---------------------------------------------------------------- */
-  /* 3b. Phone scale (CSS px; designed at 360-430 px wide)             */
-  /* ---------------------------------------------------------------- */
-
-  --ph-gutter: 16px;
-  --ph-tap: 52px;        /* every tap target; brief minimum is 44px */
-  --ph-tap-gap: 10px;    /* space between neighbouring targets */
-  --ph-text-xs: 13px;
-  --ph-text-s: 15px;
-  --ph-text-m: 18px;     /* body, answer input */
-  --ph-text-l: 22px;     /* question text */
-  --ph-text-xl: 30px;    /* screen titles, "Answers locked" */
-  --ph-text-hero: 56px;  /* position, timer */
-  --ph-space-1: 4px;
-  --ph-space-2: 8px;
-  --ph-space-3: 16px;
-  --ph-space-4: 24px;
-  --ph-space-5: 40px;
-
-  /* ---------------------------------------------------------------- */
-  /* 3c. Host console scale (laptop 1280+ and tablet 1024 wide)        */
-  /* ---------------------------------------------------------------- */
-
-  --host-tap: 44px;      /* tablet-safe minimum for every control */
-  --host-tap-primary: 64px; /* the one "next step" button */
-  --host-text-s: 13px;
-  --host-text-m: 15px;
-  --host-text-l: 19px;
-  --host-text-xl: 26px;  /* question text while running */
-  --host-text-xxl: 34px; /* timer */
-  --host-space-1: 4px;
-  --host-space-2: 8px;
-  --host-space-3: 16px;
-  --host-space-4: 24px;
-  --host-space-5: 40px;
-  --host-sidebar-w: 280px;
+  /* 6c. Host console scale (1024 px and up) */
+  --host-tap: 44px;
+  --host-tap-primary: 64px;
+  --host-text-overline: 12px;
+  --host-text-small: 13px;
+  --host-text-body: 15px;
+  --host-text-title: 18px;
+  --host-text-question: 28px;
+  --host-sidebar-w: 300px;
 }

@@ -66,8 +66,8 @@ export function safeRelative(path: string): string | null {
 
 /**
  * Runtime assets that are not page code: the default tokens, the bundled fonts with their
- * licences, the Lock-In logo and the copy pools. They ship in the binary; design notes and
- * wireframes stay in docs/ and never do (code review LI-021).
+ * licences, the Lock-In logo and the copy pools. They ship in the binary; design notes stay
+ * in docs/ and never do (code review LI-021).
  */
 export const ASSETS_DIR = "assets";
 
@@ -77,22 +77,15 @@ export const TOKENS_PATH = `${ASSETS_DIR}/tokens.css`;
 /**
  * Maps a /static/... URL path to a repo-relative file path, or null.
  *   shared/tokens.css   -> assets/tokens.css
- *   fonts/<id>.woff2    -> assets/fonts/<id>-400.woff2 (TECH-SPEC 5.3 names fonts by id);
- *   fonts/<file>        -> assets/fonts/<file> (e.g. atkinson-hyperlegible-700.woff2, OFL-*.txt)
+ *   fonts/<file>        -> assets/fonts/<file> (e.g. funnel-sans-wght.woff2, OFL-*.txt)
  *   logo/<file>         -> assets/logo/<file> (the Lock-In mark)
  *   anything else       -> public/<path>
  */
-export function staticPath(rest: string, files: FileSource): string | null {
+export function staticPath(rest: string): string | null {
   const rel = safeRelative(rest);
   if (!rel) return null;
   if (rel === "shared/tokens.css") return TOKENS_PATH;
-  if (rel.startsWith("fonts/")) {
-    const exact = `${ASSETS_DIR}/${rel}`;
-    const byId = /^fonts\/([a-z0-9-]+)\.woff2$/.exec(rel);
-    if (!files.exists(exact) && byId) return `${ASSETS_DIR}/fonts/${byId[1]}-400.woff2`;
-    return exact;
-  }
-  if (rel.startsWith("logo/")) return `${ASSETS_DIR}/${rel}`;
+  if (rel.startsWith("fonts/") || rel.startsWith("logo/")) return `${ASSETS_DIR}/${rel}`;
   return `public/${rel}`;
 }
 
@@ -135,7 +128,7 @@ export function registerStatic(app: App): void {
   const notFound = () => new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 
   app.route("GET", "/static/*", async (req, ctx) => {
-    const path = staticPath(ctx.params["*"] ?? "", files);
+    const path = staticPath(ctx.params["*"] ?? "");
     if (!path) return notFound();
     return (await serveFile(req, files, path)) ?? notFound();
   });

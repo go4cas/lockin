@@ -92,28 +92,35 @@ export function mountLibrary(root) {
 
   /** @param {QuizSummary} q */
   const row = (q) => html`
-    <tr>
-      <td class="lib-title"><a href="${`/host/build?quiz=${encodeURIComponent(q.id)}`}">${q.title}</a></td>
-      <td>${roundsLabel(q)}</td>
-      <td>${whenEdited(q.updatedAt)}</td>
-      <td>${q.ready
-        ? html`<span class="pill ok"><i></i>Ready</span>`
+    <tr class="${q.ready ? "ready" : "not-ready"}">
+      <td class="lib-title">
+        <span class="${q.ready ? "sdot ok" : "sdot warn"}" aria-hidden="true"></span>
+        <span class="lib-name"><a href="${`/host/build?quiz=${encodeURIComponent(q.id)}`}">${q.title}</a>
+          <span class="lib-meta">${roundsLabel(q)} · ${q.questions} ${q.questions === 1 ? "question" : "questions"}</span></span>
+      </td>
+      <td class="lib-edited">${whenEdited(q.updatedAt)}</td>
+      <td class="lib-status">${q.ready
+        ? html`<a class="go" href="${`/host/run?quiz=${encodeURIComponent(q.id)}`}">Open night →</a>`
         : html`<details class="problems">
-            <summary><span class="pill warn"><i></i>${readinessLabel(q.ready, q.problems)}</span></summary>
-            <ul>${groupProblems(q.problems).slice(0, 8).map((p) => html`<li>${p.message}</li>`)}</ul>
-            ${groupProblems(q.problems).length > 8 ? html`<p class="muted s">And ${groupProblems(q.problems).length - 8} more. Open the quiz to see them all.</p>` : ""}
+            <summary>${readinessLabel(q.ready, q.problems)} ▾</summary>
+            <div class="menu popover" role="dialog" aria-label="What needs fixing">
+              <p class="pop-title">What needs fixing</p>
+              <ul>${groupProblems(q.problems).slice(0, 8).map((p) => html`<li>${p.message}</li>`)}</ul>
+              ${groupProblems(q.problems).length > 8 ? html`<p class="muted s">And ${groupProblems(q.problems).length - 8} more. Open the quiz to see them all.</p>` : ""}
+              <a class="go" href="${`/host/build?quiz=${encodeURIComponent(q.id)}`}">Open the quiz to fix them →</a>
+            </div>
           </details>`}</td>
       <td class="lib-actions">
-        ${q.ready ? html`<a class="btn primary" href="${`/host/run?quiz=${encodeURIComponent(q.id)}`}">Open a night</a>` : ""}
-        <a class="btn ghost" href="${`/host/build?quiz=${encodeURIComponent(q.id)}`}">Edit</a>
+        <a class="btn small" href="${`/host/build?quiz=${encodeURIComponent(q.id)}`}">Edit</a>
         <span class="menu-wrap">
-          <button type="button" class="btn ghost" aria-haspopup="menu" aria-label="${`More for ${q.title}`}"
+          <button type="button" class="btn more" aria-haspopup="menu" aria-label="${`More for ${q.title}`}"
             aria-expanded="${() => (page.menu === q.id ? "true" : "false")}"
             @click="${() => { page.menu = page.menu === q.id ? null : q.id; }}">⋯</button>
           <span class="menu" role="menu" hidden="${() => page.menu !== q.id}">
             <button type="button" role="menuitem" @click="${() => openDialog("duplicate", q)}">Duplicate</button>
             <button type="button" role="menuitem" @click="${() => openDialog("rename", q)}">Rename</button>
-            <button type="button" role="menuitem" class="danger-text" @click="${() => openDialog("delete", q)}">Delete</button>
+            <hr>
+            <button type="button" role="menuitem" class="danger-text" @click="${() => openDialog("delete", q)}">Delete…</button>
           </span>
         </span>
       </td>
@@ -143,15 +150,15 @@ export function mountLibrary(root) {
   };
 
   html`
-    <div class="row between">
-      <h1>Quizzes</h1>
-      <button type="button" class="btn primary" @click="${() => openDialog("new", null)}">+ New quiz</button>
+    <div class="lib-head">
+      <h1>Quizzes <span class="count-dim">${() => (page.quizzes ? String(page.quizzes.length) : "")}</span></h1>
+      <button type="button" class="btn primary" @click="${() => openDialog("new", null)}">New quiz</button>
     </div>
     <p class="form-error" role="alert" hidden="${() => !page.error}">${() => page.error}</p>
     ${() => (page.quizzes === null ? html`<p class="muted">Loading quizzes…</p>`
-      : page.quizzes.length === 0 ? html`<div class="empty"><p>No quizzes yet.</p><p class="muted">Make one with “+ New quiz”, or copy a quiz folder into the data folder's <code>quizzes/</code> folder.</p></div>`
+      : page.quizzes.length === 0 ? html`<div class="empty"><p>No quizzes yet.</p><p class="muted">Make one with “New quiz”, or copy a quiz folder into the data folder's <code>quizzes/</code> folder.</p></div>`
       : html`<table class="lib">
-          <thead><tr><th>Quiz</th><th>Rounds</th><th>Last edited</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+          <thead><tr><th>Quiz</th><th>Edited</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
           <tbody>${() => (page.quizzes || []).map(row)}</tbody>
         </table>`)}
     <p class="muted s">A quiz that is not ready can't open a night. Duplicate, rename and delete are under ⋯. Delete asks first.</p>

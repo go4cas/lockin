@@ -100,7 +100,7 @@ export function revealScreen() {
     <table class="answers-table">
       <thead><tr><th>Team</th><th>Answer</th><th>Mark</th></tr></thead>
       <tbody>${pool(teams, (t) => html`<tr hidden="${() => !t()}">
-        <td><span class="tname">${dot(() => t()?.colour || 1)}${() => t()?.name || ""}</span></td>
+        <td><span class="tname">${dot(() => t()?.colour || 1, () => t()?.name || "")}${() => t()?.name || ""}</span></td>
         <td>${() => answerText(answerOf(t()?.id || "", qid()), true)}</td>
         <td>${markButtons(() => t()?.id || "", qid)}</td></tr>`)}</tbody>
     </table>
@@ -118,7 +118,7 @@ export function standingsTable() {
     <tbody>${pool(rows, (x) => html`<tr hidden="${() => !x()}">
       <td class="pos">${() => { const y = x(); return y ? `${ordinal(y.position)}${y.shared ? "=" : ""}` : ""; }}</td>
       <td class="${() => `move ${moveMark(x()).cls}`}" title="${() => moveMark(x()).label}"><span aria-hidden="true">${() => moveMark(x()).text}</span><span class="visually-hidden">${() => moveMark(x()).label}</span></td>
-      <td><span class="tname">${dot(() => x()?.colour || 1)}<b>${() => x()?.name || ""}</b>
+      <td><span class="tname">${dot(() => x()?.colour || 1, () => x()?.name || "")}<b>${() => x()?.name || ""}</b>
         <span class="pill joker" hidden="${() => !x()?.jokerThisRound}">Joker</span></span></td>
       <td class="num">${() => String(x()?.roundScore ?? "")}</td>
       <td class="num"><b>${() => String(x()?.total ?? "")}</b></td>

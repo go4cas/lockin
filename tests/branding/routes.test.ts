@@ -8,7 +8,6 @@ const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70]);
 const WEBP = new Uint8Array([...new TextEncoder().encode("RIFF"), 0, 0, 0, 0, ...new TextEncoder().encode("WEBPVP8 ")]);
 const WOFF2 = new Uint8Array([...new TextEncoder().encode("wOF2"), 0, 1, 0, 0]);
-const TTF = new Uint8Array([0, 1, 0, 0, 0, 10, 0, 128]);
 const SVG = new TextEncoder().encode('<?xml version="1.0"?>\n<!-- logo -->\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>alert(1)</script></svg>');
 const HTML = new TextEncoder().encode("<html><body>not a picture</body></html>");
 
@@ -53,15 +52,13 @@ describe("host routes need a session and a matching Origin", () => {
 });
 
 describe("theme", () => {
-  test("GET /api/theme gives the defaults, version and the bundled fonts", async () => {
+  test("GET /api/theme gives the defaults, version and the countdown styles", async () => {
     const body = await (await s.fetch("/api/theme", { cookie })).json();
     expect(body.theme.format).toBe("lockin.theme/1");
-    expect(body.theme.colours).toEqual({ background: null, text: null, accent: null, accent2: null });
+    expect(body.theme.colours).toEqual({ accent: null });
+    expect(body.theme.countdown).toBeNull();
     expect(body.version).toMatch(/^[0-9a-f]{12}$/);
-    expect(body.bundledFonts).toEqual([
-      { id: "caveat-brush", name: "Caveat Brush" }, { id: "alfa-slab-one", name: "Alfa Slab One" },
-      { id: "bebas-neue", name: "Bebas Neue" }, { id: "atkinson-hyperlegible", name: "Atkinson Hyperlegible" },
-    ]);
+    expect(body.countdownStyles).toEqual(["number", "ring", "bar", "dashed", "flip"]);
   });
 
   test("PUT saves theme.json atomically in field order, and themeVersion and /theme.css change", async () => {
@@ -69,24 +66,22 @@ describe("theme", () => {
     const etagBefore = (await s.fetch("/theme.css")).headers.get("etag");
     const res = await putTheme({
       format: "lockin.theme/1", copy: {}, name: "The Example Arms",
-      colours: { background: "#1C140F", text: "#f3e6cc", accent: "#d9a441", accent2: "#8cc2a8" },
-      fonts: { display: { bundled: "alfa-slab-one" }, body: null },
+      colours: { accent: "#D9A441" }, countdown: "bar",
     });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.version).not.toBe(before.version);
     expect(s.app.services.branding.themeVersion()).toBe(body.version);
-    expect(body.theme.colours.background).toBe("#1c140f");
+    expect(body.theme.colours.accent).toBe("#d9a441");
 
     const file = readFileSync(join(s.dataDir, "theme", "theme.json"), "utf8");
-    expect(Object.keys(JSON.parse(file))).toEqual(["format", "name", "logo", "colours", "fonts", "displayBackground", "copy"]);
+    expect(Object.keys(JSON.parse(file))).toEqual(["format", "name", "logo", "colours", "countdown", "displayBackground", "copy"]);
     expect(file.endsWith("\n")).toBe(true);
     expect(existsSync(join(s.dataDir, "theme", "theme.json.tmp"))).toBe(false);
 
     const css = await (await s.fetch("/theme.css")).text();
-    expect(css).toContain("--brand-bg: #1c140f;");
-    expect(css).toContain("--brand-surface-2: #2d251e;");
-    expect(css).toContain('"Alfa Slab One"');
+    expect(css).toContain("--venue: #d9a441;");
+    expect(css).toContain("--on-venue: #0b0b0c;");
     expect(css).toContain(`version ${body.version}`);
     expect((await s.fetch("/theme.css")).headers.get("etag")).not.toBe(etagBefore);
   });
@@ -108,11 +103,11 @@ describe("theme", () => {
 
   test("an invalid theme is refused with plain-English problems, and nothing is written", async () => {
     const before = readFileSync(join(s.dataDir, "theme", "theme.json"), "utf8");
-    const res = await putTheme({ format: "lockin.theme/1", colours: { background: "red" }, fonts: { body: { bundled: "bebas-neue" } } });
+    const res = await putTheme({ format: "lockin.theme/1", colours: { accent: "red" }, countdown: "sundial" });
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe("invalid");
-    expect(body.error.problems.map((p: { path: string }) => p.path)).toEqual(["colours.background", "fonts.body"]);
+    expect(body.error.problems.map((p: { path: string }) => p.path)).toEqual(["colours.accent", "countdown"]);
     expect(readFileSync(join(s.dataDir, "theme", "theme.json"), "utf8")).toBe(before);
   });
 
@@ -160,21 +155,20 @@ describe("asset uploads (12.4)", () => {
     expect((await res.json()).error.message).toBe("The logo must be a PNG, SVG or JPEG file.");
     expect((await upload("logo", WEBP, "x.webp")).status).toBe(415);            // WebP is not a logo type
     expect((await upload("displayBackground", SVG, "x.svg")).status).toBe(415); // no SVG backgrounds
-    expect((await upload("font", PNG, "x.woff2")).status).toBe(415);
+    expect((await upload("font", WOFF2, "x.woff2")).status).toBe(400);        // fonts are fixed in Last Call
   });
 
   test("each kind takes its own types", async () => {
-    for (const [kind, bytes, ext] of [["logo", JPEG, "jpg"], ["displayBackground", WEBP, "webp"], ["displayBackground", JPEG, "jpg"], ["font", WOFF2, "woff2"], ["font", TTF, "ttf"]] as const) {
+    for (const [kind, bytes, ext] of [["logo", JPEG, "jpg"], ["displayBackground", WEBP, "webp"], ["displayBackground", JPEG, "jpg"], ["displayBackground", PNG, "png"]] as const) {
       const res = await upload(kind, bytes);
       expect(res.status).toBe(200);
       expect((await res.json()).file).toEndWith(`.${ext}`);
     }
   });
 
-  test("size limits: logo and fonts 2 MB, background 5 MB", async () => {
+  test("size limits: logo 2 MB, background 5 MB", async () => {
     const big = (n: number, head: Uint8Array) => { const b = new Uint8Array(n); b.set(head); return b; };
     expect((await upload("logo", big(2 * 1024 * 1024 + 1, PNG))).status).toBe(413);
-    expect((await upload("font", big(2 * 1024 * 1024 + 1, WOFF2))).status).toBe(413);
     expect((await upload("displayBackground", big(3 * 1024 * 1024, JPEG))).status).toBe(200);
     expect((await upload("displayBackground", big(5 * 1024 * 1024 + 1, JPEG))).status).toBe(413);
   });
@@ -196,16 +190,16 @@ describe("asset uploads (12.4)", () => {
 
 describe("preview.css (H-16)", () => {
   test("gives scoped CSS for an unsaved theme", async () => {
-    const theme = { format: "lockin.theme/1", colours: { background: "#0e0b1a" }, fonts: { display: { bundled: "bebas-neue" } } };
+    const theme = { format: "lockin.theme/1", colours: { accent: "#ff3ea5" } };
     const res = await s.fetch(`/api/theme/preview.css?theme=${encodeURIComponent(JSON.stringify(theme))}`, { cookie });
     expect(res.status).toBe(200);
     const css = await res.text();
     expect(css).toContain(".lockin-preview {");
-    expect(css).toContain("--brand-bg: #0e0b1a;");
+    expect(css).toContain("--venue: #ff3ea5;");
     expect(css).not.toContain(":root");
   });
   test("an invalid theme gives a 400 with a CSS comment", async () => {
-    const res = await s.fetch(`/api/theme/preview.css?theme=${encodeURIComponent('{"format":"lockin.theme/1","colours":{"text":"url(x)"}}')}`, { cookie });
+    const res = await s.fetch(`/api/theme/preview.css?theme=${encodeURIComponent('{"format":"lockin.theme/1","colours":{"accent":"url(x)"}}')}`, { cookie });
     expect(res.status).toBe(400);
     expect(await res.text()).toStartWith("/*");
   });
@@ -252,7 +246,7 @@ describe("files on disk are the source of truth (S-09, 4.4)", () => {
       mkdirSync(join(t.dataDir, "theme"), { recursive: true });
       writeFileSync(join(t.dataDir, "theme", "theme.json"), JSON.stringify({ format: "lockin.theme/9" }));
       const css = await (await t.fetch("/theme.css")).text();
-      expect(css).toContain("--brand-bg: #17191b;");
+      expect(css).toContain("--venue: #7df0c3;");
       expect(t.logs.some((l) => l.includes("theme.json has problems"))).toBe(true);
       const c = await t.signIn();
       const body = await (await t.fetch("/api/theme", { cookie: c })).json();
@@ -267,7 +261,7 @@ describe("files on disk are the source of truth (S-09, 4.4)", () => {
       const v1 = t.app.services.branding.themeVersion();
       mkdirSync(join(t.dataDir, "theme"), { recursive: true });
       writeFileSync(join(t.dataDir, "theme", "theme.json"), JSON.stringify({ format: "lockin.theme/1", name: "Copied In", colours: { accent: "#123456" } }));
-      expect(await (await t.fetch("/theme.css")).text()).toContain("--brand-accent: #123456;");
+      expect(await (await t.fetch("/theme.css")).text()).toContain("--venue: #123456;");
       expect(t.app.services.branding.venueName()).toBe("Copied In");
       expect(t.app.services.branding.themeVersion()).not.toBe(v1);
     } finally { await t.stop(); }

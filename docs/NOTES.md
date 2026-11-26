@@ -460,3 +460,25 @@ Cas asked for the server install to match the other apps on the shared VPS: one 
 - **`lockin-deploy.tar.gz`** is now a release asset with a `.sha256` and a build attestation: `deploy/` at the tag, packed reproducibly (sorted, owner 0, the commit's time, `gzip -n`). The server fetches it with `curl` and checks it with `sha256sum -c`.
 - **Program in `/opt/lockin/`** (binary `lockin`, `lockin.previous`, scripts in `scripts/`). Settings stay in `/etc/lockin`, data in `/var/lib/lockin`, so nothing in the data moves. `setup.sh` copies a `/usr/local` install (from v0.2.0) to `/opt/lockin`, installs the new units, restarts, and removes the old files only after the new install answers its health check.
 - Not yet run on the VPS: the v0.2.0 server moving to 1.0.0 is its test.
+
+## Last Call UI rework (2026-11-26)
+
+Cas's new design system, **Last Call** (Design System and Design Canvas artifacts), replaces the
+Chalkboard look on all three clients. Decisions and evidence:
+
+- **Branding follows the design system** (Cas, decision card): a venue sets its name, logo, one
+  main colour, the countdown style (number, ring, bar, dashed, flip; default ring) and a TV
+  picture. Fonts are fixed (Funnel Display and Funnel Sans). Older theme files still load; their
+  extra colours, fonts and `displayBackground.colour` are ignored. Font uploads are gone.
+- **Contract additions** (additive): `Common.venue.countdown` and `QuestionPublic.answeredIds` (which
+  teams have answered, never what, so the display can fill their bubbles).
+- **One countdown** (`public/shared/countdown.mjs`) on display, phone and console. Both clients
+  compute seconds from the same server timer, which fixes the display/phone mismatch; before the
+  start it shows the full time, dimmed.
+- **Cleanup** (Cas: remove leftovers of the previous design): `docs/design/` (wireframes, tools,
+  branding and moments notes, images) and the old Caveat Brush, Alfa Slab One, Bebas Neue and
+  Atkinson Hyperlegible fonts are removed; the copy-pool placement notes moved to `docs/COPY.md`;
+  `docs/DESIGN-SYSTEM.md` is rewritten for Last Call; the old phone screenshots in
+  `tests/phone/screens/` are no longer committed. Earlier entries above that point at
+  `docs/design/` describe the history and are left as they were.
+- **Deviations** are listed in docs/DESIGN-SYSTEM.md section 6.

@@ -164,15 +164,29 @@ describe("validateTheme", () => {
       format: "lockin.theme/1",
       name: "The Example Arms",
       logo: "assets/logo-1a2b.svg",
-      colours: { background: "#101820", text: "#F2F2F2", accent: "#ff7a5c", accent2: null },
-      fonts: { display: { bundled: "bebas-neue" }, body: { file: "assets/body-9c.woff2" } },
+      colours: { accent: "#FF7A5C" },
+      countdown: "bar",
       displayBackground: { image: "assets/display-1.webp" },
       copy: { winner: { mode: "add", lines: ["{team} take the crown at {pub}!"] } },
     };
     const r = validateTheme(theme);
     expect(r.ok).toBe(true);
-    expect(r.ok && r.value.colours.text).toBe("#f2f2f2");
+    expect(r.ok && r.value.colours).toEqual({ accent: "#ff7a5c" });
+    expect(r.ok && r.value.countdown).toBe("bar");
     expect(r.ok && r.value.copy.winner!.lines).toHaveLength(1);
+  });
+
+  test("an older theme still loads: its extra colours, fonts and background colour are ignored", () => {
+    const r = validateTheme({
+      format: "lockin.theme/1",
+      colours: { background: "#101820", text: "#F2F2F2", accent: "#ff7a5c", accent2: null },
+      fonts: { display: { bundled: "bebas-neue" }, body: { file: "assets/body-9c.woff2" } },
+      displayBackground: { colour: "#223344" },
+    });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.value.colours).toEqual({ accent: "#ff7a5c" });
+    expect(r.ok && r.value.displayBackground).toBeNull();
+    expect(r.ok && "fonts" in r.value).toBe(false);
   });
 
   test("reports bad fields in plain English", () => {
@@ -181,26 +195,19 @@ describe("validateTheme", () => {
       name: "",
       logo: "../logo.png",
       colours: { accent: "red" },
-      fonts: { display: { bundled: "comic-sans" }, body: { file: "assets/x.otf" } },
-      displayBackground: { colour: "#12345" },
+      countdown: "sundial",
+      displayBackground: { image: "assets/x.gif" },
       copy: { winner: { mode: "swap", lines: [] }, "Bad Key": { mode: "add", lines: ["x"] } },
     });
     expect(messages(r).sort()).toEqual([
       '"Bad Key" is not a copy pool name.',
       'The "winner" lines must say whether they replace or add to the default lines.',
-      'The display font "comic-sans" is not one of Lock-In\'s bundled fonts.',
-      "The display background colour must be a colour code like #1a2b3c.",
-      "The body font file must be a WOFF2, WOFF or TTF file in the theme's assets folder.",
+      "The countdown style must be number, ring, bar, dashed or flip.",
+      "The display background picture must be a JPEG, PNG or WebP file in the theme's assets folder.",
       "The logo must be a PNG, SVG or JPEG file in the theme's assets folder.",
       "The main colour must be a colour code like #1a2b3c.",
       "The venue name must be 1 to 60 characters.",
     ].sort());
-  });
-
-  test("the body font must be Atkinson Hyperlegible or an upload (Design's branding.md)", () => {
-    const r = validateTheme({ format: "lockin.theme/1", fonts: { display: { bundled: "atkinson-hyperlegible" }, body: { bundled: "bebas-neue" } } });
-    expect(messages(r)).toEqual(['"bebas-neue" is a headline font. The body font must be Atkinson Hyperlegible or an uploaded font.']);
-    expect(validateTheme({ format: "lockin.theme/1", fonts: { body: { bundled: "atkinson-hyperlegible" } } }).ok).toBe(true);
   });
 
   test("rejects a wrong format or non-object", () => {

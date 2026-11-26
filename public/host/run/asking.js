@@ -2,7 +2,8 @@
 // Round intro and asking (H-08, H-09): the host's script, the question on screen with its
 // answer and note, timer controls and the answered count.
 import { html } from "/vendor/arrow/index.mjs";
-import { acceptedList, clockText, plural, steps, timerLeft } from "./logic.js";
+import { countdown, countdownNow } from "/static/shared/countdown.mjs";
+import { acceptedList, plural, steps } from "./logic.js";
 import { markingPanel } from "./marking.js";
 import { page, toggleHideAnswers, ui } from "./state.js";
 import { cmdButton, dot, pool } from "./ui.js";
@@ -20,44 +21,64 @@ export function stepsLine() {
 }
 
 /**
- * The question text, picture, answer and host note.
+ * The question text, picture, answer and host note: the question, then the answer (venue
+ * colour) and the host note between hairlines (Last Call, "Running a question").
  * @param {() => QuestionHost | null | undefined} q
  */
 export function questionBlock(q) {
   const alts = () => { const x = q(); return x ? acceptedList(x).slice(1) : []; };
   return html`<div class="question">
+    <div class="q-meta">
+      <span class="muted">${() => questionWhere(q())}</span>
+      <label class="hide-toggle"><input type="checkbox" class="switch" checked="${() => ui.hideAnswers}" @change="${toggleHideAnswers}">Hide answers on this screen</label>
+    </div>
     <img class="q-img" hidden="${() => !q()?.image}" src="${() => q()?.image || ""}" alt="The question's picture">
     <p class="qbig">${() => q()?.text || ""}</p>
-    <p class="ans"><span class="tick" aria-hidden="true">✓</span> Answer: <b class="secret" title="${secretTitle}">${() => q()?.answerText || ""}</b>
-      <span class="muted s secret" hidden="${() => alts().length === 0}">${() => `Also accepted: ${alts().join(", ")}`}</span>
-      <button type="button" class="btn ghost small reveal-btn" aria-pressed="${() => (ui.hideAnswers ? "true" : "false")}" @click="${toggleHideAnswers}">${() => (ui.hideAnswers ? "Show answers on this screen" : "Hide answers on this screen")}</button></p>
-    <div class="card note" hidden="${() => !q()?.note}"><b>Note:</b> <span class="secret">${() => q()?.note || ""}</span></div>
+    <div class="ans-grid">
+      <div class="ans"><span class="label-s">Answer</span><b class="secret ans-text" title="${secretTitle}">${() => q()?.answerText || ""}</b>
+        <span class="muted s secret" hidden="${() => alts().length === 0}">${() => `Also accepted: ${alts().join(", ")}`}</span></div>
+      <div class="note"><span class="label-s">Host note</span><span class="secret fog">${() => q()?.note || "None for this question."}</span></div>
+    </div>
   </div>`;
 }
 
+/** "Round 3 — Space · 04 / 08" for the question on show. @param {QuestionHost | null | undefined} q */
+function questionWhere(q) {
+  const r = page.view?.night?.round;
+  if (!r || !q) return "";
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, "0");
+  return `Round ${r.index + 1} — ${r.title} · ${pad(q.number)} / ${pad(r.questionCount)}`;
+}
+
 /**
- * The timer box: clock, start, pause or resume, +15 s, lock now, and the answered count.
+ * The timer row: the countdown in the venue's style (phone size), start, pause or resume,
+ * +15 s, lock now, and the answered count.
  * @param {() => QuestionHost | null | undefined} q
  * @param {() => boolean} [perRound]
  */
 export function timerBox(q, perRound = () => false) {
   const t = () => /** @type {TimerView | undefined} */ (q()?.timer);
-  const clock = () => {
-    const timer = t();
-    if (!timer) return "";
-    if (q()?.status === "locked") return "Locked";
-    return clockText(timerLeft(timer, page.now));
-  };
-  return html`<div class="card timer-box">
-    <span class="${() => `clock ${t()?.state || ""}${q()?.status === "locked" ? " locked" : ""}`}" role="timer">${clock}</span>
+  const open = () => q()?.status !== "locked";
+  return html`<div class="timer-box">
+    <div class="timer-cd">${countdown(html, {
+      size: "small",
+      style: () => page.view?.venue.countdown,
+      timer: () => (q()?.status === "locked" ? { state: "done", durationMs: 1, locksAt: null, remainingMs: null } : t()),
+      now: () => page.now,
+      label: () => {
+        if (q()?.status === "locked") return "Locked";
+        const c = countdownNow(t(), page.now);
+        return c.idle ? "Not started" : c.paused ? "Paused" : "seconds left";
+      },
+    })}</div>
     <div class="timer-btns">
       ${cmdButton("timer.start", () => (perRound() ? "Start round timer" : "Start timer"), { show: () => t()?.state === "idle" && q()?.status !== "locked" })}
       ${cmdButton("timer.resume", "Resume", { show: () => t()?.state === "paused" })}
-      ${cmdButton("timer.pause", "Pause", { show: () => t()?.state !== "paused" })}
-      ${cmdButton("timer.add", "+15 s", { args: { seconds: 15 } })}
-      ${cmdButton("lock", () => (perRound() ? "Lock the round" : "Lock now"), { cls: "danger" })}
+      ${cmdButton("timer.pause", "Pause", { show: () => t()?.state !== "paused" && open() })}
+      ${cmdButton("timer.add", "+15 s", { args: { seconds: 15 }, show: open })}
+      ${cmdButton("lock", () => (perRound() ? "Lock the round" : "Lock now"), { cls: "danger", show: () => open() || perRound() })}
     </div>
-    <p class="answered"><b>${() => String(q()?.answered ?? 0)}</b> of ${() => String(q()?.of ?? 0)} answered
+    <p class="answered"><b>${() => String(q()?.answered ?? 0)}</b> of ${() => String(q()?.of ?? 0)} in
       <span class="pill ok" hidden="${() => !(q() && q()?.of && q()?.answered === q()?.of && q()?.status !== "locked")}"><i></i>Everyone has answered</span></p>
   </div>`;
 }
@@ -71,7 +92,7 @@ export function roundIntroScreen() {
     <section class="card">
       <h3 class="label">Jokers on this round</h3>
       <p class="muted" hidden="${() => jokers().length > 0}">${() => (page.view?.night?.joker ? "No team has played its joker on this round yet. Teams can still play it until you start the round." : "This quiz has no joker.")}</p>
-      <ul class="chips" hidden="${() => jokers().length === 0}">${pool(jokers, (t) => html`<li hidden="${() => !t()}">${dot(() => t()?.colour || 1)}${() => t()?.name || ""}</li>`)}</ul>
+      <ul class="chips" hidden="${() => jokers().length === 0}">${pool(jokers, (t) => html`<li hidden="${() => !t()}">${dot(() => t()?.colour || 1, () => t()?.name || "")}${() => t()?.name || ""}</li>`)}</ul>
     </section>
     ${scriptList()}
   </div>`;

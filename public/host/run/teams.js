@@ -47,7 +47,7 @@ export function lobbyTeams() {
 /** @param {() => HostTeam | undefined} team */
 function teamRow(team) {
   return html`<tr class="${() => (team() && !team()?.connected ? "offline" : "")}" hidden="${() => !team()}">
-    <td><span class="tname">${dot(() => team()?.colour || 1)}<b>${() => team()?.name || ""}</b></span></td>
+    <td><span class="tname">${dot(() => team()?.colour || 1, () => team()?.name || "")}<b>${() => team()?.name || ""}</b></span></td>
     <td>${phonePill(team)}</td>
     <td class="right">${teamMenuButton(() => team()?.id || "")}</td>
   </tr>`;
@@ -60,7 +60,7 @@ function teamRow(team) {
  */
 function teamItem(t, showAnswered) {
   return html`<li class="${() => `tm${t()?.connected === false ? " offline" : ""}`}" hidden="${() => !t()}">
-      ${dot(() => t()?.colour || 1)}<span class="n">${() => t()?.name || ""}</span>
+      ${dot(() => t()?.colour || 1, () => t()?.name || "")}<span class="n">${() => t()?.name || ""}</span>
       <span class="pill joker" title="Joker on this round" hidden="${() => !(showAnswered && t()?.jokerThisRound)}">Joker</span>
       <span hidden="${() => !!(showAnswered && showAnswered())}">${phonePill(t)}</span>
       <span hidden="${() => !(showAnswered && showAnswered())}">${phonePill(t, true)}</span>
@@ -91,7 +91,7 @@ export function offlineCount() {
 export function teamDialog() {
   const id = () => /** @type {string} */ (ui.d.id || "");
   return dialogFrame("Team tools", html`
-    <p class="team-head">${dot(() => teamById(id())?.colour || 1)}<b>${() => teamName(id())}</b> ${phonePill(() => teamById(id()))}</p>
+    <p class="team-head">${dot(() => teamById(id())?.colour || 1, () => teamName(id()))}<b>${() => teamName(id())}</b> ${phonePill(() => teamById(id()))}</p>
     <p class="muted s" hidden="${() => !(teamById(id()) && !teamById(id())?.connected)}">Their phone is offline. If it died, move the team to a new phone: they keep their name, answers and score.</p>
     <div class="stack">
       <button type="button" class="btn" disabled="${() => !enabled("team.rename")}" @click="${() => openDialog("rename", { id: id(), name: teamName(id()), text: teamName(id()) })}">Rename</button>

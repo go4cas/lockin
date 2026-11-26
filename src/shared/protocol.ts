@@ -1,7 +1,7 @@
 // WebSocket protocol: envelope, commands and views (TECH-SPEC sections 7.1,
 // 10.1, 10.3 and 10.4). Contract: changes only with Cas's agreement.
 
-import type { AnswerSpec, HoldingPanel, Prize } from "./formats.ts";
+import type { AnswerSpec, CountdownStyle, HoldingPanel, Prize } from "./formats.ts";
 import type { AnswerGroup, AnswerValue, StandingRow } from "./rules-api.ts";
 
 // 7.1 Phases
@@ -179,7 +179,7 @@ export type ErrorCode =
 // 10.3 Views
 export interface Common {
   phase: Phase;
-  venue: { name: string; themeVersion: string; teamColours: number };   // count of --team-N colours
+  venue: { name: string; themeVersion: string; teamColours: number; countdown: CountdownStyle };   // teamColours: count of --team-N colours; countdown: the venue's countdown style
   night: NightInfo | null;                                              // null when idle
   flash: Flash | null;                                                  // short-lived event line (10.4)
 }
@@ -218,6 +218,7 @@ export interface QuestionPublic {
   status: "open" | "locked";
   timer: TimerView;                // per-round mode: the round timer, same on every question
   answered: number;                // teams that have answered (count only)
+  answeredIds: string[];           // which teams have answered (never what): the display fills their bubbles
   of: number;                      // teams that can answer
 }
 export interface TimerView {

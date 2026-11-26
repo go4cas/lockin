@@ -1,6 +1,6 @@
 # Lock-In: technical spec
 
-This is how Lock-In is built. It turns [REQUIREMENTS.md](REQUIREMENTS.md) into a design that build threads can implement in parallel without colliding. Where this file and REQUIREMENTS.md differ on *what* the product does, REQUIREMENTS.md wins; this file decides *how*. The decisions behind it are in [NOTES.md](NOTES.md), and the visual design is in `docs/design/`.
+This is how Lock-In is built. It turns [REQUIREMENTS.md](REQUIREMENTS.md) into a design that build threads can implement in parallel without colliding. Where this file and REQUIREMENTS.md differ on *what* the product does, REQUIREMENTS.md wins; this file decides *how*. The decisions behind it are in [NOTES.md](NOTES.md), and the visual design is in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) (Last Call).
 
 Sections 5 to 11 are **contracts**. The TypeScript blocks in them are normative: B0 copies them into `src/shared/` and build threads code against them. Once this file is merged, a contract changes only with Cas's agreement (project rule), recorded in NOTES.md.
 
@@ -149,7 +149,7 @@ Shared services are built once per app by the composition root, `createServices(
 | **Phone** | Current and previous major Safari on iOS and Chrome on Android (P-01) | Modern JS (ES2022, modules) and CSS. Files from `public/shared/` and `public/vendor/` must still follow the display rules. |
 | **Host console** | Current Chrome, Edge, Firefox and Safari on laptops; Safari and Chrome on tablets | Modern JS and CSS. |
 
-A test (`tests/browser-baseline.test.ts`, B0) scans `public/display/`, `public/shared/` and `public/vendor/` for the banned JS and CSS above and fails the build if it finds any. The same test checks that no page code in `public/` (outside `public/vendor/`) uses an HTML sink such as `innerHTML` (12.4). `docs/design/tools/tokens.test.ts` runs the same CSS scanner on the display wireframe CSS.
+A test (`tests/browser-baseline.test.ts`, B0) scans `public/display/`, `public/shared/` and `public/vendor/` for the banned JS and CSS above and fails the build if it finds any. The same test checks that no page code in `public/` (outside `public/vendor/`) uses an HTML sink such as `innerHTML` (12.4).
 
 Browser files may use JSDoc types with `// @ts-check` and `import('../../src/shared/protocol').DisplayView` style typedefs; they are type-checked by `bun run typecheck` but served unchanged. `tsconfig.json` maps `/vendor/*` to `public/vendor/*`, so `import { html } from "/vendor/arrow/index.mjs"` type-checks as written.
 
@@ -221,7 +221,7 @@ Precedence: command-line flag, then environment variable, then `config.json` in 
 - `bun run build` (B8) runs `bun build --compile --target=bun-linux-x64`, producing `dist/lockin-linux-x64`.
 - Everything in `public/` (including the vendored Arrow in `public/vendor/`; `.mjs` files are served as `text/javascript`, which module scripts require), `assets/copy.en.json`, `assets/tokens.css`, bundled fonts and the default theme assets are **embedded in the binary** through a generated `src/server/embedded.ts` (a map from URL path to a file imported `with { type: "file" }`). In development (`bun run dev`) the same paths are served from disk.
 
-- Runtime files that are not page code live in `assets/` (copy pools, default tokens, bundled fonts with their OFL licences, the Lock-In logo); the binary embeds exactly `public/` and `assets/`, so editing design notes or wireframes in `docs/` never changes what ships (code review LI-021). Their public URLs (`/static/shared/tokens.css`, `/static/fonts/…`, `/static/logo/…`) are unchanged. The three copies of the derived-token code (`docs/design/tools/derive.ts`, `src/server/branding/derive.ts`, `public/host/brand/derive.js`) stay hand-kept and are held equal by `tests/branding/derive.test.ts`; the service worker's shell list is checked against the files and the current Arrow chunk by `tests/phone/routes.test.ts`.
+- Runtime files that are not page code live in `assets/` (copy pools, default tokens, bundled fonts with their OFL licences, the Lock-In logo); the binary embeds exactly `public/` and `assets/`, so editing design notes or wireframes in `docs/` never changes what ships (code review LI-021). Their public URLs (`/static/shared/tokens.css`, `/static/fonts/…`, `/static/logo/…`) are unchanged. The two copies of the venue-token code (`src/server/branding/derive.ts`, `public/host/brand/derive.js`) stay hand-kept and are held equal by `tests/branding/derive.test.ts`; the service worker's shell list is checked against the files and the current Arrow chunk by `tests/phone/routes.test.ts`.
 
 ### 4.7 Development
 
@@ -327,7 +327,7 @@ Rules:
 
 ### 5.3 Theme file: `theme/theme.json`
 
-The theme file stores the venue's **branding inputs**, not raw CSS. Design defines the inputs and how they expand into CSS custom properties (`docs/design/branding.md`, `assets/tokens.css`). Every field is optional; `null` or a missing field means "use the default theme".
+The theme file stores the venue's **branding inputs**, not raw CSS. Design defines the inputs and how they expand into CSS custom properties (`docs/DESIGN-SYSTEM.md` section 2.2, `assets/tokens.css`). Every field is optional; `null` or a missing field means "use the default theme".
 
 ```ts
 // src/shared/formats.ts (contract)
@@ -335,26 +335,21 @@ export interface ThemeFile {
   format: "lockin.theme/1";
   name: string | null;                         // venue name, fills {pub}; 1..60 chars
   logo: string | null;                         // "assets/<file>", PNG, SVG or JPEG, <= 2 MB
-  colours: {
-    background: Hex | null;
-    text: Hex | null;
-    accent: Hex | null;
-    accent2: Hex | null;
-  };
-  fonts: { display: FontRef | null; body: FontRef | null };
-  displayBackground: { colour: Hex } | { image: string } | null;   // image: "assets/<file>", JPEG/PNG/WebP <= 5 MB
+  colours: { accent: Hex | null };             // Branding "Main colour" (--venue); default Mint #7df0c3
+  countdown: CountdownStyle | null;            // countdown style on all three screens; default "ring"
+  displayBackground: { image: string } | null; // TV picture under a 78% Ink scrim: "assets/<file>", JPEG/PNG/WebP <= 5 MB
   copy: Record<string, { mode: "replace" | "add"; lines: string[] }>;  // key = copy pool key
 }
 export type Hex = string;                      // "#rrggbb", sRGB
-export type FontRef = { bundled: string }      // display: "caveat-brush" (default), "alfa-slab-one", "bebas-neue",
-                                               //   "atkinson-hyperlegible"; body: "atkinson-hyperlegible" (default)
-                    | { file: string };        // "assets/<file>", WOFF2, WOFF or TTF <= 2 MB
+export type CountdownStyle = "number" | "ring" | "bar" | "dashed" | "flip";
 ```
 
-- **`GET /theme.css`** is generated from the theme file: resolved `--brand-*` custom properties (derived colours such as surfaces, muted text, text-on-accent and lines are computed on the server as sRGB mixes using Design's formulas, because old TV engines have no `color-mix()`) and `@font-face` rules for uploaded fonts. Pages load `/static/shared/tokens.css` (the default theme) and then `/theme.css` on top.
-- Theme asset files are served from `/theme/assets/<file>`. Bundled fonts are the WOFF2 files in `assets/fonts/` (OFL licensed, licences shipped alongside), embedded in the binary and served from `/static/fonts/<id>.woff2`.
+A theme saved before Last Call still loads: its `background`, `text` and `accent2` colours, `fonts` and a `displayBackground.colour` are ignored (not errors).
+
+- **`GET /theme.css`** is generated from the theme file: the venue tokens `--venue`, `--venue-tint`, `--on-venue`, `--display-bg-image` and `--display-scrim` (computed on the server as sRGB mixes, because old TV engines have no `color-mix()`), and the roles that point at them. Pages load `/static/shared/tokens.css` (the default theme) and then `/theme.css` on top. Fonts are fixed (Funnel Display and Funnel Sans), so there is no font upload.
+- Theme asset files are served from `/theme/assets/<file>`. The fonts are the WOFF2 files in `assets/fonts/` (OFL licensed, licences shipped alongside), embedded in the binary and served from `/static/fonts/<file>`.
 - Every view carries `venue.themeVersion` (a hash of `theme.json`); when it changes, pages reload `/theme.css?v=<version>` (H-16 "from the next screen they show").
-- Readability warnings (H-16) are computed on the branding screen with the contrast rules in `docs/design/`.
+- Readability warnings (H-16) are computed on the branding screen with the contrast rules in `docs/DESIGN-SYSTEM.md` section 2.2.
 - Theme export and import (H-22, Launch) will zip `theme/`; nothing in the format stops that.
 
 ### 5.4 Venue settings: `venue.json`
@@ -382,7 +377,7 @@ Unknown panel names are ignored, so more panels can be added later (H-17).
 ### 5.5 Copy pools
 
 - The default pools are `assets/copy.en.json` (embedded in the binary). The theme's `copy` replaces or adds to any pool by key.
-- The engine asks for lines by **pool key**. Keys used by the engine (Design's copy review, `docs/design/copy-review.md`): `lobby`, `team_joined`, `round_start`, `last_seconds`, `locked`, `all_locked`, `no_answer`, `joker_played`, `reveal`, `lead_change`, `lead_change_shared` (joint new leaders, `{team}` names them all), `big_climb`, `close_race`, `halftime`, `tie_breaker`, `sudden_death`, `sudden_death_again` (everyone right or everyone wrong, next question follows), `sudden_death_won` (`{team}` took the place), `sudden_death_shared` (still tied after the maximum), `winner`, `winner_shared` (`{team}` is the names joined as "A, B and C"), `last_place`, `goodbye`. The old `tiebreak` pool is gone. A missing pool gives no line (the screen shows without one).
+- The engine asks for lines by **pool key**. Keys used by the engine (Design's copy review, `docs/COPY.md`): `lobby`, `team_joined`, `round_start`, `last_seconds`, `locked`, `all_locked`, `no_answer`, `joker_played`, `reveal`, `lead_change`, `lead_change_shared` (joint new leaders, `{team}` names them all), `big_climb`, `close_race`, `halftime`, `tie_breaker`, `sudden_death`, `sudden_death_again` (everyone right or everyone wrong, next question follows), `sudden_death_won` (`{team}` took the place), `sudden_death_shared` (still tied after the maximum), `winner`, `winner_shared` (`{team}` is the names joined as "A, B and C"), `last_place`, `goodbye`. The old `tiebreak` pool is gone. A missing pool gives no line (the screen shows without one).
 - **Selection rules:** a line containing `{n}` is skipped when `n < 2`. A leaderboard shows at most one line, chosen in this order: `tie_breaker` (only when the tie breaker decided 1st place), `lead_change` (1st place changed hands), `close_race` (top two within 1 point), `big_climb` (a team rose 3 or more places since the last leaderboard).
 - Lines are picked on the server (B4's `CopyPicker`, section 8.6), so the display and phones agree and "never the same line twice in a row" holds per pool for the whole night.
 
@@ -759,9 +754,9 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `POST /api/quizzes/:id/duplicate` | B3 | `{ title }` → `{ quiz }` |
 | `DELETE /api/quizzes/:id` | B3 | → `{ ok: true }`; `423` while in use. Moves the folder to `quizzes/.trash/` rather than deleting it. |
 | `POST /api/quizzes/:id/media` | B3 | multipart `file`, `questionId` → `{ file }` |
-| `GET /api/theme` | B4 | → `{ theme: ThemeFile, version, bundledFonts: { id, name }[] }` |
+| `GET /api/theme` | B4 | → `{ theme: ThemeFile, version, countdownStyles: CountdownStyle[], problems }` |
 | `PUT /api/theme` | B4 | `{ theme: ThemeFile }` → `{ theme, version }` |
-| `POST /api/theme/assets` | B4 | multipart `file`, `kind: "logo" \| "displayBackground" \| "font"` → `{ file: "assets/<name>" }` |
+| `POST /api/theme/assets` | B4 | multipart `file`, `kind: "logo" \| "displayBackground"` → `{ file: "assets/<name>" }` |
 | `GET /api/venue` / `PUT /api/venue` | B4 | `VenueFile` |
 | `GET /api/theme/preview.css` | B4 | `?theme=<url-encoded ThemeFile JSON>` → CSS, for the live preview (H-16); an invalid theme gets `400` with a fixed comment, never the input (SA-19) |
 | `GET /api/history` | B1 | → `HistoryList`: `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` (saved nights, newest first, at most 500: SA-21) |
@@ -836,7 +831,7 @@ Each role gets its own view. The display view never contains answers, marks befo
 // src/shared/protocol.ts (contract)
 export interface Common {
   phase: Phase;
-  venue: { name: string; themeVersion: string; teamColours: number };   // count of --team-N colours
+  venue: { name: string; themeVersion: string; teamColours: number; countdown: CountdownStyle };   // teamColours: count of --team-N colours; countdown: the venue's countdown style
   night: NightInfo | null;                                              // null when idle
   flash: Flash | null;                                                  // short-lived event line (10.4)
 }
@@ -875,6 +870,7 @@ export interface QuestionPublic {
   status: "open" | "locked";
   timer: TimerView;                // per-round mode: the round timer, same on every question
   answered: number;                // teams that have answered (count only)
+  answeredIds: string[];           // which teams have answered (never what): the display fills their bubbles
   of: number;                      // teams that can answer
 }
 export interface TimerView {
@@ -1229,7 +1225,7 @@ Done when:
 - It is built with Arrow (3.4): the open quiz is a local `reactive()` draft, and a `watch()` drives the debounced autosave.
 - It autosaves (debounced, about 1 s) and shows "Saved" or a plain-English problem; it shows the not-ready reasons for the quiz.
 - Text fields use the browser spellcheck (`spellcheck="true"`, `lang` from the page).
-- It works at 1280×800 and 768×1024 (screenshots in the PR) and follows Design's console wireframes.
+- It works at 1280×800 and 768×1024 (screenshots in the PR) and follows the Last Call design (docs/DESIGN-SYSTEM.md).
 - `saveAcceptedAnswer(quizId, questionId, text)` is exported for B1.
 
 ### B4 Branding, venue settings and copy
@@ -1238,7 +1234,7 @@ Done when:
 
 Done when:
 - Theme and venue stores read and write `theme/theme.json` and `venue.json` per 5.3 and 5.4, with validation and defaults.
-- `GET /theme.css` emits the resolved `--brand-*` properties and `@font-face` rules per Design's `branding.md`, and tests check derived colours for a sample theme; `themeVersion` changes when the theme changes.
+- `GET /theme.css` emits the venue tokens (docs/DESIGN-SYSTEM.md section 2.2), and tests check them for sample colours; `themeVersion` changes when the theme changes.
 - Asset uploads (logo, display background, fonts) are checked by type and size, stored under generated names, and served per 12.4.
 - The branding page (`public/host/brand/`) sets name, logo, the four colours, fonts (bundled list or upload) and display background, shows a live display and phone preview, and warns (without blocking) on failed contrast rules. It is built with Arrow (3.4): unsaved settings live in a local store, and the previews update from it as the QM types.
 - The venue page sets default prizes and the holding page minutes and panels.

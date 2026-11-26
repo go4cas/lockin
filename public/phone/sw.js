@@ -6,7 +6,7 @@
 // that is not the phone (/display, /host). Answers are never queued (P-20 is Later).
 "use strict";
 
-var VERSION = "lockin-phone-v1";
+var VERSION = "lockin-phone-v2";
 var SHELL = [
   "/",
   "/static/phone/phone.css",
@@ -23,10 +23,12 @@ var SHELL = [
   "/static/shared/view.js",
   "/static/shared/source.js",
   "/static/shared/parts.mjs",
-  "/static/logo/lockin-mark.svg",
-  "/static/fonts/atkinson-hyperlegible-400.woff2",
-  "/static/fonts/atkinson-hyperlegible-700.woff2",
-  "/static/fonts/caveat-brush.woff2",
+  "/static/logo/lockin-favicon.svg",
+  "/static/shared/countdown.mjs",
+  "/static/shared/mark.mjs",
+  "/static/fonts/funnel-display-wght.woff2",
+  "/static/fonts/funnel-sans-wght.woff2",
+  "/static/fonts/funnel-sans-wght-italic.woff2",
   "/vendor/arrow/index.mjs",
   "/vendor/arrow/chunks/internal-DchK7S7v.mjs",
 ];

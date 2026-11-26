@@ -1,11 +1,13 @@
 // @ts-check
-// Every phone screen as an Arrow template (TECH-SPEC 3.4). Screens follow
-// docs/design/wireframes/phone.html and docs/design/screens.md.
+// Every phone screen as an Arrow template (TECH-SPEC 3.4), in Last Call
+// (docs/DESIGN-SYSTEM.md, "Phone").
 // Live values are written ${() => …}; text from the view always goes into a
 // ${} slot (a text node or attribute), never into markup (TECH-SPEC 12.4).
 
 import { html, reactive, nextTick, watch } from "/vendor/arrow/index.mjs";
 import { pool, retained, slotKeys } from "/static/shared/parts.mjs";
+import { countdown as countdownView, countdownNow } from "/static/shared/countdown.mjs";
+import { mark as markSvg, lockup } from "/static/shared/mark.mjs";
 import * as L from "./logic.mjs";
 import { page as live, ui, nav, join, rejoin, setJoinMode, send, choose, playJoker, skipJoker, offline } from "./state.mjs";
 
@@ -15,6 +17,7 @@ import { page as live, ui, nav, join, rejoin, setJoinMode, send, choose, playJok
 /** @type {any} */
 const W = typeof window !== "undefined" ? window : globalThis;
 const countdown = (/** @type {number} */ ms, /** @type {boolean} */ short) => W.LockIn.view.countdown(ms, short);
+const initials = (/** @type {string} */ name) => W.LockIn.view.initials(name);
 const joinNames = (/** @type {string[]} */ names) => W.LockIn.view.joinNames(names);
 const colour = (/** @type {number} */ i) => W.LockIn.view.teamColour(i);
 
@@ -34,11 +37,15 @@ const night = () => v().night;
 
 // ---------------------------------------------------------------- pieces
 
-const mark = (/** @type {number} */ w) => html`<svg class="mark" width="${w}" height="${Math.round(w * 1.2)}" viewBox="0 0 100 120" aria-hidden="true"><path d="M28 58 V36 A22 22 0 0 1 72 36 V58" fill="none" stroke="currentColor" stroke-width="11"/><rect x="10" y="54" width="80" height="62" rx="13" fill="var(--color-lock)"/><path d="M40 75 A10 10 0 1 1 55.5 83.3 C51.5 86 50 88 50 92" fill="none" stroke="var(--color-bg)" stroke-width="7.5" stroke-linecap="round"/><circle cx="50" cy="104" r="4.6" fill="var(--color-bg)"/></svg>`;
+/** The lock in mark at `w` px. */
+/** The venue's name, or "" when the server fell back to the default (the lockup shows instead). */
+const venueName = () => { const n = v().venue.name; return n && n !== "Lock-In" ? n : ""; };
+const mark = (/** @type {number} */ w) => html`<span class="ph-mark" style="${"font-size:" + w + "px"}">${markSvg(html)}</span>`;
 
 const tick = () => html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-const padlock = () => html`<svg class="lockbig" viewBox="0 0 100 120" aria-hidden="true"><path class="shackle" d="M28 58 V36 A22 22 0 0 1 72 36 V58"/><rect class="body" x="10" y="54" width="80" height="62" rx="13"/><path class="qmark" d="M40 75 A10 10 0 1 1 55.5 83.3 C51.5 86 50 88 50 92"/><circle class="hole" cx="50" cy="104" r="4.6"/></svg>`;
+/** Locked in: the countdown ring closed into a shackle over a venue bar (the padlock, drawn as the lock in mark). */
+const padlock = () => html`<div class="lockbig" aria-hidden="true"><svg viewBox="0 0 120 80"><path class="shackle" d="M10 80 V40 A30 30 0 0 1 70 40 V80"/></svg><i class="lockbar"></i></div>`;
 
 /**
  * Lists are row pools that only grow, and a slot that can show different things (a
@@ -70,16 +77,16 @@ const swap = (slot, key, build) => {
 
 /** The credit links to Lock-In's source (AGPL-3.0 section 13; the address is in shared/source.js). */
 const credit = () => (W.LockIn.SOURCE_URL
-  ? html`<div class="credit">Powered by <a href="${W.LockIn.SOURCE_URL}" target="_blank" rel="noopener noreferrer">Lock-In</a></div>`
-  : html`<div class="credit">Powered by Lock-In</div>`);
+  ? html`<div class="credit">Powered by <a href="${W.LockIn.SOURCE_URL}" target="_blank" rel="noopener noreferrer" aria-label="Lock In, free software">${lockup(html, "mono")}</a></div>`
+  : html`<div class="credit">Powered by ${lockup(html, "mono")}</div>`);
 
 /** A host-voice line, or nothing (never carries information the team needs). */
 const voice = (/** @type {() => string | null} */ get) => html`${() => (get() ? html`<p class="voice">${() => get() ?? ""}</p>` : "")}`;
 
-/** Top bar: team colour dot, name, where we are, team menu. */
+/** Top bar: team bubble, name, where we are ("R3 · 04/08"), team menu. */
 const top = (/** @type {() => string} */ status = () => "", menu = true) => html`
   <header class="ph-top">
-    <i class="dot" style="${() => `background:${colour(self()?.colour ?? 1)}`}"></i>
+    <span class="bubble" style="${() => `--b:${colour(self()?.colour ?? 1)}`}">${() => initials(self()?.name ?? "")}</span>
     <span class="team">${() => self()?.name ?? ""}</span>
     <span class="status">${status}</span>
     ${menu ? html`<button class="icon-btn" type="button" aria-label="Team menu" @click="${() => { ui.menu = true; }}">&#8942;</button>` : ""}
@@ -132,7 +139,8 @@ const jokerCard = () => html`<div class="contents">
 const joinScreen = () => html`
   <div class="ph">
     <main class="ph-body">
-      <div class="brand">${mark(40)}<div><div class="eyebrow">Quiz night at</div><h1 class="title">${() => v().venue.name}</h1></div></div>
+      <div class="brand"><span hidden="${() => !venueName()}">${mark(40)}</span><div><div class="eyebrow">${() => (venueName() ? "Quiz night at" : "Quiz night")}</div>
+        <h1 class="title" hidden="${() => !venueName()}">${venueName}</h1><h1 class="title brand-lockup" hidden="${() => !!venueName()}">${lockup(html)}</h1></div></div>
       ${voice(() => v().lines.lobby)}
       <div class="field">
         <label for="team-name">Team name</label>
@@ -154,7 +162,7 @@ const joinScreen = () => html`
         const e = ui.joinError;
         if (!e) return "";
         if (e.code === "team_has_phone") {
-          return html`<div class="stack"><div class="err" role="alert"><b>${() => `${ui.name.trim()} already has a phone.`}</b>Only one phone per team. If your team's phone died, ask it for the rejoin code, or ask the quizmaster to move your team here.</div>
+          return html`<div class="stack"><div class="err" role="alert"><b>${() => `${ui.name.trim()} already has a phone.`}</b> Only one phone per team. If your team's phone died, ask it for the rejoin code, or ask the quizmaster to move your team here.</div>
             <button class="link" type="button" @click="${() => setJoinMode("rejoin")}">I have a rejoin code</button></div>`;
         }
         return html`<div class="err" role="alert">${() => ui.joinError?.message ?? ""}</div>`;
@@ -170,7 +178,8 @@ const joinScreen = () => html`
 const rejoinScreen = () => html`
   <div class="ph">
     <main class="ph-body">
-      <div class="brand">${mark(40)}<div><div class="eyebrow">Rejoin your team</div><h1 class="title">${() => v().venue.name}</h1></div></div>
+      <div class="brand"><span hidden="${() => !venueName()}">${mark(40)}</span><div><div class="eyebrow">Rejoin your team</div>
+        <h1 class="title" hidden="${() => !venueName()}">${venueName}</h1><h1 class="title brand-lockup" hidden="${() => !!venueName()}">${lockup(html)}</h1></div></div>
       <p class="small muted">Your team's old phone shows its rejoin code in the team menu (&#8942;). Your team keeps its name, answers and score.</p>
       <div class="field">
         <label for="rejoin-code">Rejoin code</label>
@@ -201,7 +210,7 @@ const noNightScreen = () => html`
   <div class="ph">
     <main class="ph-center">
       ${mark(64)}
-      <div class="eyebrow">${() => v().venue.name}</div>
+      <div class="eyebrow" hidden="${() => !venueName()}">${venueName}</div>
       <h1 class="title">No quiz running right now</h1>
       <p class="muted small">When the quizmaster opens tonight's quiz, scan the QR code on the TV or come back to this page.</p>
     </main>
@@ -297,7 +306,7 @@ const scoreScreen = () => html`
         if (!row) return html`<section class="card center"><div class="title">Scores are on the TV</div></section>`;
         return html`<section class="card center">
           <div class="hero big">${() => { const r = L.myRow(page.view); return r ? (r.shared ? `=${L.ordinal(r.position)}` : L.ordinal(r.position)) : ""; }}</div>
-          <div class="small muted" style="margin-top:4px">${() => { const r = L.myRow(page.view); return r ? L.decidedLine(r) : ""; }}</div>
+          <div class="small muted" style="margin-top:4px">${() => { const r = L.myRow(page.view); return r ? L.decidedLine(r, L.sharedWith(page.view)) : ""; }}</div>
           <div class="stats">
             <div><div class="title">${() => String(L.myRow(page.view)?.total ?? 0)}</div><div class="xs muted">total</div></div>
             <div><div class="title">${() => `+${L.myRow(page.view)?.roundScore ?? 0}`}</div><div class="xs muted">this round</div></div>
@@ -312,13 +321,13 @@ const scoreScreen = () => html`
   </div>`;
 
 const standingsList = () => html`<ol class="list" aria-label="Standings">${pool(() => v().standings?.rows ?? [], (r) => html`
-  <li class="${() => (r() && r()?.teamId === self()?.id ? "me" : "")}" hidden="${() => !r()}"><span class="p pos">${() => { const x = r(); return x ? (x.shared ? `=${x.position}` : String(x.position)) : ""; }}</span><i class="dot" style="${() => `background:${colour(r()?.colour ?? 0)}`}"></i><span class="n">${() => r()?.name ?? ""}</span><span class="joker-tag" hidden="${() => !r()?.jokerThisRound}">JOKER</span><span class="p">${() => String(r()?.total ?? 0)}</span></li>`)}</ol>`;
+  <li class="${() => (r() && r()?.teamId === self()?.id ? "me" : "")}" hidden="${() => !r()}"><span class="p pos">${() => { const x = r(); return x ? (x.shared ? `=${x.position}` : String(x.position)) : ""; }}</span><span class="bubble" style="${() => `--b:${colour(r()?.colour ?? 0)}`}">${() => initials(r()?.name ?? "")}</span><span class="n">${() => r()?.name ?? ""}</span><span class="joker-tag" hidden="${() => !r()?.jokerThisRound}">JOKER</span><span class="p">${() => String(r()?.total ?? 0)}</span></li>`)}</ol>`;
 
 const halftimeScreen = () => html`
   <div class="ph">
     ${top()}
     <main class="ph-body">
-      <h1 class="title" style="font-family:var(--font-display);font-weight:400;font-size:44px;color:var(--color-lock)">Halftime</h1>
+      <h1 class="title moment">Halftime</h1>
       ${voice(() => v().lines.halftime)}
       ${() => {
         const r = L.myRow(page.view);
@@ -339,9 +348,9 @@ const endScreen = () => html`
         const r = L.myRow(page.view);
         if (!r) return html`<section class="card center"><div class="title">That's the quiz!</div><div class="small muted">The final scores are on the TV.</div></section>`;
         return html`<section class="card center">
-          ${() => (L.myRow(page.view)?.position === 1 ? html`<p class="voice" style="color:var(--color-lock)">Champions</p>` : "")}
+          ${() => (L.myRow(page.view)?.position === 1 ? html`<p class="label champ">Champions</p>` : "")}
           <div class="hero big" style="margin-top:4px">${() => { const m = L.myRow(page.view); return m ? (m.shared ? `=${L.ordinal(m.position)}` : L.ordinal(m.position)) : ""; }}</div>
-          <div class="small muted" style="margin-top:6px">${() => { const m = L.myRow(page.view); if (!m) return ""; const how = L.decidedLine(m); return `${m.total} ${m.total === 1 ? "point" : "points"}${how ? ` · ${how.toLowerCase()}` : ""}`; }}</div>
+          <div class="small muted" style="margin-top:6px">${() => { const m = L.myRow(page.view); if (!m) return ""; const how = L.decidedLine(m, L.sharedWith(page.view)); return `${m.total} ${m.total === 1 ? "point" : "points"}${how ? ` · ${how.toLowerCase()}` : ""}`; }}</div>
         </section>`;
       }}
       ${() => {
@@ -361,26 +370,28 @@ const endScreen = () => html`
 /** The question being answered, looked up fresh from the view by id. */
 const qById = (/** @type {string} */ id) => L.liveQuestions(page.view).find((q) => q.id === id) ?? null;
 
-const timerBar = (/** @type {string} */ id) => html`
-  <div class="${() => {
+/** The countdown in the venue's style (the same one the TV shows), with a word beside it. */
+const timerBar = (/** @type {string} */ id) => countdownView(html, {
+  size: "small",
+  style: () => v().venue.countdown,
+  timer: () => qById(id)?.timer,
+  now: () => ui.now,
+  label: () => {
     const q = qById(id);
-    const left = q ? L.timerLeft(q.timer, ui.now) : null;
-    return left === null ? "timer idle" : left <= 10_000 ? "timer hot" : "timer";
-  }}" role="timer">
-    <div class="bar"><b style="${() => {
-      const q = qById(id);
-      const left = q ? L.timerLeft(q.timer, ui.now) : null;
-      const pct = left === null || !q || !q.timer.durationMs ? 100 : Math.min(100, (left / q.timer.durationMs) * 100);
-      return `width:${pct.toFixed(1)}%`;
-    }}"></b></div>
-    <span class="s">${() => {
-      const q = qById(id);
-      const left = q ? L.timerLeft(q.timer, ui.now) : null;
-      if (left === null) return "Timer not started";
-      if (q && q.timer.state === "paused") return `${countdown(left, true)} paused`;
-      return (offline() ? "~" : "") + countdown(left, true);
-    }}</span>
-  </div>`;
+    if (!q) return "";
+    const c = countdownNow(q.timer, ui.now);
+    if (c.idle) return "Not started yet";
+    if (c.paused) return "Paused";
+    if (offline()) return "about " + (c.secs === 1 ? "1 second" : c.secs + " seconds") + " left";
+    return c.secs === 1 ? "second left" : "seconds left";
+  },
+});
+
+/** An answer as the team sees it: the option's own words for a choice ("Saturn", not "B, Saturn"). */
+const shortValue = (/** @type {import("../../src/shared/protocol").TeamAnswer["value"]} */ value, /** @type {QuestionPublic | null} */ q) => {
+  if (value.type === "choice" && q && q.input.type === "choice") return q.input.options[value.index] ?? L.formatValue(value, q.input);
+  return L.formatValue(value, q?.input);
+};
 
 /** What the server holds for this question (P-05, P-08): received, changed but not sent, or not sent. */
 const sentStrip = (/** @type {string} */ id) => html`${() => {
@@ -393,13 +404,11 @@ const sentStrip = (/** @type {string} */ id) => html`${() => {
   if (err) return html`<div class="sent bad" role="alert"><span>${() => ui.sendError[id] ?? ""}</span></div>`;
   if (held && !held.counted) return html`<div class="sent bad" role="status"><span><b>${() => { const h = L.answerFor(page.view, id); return h ? `"${L.formatValue(h.value, qById(id)?.input)}" did not count.` : ""; }}</b> It reached the quizmaster after the lock.</span></div>`;
   if (held && (q.input.type === "choice" || L.draftMatches(q.input, draft, held))) {
-    return html`<div class="sent" role="status">${tick()}<span>${() => {
+    return html`<div class="sent" role="status"><i class="got"></i><span>The quizmaster has <b>${() => {
       const h = L.answerFor(page.view, id);
       const qq = qById(id);
-      if (!h || !qq) return "";
-      const text = L.formatValue(h.value, qq.input);
-      return qq.input.type === "choice" ? `Sent: ${text}. Tap another to change.` : `The quizmaster has "${text}". Change it any time before the lock.`;
-    }}</span></div>`;
+      return h && qq ? shortValue(h.value, qq) : "";
+    }}</b></span></div>`;
   }
   if (offline()) {
     return html`<div class="sent bad" role="status"><span>${() => ((ui.drafts[id] ?? "").trim() && !L.draftMatches(q.input, ui.drafts[id] ?? "", L.answerFor(page.view, id))
@@ -418,14 +427,14 @@ const onEnter = (/** @type {string} */ id) => (/** @type {any} */ e) => {
   if (e.key === "Enter") { const q = qById(id); if (q && !offline()) send(q); }
 };
 
-/** The input for the answer type (P-05; docs/design/screens.md notes). */
+/** The input for the answer type (P-05). */
 const answerInput = (/** @type {QuestionPublic} */ q) => {
   const id = q.id;
   const input = q.input;
   if (input.type === "choice") {
     return html`<div class="opts" role="group" aria-label="Options">${input.options.map((opt, i) => html`
       <button type="button" class="${() => (ui.drafts[id] === String(i) && L.answerFor(page.view, id) ? "opt sel" : "opt")}" aria-pressed="${() => (ui.drafts[id] === String(i) ? "true" : "false")}"
-        disabled="${() => !!ui.sending[id] || offline()}" @click="${() => { const qq = qById(id); if (qq) choose(qq, i); }}"><b>${"ABCDEFGHIJ"[i] ?? String(i + 1)}</b><span>${opt}</span></button>`.key(i))}</div>`;
+        disabled="${() => !!ui.sending[id] || offline()}" @click="${() => { const qq = qById(id); if (qq) choose(qq, i); }}"><b>${"ABCDEFGHIJ"[i] ?? String(i + 1)}</b><span class="opt-t">${opt}</span></button>`.key(i))}</div>`;
   }
   if (input.type === "number") {
     return html`<div class="field"><label for="${`a-${id}`}">Your number</label>
@@ -480,21 +489,33 @@ const openQuestion = (/** @type {QuestionPublic} */ q) => html`<div class="conte
       return !draft.trim() || L.draftMatches(q.input, draft, held);
     }}" @click="${() => { const qq = qById(q.id); if (qq) send(qq); }}">Send answer</button></footer>`}</div>`;
 
-/** A locked question (P-06): the locked-in answer, nothing sent, or a late answer that did not count. */
+/** The team's answer echoed in the selected style. @param {QuestionPublic} q @param {import("../../src/shared/protocol").TeamAnswer["value"]} value */
+const echo = (q, value) => {
+  if (value.type === "choice") return html`<div class="opt sel echo"><b>${"ABCDEFGHIJ"[value.index] ?? String(value.index + 1)}</b><span class="opt-t">${shortValue(value, q)}</span></div>`;
+  return html`<div class="opt sel echo plain"><span class="opt-t">${shortValue(value, q)}</span></div>`;
+};
+
+/** A locked question (P-06): "Locked in." with the answer, nothing sent, or a late answer that did not count. */
 const lockedQuestion = (/** @type {QuestionPublic} */ q) => html`
-  <div class="ph-center">
-    ${padlock()}
-    <h1 class="title locked-title">Answers locked</h1>
-    ${() => {
-      const held = L.answerFor(page.view, q.id);
-      const qq = qById(q.id) ?? q;
-      if (held && held.counted) {
-        return html`<section class="card" style="min-width:260px"><div class="xs muted">You locked in</div><div class="qtext">${() => { const h = L.answerFor(page.view, q.id); return h ? L.formatValue(h.value, qq.input) : ""; }}</div></section>`;
-      }
-      const late = held && !held.counted ? `"${L.formatValue(held.value, qq.input)}" did not count. It reached the quizmaster after the lock.` : ui.sendError[q.id] ? ui.sendError[q.id] : "";
-      return html`<div class="stack">${late ? html`<div class="sent bad" style="text-align:left"><span><b>${late}</b></span></div>` : ""}<p class="small muted">No answer was sent before the lock, so this one scores 0.</p></div>`;
-    }}
-    ${voice(() => (v().phase === "sudden_death" ? null : v().lines.locked))}
+  <div class="ph-locked">
+    <div class="locked-main">
+      ${padlock()}
+      <h1 class="locked-title">${() => (L.answerFor(page.view, q.id)?.counted ? "Locked in." : "Answers locked.")}</h1>
+      ${() => {
+        const held = L.answerFor(page.view, q.id);
+        const qq = qById(q.id) ?? q;
+        if (held && held.counted) {
+          return html`<div class="contents"><div class="label">Your answer</div>${echo(qq, held.value)}</div>`;
+        }
+        const late = held && !held.counted ? `"${L.formatValue(held.value, qq.input)}" did not count. It reached the quizmaster after the lock.` : ui.sendError[q.id] ? ui.sendError[q.id] : "";
+        return html`<div class="stack">${late ? html`<div class="sent bad"><span><b>${late}</b></span></div>` : ""}<p class="small muted">No answer was sent before the lock, so this one scores 0.</p></div>`;
+      }}
+      ${voice(() => (v().phase === "sudden_death" ? null : v().lines.locked))}
+    </div>
+    <div class="place-points" hidden="${() => !L.myRow(page.view)}">
+      <div><div class="label">Place</div><div class="pp-num">${() => { const r = L.myRow(page.view); return r ? (r.shared ? "=" : "") + r.position : ""; }}</div></div>
+      <div><div class="label">Points</div><div class="pp-num">${() => String(L.myRow(page.view)?.total ?? "")}</div></div>
+    </div>
   </div>`;
 
 const askingScreen = () => html`
@@ -540,7 +561,7 @@ const deadlockInScreen = () => html`
     ${() => {
       const sd = v().suddenDeath;
       const q = sd?.question ?? null;
-      const intro = html`<div class="ph-body" style="flex:0;padding-bottom:0">${deadlockHead()}<p class="small muted">${() => `You vs ${joinNames(opponents())} for ${L.ordinal(v().suddenDeath?.position ?? 1)} place.`}</p>${voice(() => v().lines.suddenDeath)}</div>`;
+      const intro = html`<div class="ph-body" style="flex:0;padding-bottom:0">${deadlockHead()}<p class="small muted">${() => { const place = `${L.ordinal(v().suddenDeath?.position ?? 1)} place`; const o = opponents(); return o.length ? `You vs ${joinNames(o)} for ${place}.` : `For ${place}.`; }}</p>${voice(() => v().lines.suddenDeath)}</div>`;
       if (!sd || !q || sd.status === "waiting") {
         return swap("deadlock", "waiting", () => html`<div class="contents">${intro}<div class="ph-center"><h1 class="title">Next question coming</h1><p class="small muted">Only the tied teams answer. Get ready.</p></div></div>`);
       }

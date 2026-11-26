@@ -11,7 +11,7 @@ import { serveFile } from "../static.ts";
 export const PHONE_PAGE = "public/phone/index.html";
 export const SERVICE_WORKER = "public/phone/sw.js";
 const DEFAULT_NAME = "Lock-In";
-const DEFAULT_BG = "#17191b";   // --brand-bg in assets/tokens.css
+const INK = "#0b0b0c";   // --ink in assets/tokens.css: the background of every screen, in every venue
 
 /** Escapes text for an HTML attribute or text node. */
 export function escapeHtml(s: string): string {
@@ -29,7 +29,6 @@ function logoUrl(theme: ThemeFile | null): { url: string; type: string } | null 
 /** Web app manifest (P-10): the venue's name and logo, Lock-In's icons as the fallback. */
 export function manifest(theme: ThemeFile | null): Record<string, unknown> {
   const name = theme?.name?.trim() || DEFAULT_NAME;
-  const bg = theme?.colours.background ?? DEFAULT_BG;
   const icons: Record<string, string>[] = [];
   const logo = logoUrl(theme);
   if (logo) icons.push({ src: logo.url, sizes: logo.type === "image/svg+xml" ? "any" : "512x512", type: logo.type, purpose: "any" });
@@ -47,8 +46,8 @@ export function manifest(theme: ThemeFile | null): Record<string, unknown> {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: bg,
-    theme_color: bg,
+    background_color: INK,
+    theme_color: INK,
     icons,
   };
 }
@@ -56,7 +55,7 @@ export function manifest(theme: ThemeFile | null): Record<string, unknown> {
 /**
  * The phone page with the venue's name and home-screen icon filled in, so iPhone's
  * "Add to Home Screen" uses them (it reads the page, not only the manifest).
- * The file on disk is a complete page with Lock-In defaults; this only swaps three values.
+ * The file on disk is a complete page with Lock-In defaults; this only swaps the name and the icon.
  */
 export function personalise(page: string, theme: ThemeFile | null): string {
   const name = escapeHtml(theme?.name?.trim() || DEFAULT_NAME);
@@ -69,8 +68,6 @@ export function personalise(page: string, theme: ThemeFile | null): string {
   if (logo && logo.type !== "image/svg+xml") {
     out = out.replace('<link rel="apple-touch-icon" href="/static/phone/icons/apple-touch-icon.png">', () => `<link rel="apple-touch-icon" href="${escapeHtml(logo.url)}">`);
   }
-  const bg = theme?.colours.background;
-  if (bg) out = out.replace('<meta name="theme-color" content="#17191b">', () => `<meta name="theme-color" content="${escapeHtml(bg)}">`);
   return out;
 }
 
