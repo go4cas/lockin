@@ -449,14 +449,17 @@ const answerInput = (/** @type {QuestionPublic} */ q) => {
     };
     return html`<div class="field"><label for="${`a-${id}`}">Year</label><div class="stepper">
       <button class="btn secondary" type="button" aria-label="Year down" disabled="${() => offline()}" @click="${step(-1)}">&minus;</button>
-      <input id="${`a-${id}`}" class="input big" type="text" inputmode="numeric" maxlength="5" autocomplete="off" enterkeyhint="send"
+      <input id="${`a-${id}`}" class="input big" type="text" inputmode="numeric" maxlength="5" autocomplete="off" enterkeyhint="send" aria-describedby="${`h-${id}`}"
         value="${() => ui.drafts[id] ?? ""}" disabled="${() => offline()}" @input="${setDraft(id)}" @keydown="${onEnter(id)}">
-      <button class="btn secondary" type="button" aria-label="Year up" disabled="${() => offline()}" @click="${step(1)}">+</button></div></div>`;
+      <button class="btn secondary" type="button" aria-label="Year up" disabled="${() => offline()}" @click="${step(1)}">+</button></div>
+      <p class="hint" id="${`h-${id}`}">Type the year, like 1969, or use − and +.</p></div>`;
   }
   if (input.type === "datetime") {
     const kind = input.precision === "date" ? "date" : "time";
+    // UI-12: the phone's own picker shows the date in its owner's order; say what is asked.
     return html`<div class="field"><label for="${`a-${id}`}">${kind === "date" ? "Date" : "Time"}</label>
-      <input id="${`a-${id}`}" class="input big" type="${kind}" value="${() => ui.drafts[id] ?? ""}" disabled="${() => offline()}" @input="${setDraft(id)}" @change="${setDraft(id)}"></div>`;
+      <input id="${`a-${id}`}" class="input big" type="${kind}" aria-describedby="${`h-${id}`}" value="${() => ui.drafts[id] ?? ""}" disabled="${() => offline()}" @input="${setDraft(id)}" @change="${setDraft(id)}">
+      <p class="hint" id="${`h-${id}`}">${kind === "date" ? "Pick the day, month and year. Your phone shows them in its own order." : "Pick the hours and minutes."}</p></div>`;
   }
   // Free text: autocorrect off so phones don't "fix" a band name (Design).
   return html`<div class="field"><label for="${`a-${id}`}">Your answer</label>

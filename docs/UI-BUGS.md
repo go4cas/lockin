@@ -24,7 +24,7 @@ casting device, phones), from 2026-11-24. Each is reproduced against `main` in
 - TV header "Round 1 · Round Number 1": the round title only repeated the number; now skipped (UI-07).
 - TV shows "1:00" while the phone says "Timer not started": both mean the host has not started the timer yet; the TV shows the full time dimmed.
 - Join page "Quiz night at Lock-In": the default venue name until one is set in Branding.
-- UI-12, phone date questions show mm/dd/yyyy on a US-locale phone: the native picker follows the phone's own date settings, which is what its owner reads every day; the answer is sent as an ISO date either way. Left as it is unless Cas wants a day/month/year picker.
+- UI-12, phone date questions show mm/dd/yyyy on a US-locale phone: the native picker follows the phone's own date settings, which is what its owner reads every day; the answer is sent as an ISO date either way. Cas (2026-11-26): keep the phone's picker and say what is asked. Now a line under the picker reads "Pick the day, month and year. Your phone shows them in its own order." (time: "Pick the hours and minutes.", year: "Type the year, like 1969, or use − and +.").
 
 ## Host console review on v0.3.0 (Last Call), batches 1 to 3 (Cas, 2026-11-26)
 
