@@ -135,3 +135,11 @@
 .poster-row { gap: 12px; align-items: center; }
 .poster-thumb { width: 96px; height: 64px; object-fit: contain; border-radius: var(--radius-xs); background: var(--smoke); flex: none; }
 .poster-thumb.none { display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--ash); box-shadow: inset 0 0 0 1px var(--line); background: none; }
+
+/* Displays tab: the pairing card from Run night (public/host/run/pairing.js) */
+.tab-intro { margin-bottom: 12px; }
+.pair-card { max-width: 900px; }
+.pair-input { width: 7em; font-family: var(--font-display); font-size: 22px; letter-spacing: 0.2em; }
+.paired-list { list-style: none; margin: 8px 0; padding: 0; }
+.paired-list li { gap: 8px; padding: 6px 0; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.paired-list li[hidden] { display: none; }

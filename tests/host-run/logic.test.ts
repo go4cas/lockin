@@ -208,7 +208,7 @@ describe("prizes and answers", () => {
 
 describe("console code", () => {
   const dir = join(import.meta.dir, "../../public/host/run");
-  const files = ["app.js", "asking.js", "deadlock.js", "lobby.js", "logic.js", "marking.js", "results.js", "state.js", "teams.js", "ui.js"];
+  const files = ["app.js", "asking.js", "deadlock.js", "lobby.js", "logic.js", "marking.js", "pairing.js", "results.js", "state.js", "teams.js", "ui.js"];
   const code = files.map((f) => readFileSync(join(dir, f), "utf8")).join("\n");
 
   test("every command it sends is a real command", () => {

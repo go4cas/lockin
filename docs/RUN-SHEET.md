@@ -14,7 +14,7 @@ What the quizmaster does on a quiz night. One page, meant to be printed. Setting
 2. **Open the night:** Run night, pick the quiz, check prizes and start time, **Open the night**. The lobby opens and the room code appears on the console.
 3. **Put the quiz on the display.** Two ways:
    - **The display is the laptop's second screen (HDMI):** set the laptop to **extend** the screen, **never mirror it**. A mirrored screen shows the room your answers and marks. Click **Open display**, drag the new window to the TV, and make it full screen (F11, or Ctrl+Cmd+F on a Mac). A display opened from the signed-in console needs no pairing; it stays paired until you sign out.
-   - **The TV's own browser or a casting device:** open `https://quiz.example.com/display` on it. It shows a **6-digit code**. On the console, under **Pair a display**, type the six digits and press **Pair**. The console says which address it paired; if that does not look like the pub, press **Unpair** next to it. A paired TV remembers its pairing; you only do this once per screen (unless it is not used for 90 days). Pairing is only offered before the quiz starts, so do it now.
+   - **The TV's own browser or a casting device:** open `https://quiz.example.com/display` on it. It shows a **6-digit code**. On the console, under **Pair a display** (on Run night, or Venue settings, Displays), type the six digits and press **Pair**. The console says which address it paired; if that does not look like the pub, press **Unpair** next to it. A paired TV remembers its pairing; you only do this once per screen (unless it is not used for 90 days). Run night offers it only before the quiz starts, so do it now; Venue settings, Displays works at any time.
 4. **If you are not sure the room cannot see your screen**, turn on **Hide answers on this screen** (next to the answer, or in the Night menu). Answers stay blurred until you tap one.
 5. Check the display shows the venue's waiting screen, then the lobby with the **QR code** and room code.
 
@@ -49,7 +49,7 @@ Follow the console: it always shows the next step (ask, lock, mark, reveal, lead
 | Lock-In itself restarts (rare) | Every screen reconnects within seconds and the night carries on from where it was. |
 | The TV shows **This browser is too old** | Use the casting device, or a laptop on HDMI (extend, not mirror). |
 | The TV shows a 6-digit code mid-quiz | It lost its pairing, and pairing is only offered before the quiz starts. Carry on from the laptop: in the same browser as the console, open `quiz.example.com/display` in a new window and drag it to the TV (extend, not mirror). Pair the TV again before the next night. |
-| A display you do not recognise is paired | Before the quiz starts, unpair it on the console (the list under Pair a display). To be safe, **Unpair all**: every display goes back to a code and you pair the pub's again. |
+| A display you do not recognise is paired | Unpair it on the console: Venue settings, Displays (any time), or the list under Pair a display on Run night (before the quiz starts). To be safe, **Unpair all**: every display goes back to a code and you pair the pub's again. |
 | You forgot the host password | Whoever looks after the server runs `lockin reset-password` (see RELEASE.md) and gives you a setup code to choose a new one. Already signed-in consoles are signed out. |
 
 ## After the night

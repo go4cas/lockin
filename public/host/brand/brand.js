@@ -12,18 +12,21 @@ import { saveDraft } from "./save.js";
 import { DEFAULT_INPUTS, checkReadability, deriveBrandTokens, assetUrl } from "./derive.js";
 import { countdown } from "/static/shared/countdown.mjs";
 import { lockup, mark } from "/static/shared/mark.mjs";
+import { pairCard } from "../run/pairing.js";
+import { page as hostPage, setClient, ui as hostUi } from "../run/state.js";
 
 /** @typedef {import('../../../src/shared/formats').ThemeFile} ThemeFile */
 /** @typedef {import('../../../src/shared/formats').VenueFile} VenueFile */
 /** @typedef {import('../../../src/shared/formats').HoldingPanel} HoldingPanel */
 /** @typedef {import('../../../src/shared/formats').CountdownStyle} CountdownStyle */
-/** @typedef {"branding" | "holding" | "prizes"} Tab */
+/** @typedef {"branding" | "holding" | "prizes" | "displays"} Tab */
 
 /** @type {{ id: Tab, label: string }[]} */
 const TABS = [
   { id: "branding", label: "Branding" },
   { id: "holding", label: "Holding page" },
-  { id: "prizes", label: "Prizes" },
+  { id: "prizes", label: "Default prizes" },
+  { id: "displays", label: "Displays" },
 ];
 
 /** @type {{ id: HoldingPanel, label: string }[]} */
@@ -579,7 +582,7 @@ function prizesTab() {
   <form @submit="${(/** @type {Event} */ e) => { e.preventDefault(); saveVenue(); }}">
     <div class="card">
       <h2>Default prizes for new nights</h2>
-      <p class="hint" style="margin-bottom:12px">The host can still change them for a night in the lobby. They show on the display and phones in the lobby, at halftime and at the end.</p>
+      <p class="hint" style="margin-bottom:12px">These fill in "Prizes tonight" when you open a night, where you can change them for that night only. They show on the display and phones in the lobby, at halftime and at the end.</p>
       ${() => (venue.prizes.length === 0 ? html`<p class="hint">No prizes yet.</p>` : "")}
       ${() => venue.prizes.map((p) => html`
         <div class="prize-row">
@@ -611,8 +614,34 @@ function tabFromHash() {
 function allTabs() {
   return html`<div hidden="${() => page.tab !== "branding"}">${brandingTab()}</div>
     <div hidden="${() => page.tab !== "holding"}">${holdingTab()}</div>
-    <div hidden="${() => page.tab !== "prizes"}">${prizesTab()}</div>`;
+    <div hidden="${() => page.tab !== "prizes"}">${prizesTab()}</div>
+    <div hidden="${() => page.tab !== "displays"}">${displaysTab()}</div>`;
 }
+
+// ---------------------------------------------------------------------------
+// Displays tab: the TVs paired with this server (Cas, 2026-11-26). Pairing lasts across
+// nights, so it is a venue setting; Run night keeps the same card for pairing on the spot.
+// ---------------------------------------------------------------------------
+
+function displaysTab() {
+  return html`<div>
+    <p class="hint tab-intro">A paired display stays paired across nights and restarts, until you unpair it. You can also pair one from Run night.</p>
+    <div class="error-box" role="alert" hidden="${() => !hostUi.error}">${() => hostUi.error}</div>
+    <p class="hint" hidden="${() => hostPage.status === "online"}">${() => (hostPage.status === "offline" ? "Not connected to Lock-In. Trying again…" : "Connecting…")}</p>
+    ${pairCard()}
+  </div>`;
+}
+
+/** The host socket the Displays tab uses: the server's view carries the paired displays. */
+const hostClient = /** @type {any} */ (window).LockIn.connect({
+  role: "host",
+  onState(/** @type {any} */ v) { hostPage.view = v; },
+  onStatus(/** @type {string} */ status) { hostPage.status = status; },
+  onBye(/** @type {string} */ reason) {
+    if (reason === "signed_out") location.href = "/host/login?next=/host/brand";
+  },
+});
+setClient(hostClient);
 
 /** @param {Tab} id */
 function showTab(id) {

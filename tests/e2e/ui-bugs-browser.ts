@@ -11,6 +11,8 @@
 // UI-23: Holding page, how long each panel shows is a venue setting (it was a fixed 12 s).
 // UI-22: Holding page, a Poster panel shows the venue's uploaded picture.
 // UI-24: Run night on a phone (390 px): nothing is cut off and the Night menu is in reach.
+// UI-25: Venue settings, the prizes tab says "Default prizes".
+// UI-26: Venue settings, a Displays tab lists the paired TVs and can pair or unpair them.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -196,6 +198,14 @@ async function main() {
     const posterRes = saved.holding.poster ? await fetch(`${PUBLIC}/theme/${saved.holding.poster}`) : null;
     check(!!posterRes && posterRes.ok && /image\/jpeg/.test(posterRes.headers.get("content-type") ?? ""), `UI-22 poster saved and served: ${saved.holding.poster}`);
     await brand.screenshot({ path: join(OUT, "ui-21-22-holding-tab.png"), fullPage: true });
+
+    // UI-25, UI-26
+    const tabs = await brand.evaluate(() => [...document.querySelectorAll("[role=tab]")].map((t) => t.textContent?.trim()));
+    check(tabs.includes("Default prizes") && tabs.includes("Displays"), `UI-25/26 tabs: ${tabs.join(", ")}`);
+    await brand.click('[role=tab]:has-text("Displays")');
+    const listed = await brand.waitForFunction(() => [...document.querySelectorAll<HTMLElement>(".paired-list li")].some((li) => !li.hidden && /Display 1/.test(li.textContent ?? "")), null, { timeout: 5000 }).then(() => true, () => false);
+    await brand.screenshot({ path: join(OUT, "ui-26-displays-tab.png"), fullPage: true });
+    check(listed, "UI-26 the Displays tab lists the paired TV");
 
     // UI-16: unsaved changes, then a nav link
     await brand.click('[role=tab]:has-text("Branding")');
