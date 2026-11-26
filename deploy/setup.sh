@@ -60,6 +60,11 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Run from / so commands run as lockin (the backup) never start in a folder they cannot
+# read; make a relative --binary path absolute first.
+if [ -n "$binary" ] && [ -f "$binary" ]; then binary="$(cd "$(dirname "$binary")" && pwd -P)/$(basename "$binary")"; fi
+cd /
+
 [ "$(id -u)" = 0 ] || die "run this as root: sudo $0 $*"
 if [ "$(uname -s)" != Linux ] || [ "$(uname -m)" != x86_64 ]; then die "Lock-In's server binary is for Linux on x86-64 only"; fi
 command -v systemctl >/dev/null || die "this server has no systemd"
