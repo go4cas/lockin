@@ -32,7 +32,7 @@ const PANELS = [
   { id: "teams", label: "Teams that have joined" },
   { id: "join", label: "How to join" },
   { id: "install", label: "Put the quiz on your home screen" },
-  { id: "animation", label: "Lock-In animation (the Lock-In mark and a tagline)" },
+  { id: "poster", label: "Poster (your picture, or the Lock-In mark when there is none)" },
   { id: "prizes", label: "Prizes" },
 ];
 
@@ -87,6 +87,9 @@ const draft = reactive({
 /** Unsaved venue settings. */
 const venue = reactive({
   minutesBefore: "30",
+  panelSeconds: "12",
+  /** @type {string | null} "assets/<file>" */
+  poster: null,
   /** every panel, in order, with on/off */
   panels: PANELS.map((p) => ({ id: p.id, on: true })),
   /** @type {{ key: number, place: string, text: string }[]} */
@@ -139,6 +142,8 @@ function themeFromDraft() {
 /** @param {VenueFile} v */
 function draftFromVenue(v) {
   venue.minutesBefore = String(v.holding.minutesBefore);
+  venue.panelSeconds = String(v.holding.panelSeconds);
+  venue.poster = v.holding.poster;
   const on = v.holding.panels;
   venue.panels = [
     ...on.map((id) => ({ id, on: true })),
@@ -153,12 +158,15 @@ function draftFromVenue(v) {
 function venueFromDraft() {
   const minutes = Number(venue.minutesBefore);
   const seconds = Number(venue.afterSeconds);
+  const every = Number(venue.panelSeconds);
   return {
     format: "lockin.venue/1",
     prizes: venue.prizes.map((p) => ({ place: Number(p.place), text: p.text.trim() })),
     holding: {
       minutesBefore: venue.minutesBefore.trim() === "" || !Number.isFinite(minutes) ? venue.minutesBefore : minutes,
       panels: venue.panels.filter((p) => p.on).map((p) => p.id),
+      panelSeconds: venue.panelSeconds.trim() === "" || !Number.isFinite(every) ? venue.panelSeconds : every,
+      poster: venue.poster,
     },
     afterWinner: {
       mode: venue.afterMode,
@@ -256,7 +264,7 @@ async function saveVenue() {
 /**
  * Uploads a picked file and returns its "assets/<name>", or null.
  * @param {Event} e
- * @param {"logo" | "displayBackground"} kind
+ * @param {"logo" | "displayBackground" | "poster"} kind
  * @returns {Promise<string | null>}
  */
 async function upload(e, kind) {
@@ -497,7 +505,12 @@ function holdingTab() {
       <p class="hint" style="margin-top:6px">Before that, the display shows the plain lobby. Without a planned start time there is no countdown. 0 to 120 minutes.</p>
     </div>
     <div class="card">
-      <h2>Panels (they take turns, 12 seconds each; joining stays on screen)</h2>
+      <h2>Panels (they take turns; joining stays on screen)</h2>
+      <div class="row panel-time">
+        <label for="panel-seconds">Show each panel for</label>
+        <input id="panel-seconds" class="input short" type="number" min="5" max="60" step="1" inputmode="numeric" value="${() => venue.panelSeconds}" @input="${(/** @type {Event} */ e) => { venue.panelSeconds = /** @type {HTMLInputElement} */ (e.target).value; }}">
+        <span>seconds (5 to 60)</span>
+      </div>
       ${() => venue.panels.map((p, i) => html`
         <div class="${p.on ? "panel-row" : "panel-row is-off"}">
           <input type="checkbox" class="switch" id="${"panel-" + p.id}" checked="${p.on}" @change="${() => togglePanel(i)}">
@@ -506,6 +519,17 @@ function holdingTab() {
           <button type="button" class="btn ghost small" aria-label="${"Move " + p.id + " down"}" disabled="${i === venue.panels.length - 1}" @click="${() => movePanel(i, 1)}">↓</button>
         </div>`.key(p.id))}
       <p class="hint" style="margin-top:8px">Panels that are on are shown in this order.</p>
+    </div>
+    <div class="card">
+      <h2>Poster</h2>
+      <div class="row poster-row">
+        ${() => (venue.poster ? html`<img class="poster-thumb" src="${assetUrl(venue.poster)}" alt="Your poster">` : html`<span class="poster-thumb none">No poster</span>`)}
+        <label class="btn small file-btn">${() => (ui.uploading === "poster" ? "Uploading…" : venue.poster ? "Change poster" : "Upload a poster")}
+          <input type="file" id="poster-file" accept="image/jpeg,image/png,image/webp" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "poster"); if (f) venue.poster = f; }}">
+        </label>
+        <button type="button" class="btn ghost small" hidden="${() => !venue.poster}" @click="${() => { venue.poster = null; }}">Remove</button>
+      </div>
+      <p class="hint" style="margin-top:6px">Shown in the Poster panel, for example a "Live music on Thursday" poster. Without one, the panel shows the Lock-In mark and a tagline. JPEG, PNG or WebP, up to 5 MB.</p>
     </div>
     <div class="card">
       <h2>After the winner</h2>

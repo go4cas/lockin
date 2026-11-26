@@ -186,7 +186,7 @@ async function main() {
   writeFileSync(join(dataDir, "venue.json"), JSON.stringify({
     format: "lockin.venue/1",
     prizes: [{ place: 1, text: "£50 bar tab" }, { place: 2, text: "A bottle of house red" }, { place: 3, text: "Bragging rights" }],
-    holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "animation", "prizes"] },
+    holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "poster", "prizes"] },
     afterWinner: { mode: "host", seconds: 15 },
   }, null, 2));
   if (MODE === "branded") {
@@ -194,6 +194,13 @@ async function main() {
     writeFileSync(join(dataDir, "theme", "assets", "logo.svg"),
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="94" fill="#d9a441"/><circle cx="100" cy="100" r="80" fill="none" stroke="#1f2a24" stroke-width="6"/><path d="M52 70 L78 48 L92 80 L108 80 L122 48 L148 70 L132 120 L100 150 L68 120 Z" fill="#1f2a24"/></svg>`);
     copyFileSync(join(import.meta.dir, "pub-picture.jpg"), join(dataDir, "theme", "assets", "tv-picture.jpg"));
+    // The holding page's Poster panel shows a venue picture (UI-22).
+    copyFileSync(join(import.meta.dir, "pub-picture.jpg"), join(dataDir, "theme", "assets", "poster.jpg"));
+    writeFileSync(join(dataDir, "venue.json"), JSON.stringify({
+      format: "lockin.venue/1", prizes: [{ place: 1, text: "£50 bar tab" }],
+      holding: { minutesBefore: 30, panels: ["poster", "countdown", "join"], panelSeconds: 12, poster: "assets/poster.jpg" },
+      afterWinner: { mode: "host", seconds: 15 },
+    }, null, 2));
     writeFileSync(join(dataDir, "theme", "theme.json"), JSON.stringify({
       format: "lockin.theme/1", name: "The Crooked Fox", logo: "assets/logo.svg",
       // background/text/accent2 and fonts are pre-Last Call keys: still accepted, ignored.

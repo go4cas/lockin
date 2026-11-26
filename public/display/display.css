@@ -153,6 +153,8 @@ img.idle-mark.small { height: 14vh; }
 .holding-panel { padding-top: 4vh; min-height: 0; }
 .panel-body { min-height: 0; overflow: hidden; }
 .panel-centre { justify-content: center; }
+.poster { min-height: 0; }
+.poster img { display: block; max-width: 100%; max-height: 100%; min-height: 0; width: auto; height: auto; -o-object-fit: contain; object-fit: contain; border-radius: var(--radius-sm, 0.8vh); }
 .panel-title { font-family: var(--font-display); font-weight: 300; font-size: var(--display-text-l); letter-spacing: -0.04em; line-height: 1; }
 .start-count { font-family: var(--font-display); font-weight: 300; font-size: var(--display-text-hero); letter-spacing: -0.06em; line-height: 0.9; color: var(--venue); margin: 2vh 0 3vh; }
 .start-count.soon { font-size: var(--display-text-xl); color: var(--bone); }

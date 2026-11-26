@@ -26,7 +26,7 @@ casting device, phones), from 2026-11-24. Each is reproduced against `main` in
 - Join page "Quiz night at Lock-In": the default venue name until one is set in Branding.
 - UI-12, phone date questions show mm/dd/yyyy on a US-locale phone: the native picker follows the phone's own date settings, which is what its owner reads every day; the answer is sent as an ISO date either way. Left as it is unless Cas wants a day/month/year picker.
 
-## Host console review on v0.3.0 (Last Call), batch 1 (Cas, 2026-11-26)
+## Host console review on v0.3.0 (Last Call), batches 1 to 3 (Cas, 2026-11-26)
 
 | # | Where | Report | Finding | Status |
 |---|---|---|---|---|
@@ -37,7 +37,13 @@ casting device, phones), from 2026-11-24. Each is reproduced against `main` in
 | UI-18 | Branding, Prizes tab | The Prizes section is empty. | Going from Holding page to Prizes threw an Arrow error ("getNode(...).after is not a function") and left the tab blank. | Fixed: the three tabs are built once and shown or hidden. |
 | UI-19 | Branding, preview | Are the preview cards the team's view or the TV as well? | Both: the left card is the TV, the right one a team's phone. Not labelled. | Fixed: captions "The TV" and "A team's phone". |
 
+| UI-20 | Venue settings, holding page panels | A panel that is switched off disappears from the list. | The row's "off" class clashed with a shared `.off { display: none }` rule. | Fixed: the row uses its own class, so it stays in the list, dimmed. |
+| UI-21 | Console nav | The nav says "Branding"; everything else says "Venue settings". | Naming. | Fixed: the nav item and the page title say "Venue settings". |
+| UI-22 | Venue settings, holding page panels | "Brand animation": how does a venue upload that? What if they want a static picture, like a "Live music on Thursday" poster? | The panel was Lock-In's own mark animation, nothing to upload. Cas: one panel is enough. | Fixed: one "Poster" panel. The venue uploads a picture (JPEG, PNG or WebP, up to 5 MB) on the Holding page tab; without one the panel shows the Lock-In mark and a tagline. Venue files that say "animation" load as "poster". |
+| UI-23 | Holding page | Why 12 seconds per panel? Why not a setting? | It was a fixed design value. Cas: a setting, 12 s by default. | Fixed: "Show each panel for N seconds" (5 to 60) on the Holding page tab; the display uses it. |
+| UI-24 | Run night on a phone | Is the host console meant to work on a phone? | It was built for laptop and tablet. On a 390 px phone the Night menu was off screen, the quiz list squashed and tables cut off. Cas: a phone layout for Run night only. | Fixed: under 600 px the run header keeps the room and the Night menu (the phase steps hide), marking stacks, quiz rows stack and wide tables scroll sideways. The top nav scrolls sideways on every console page. |
+
 Questions answered, not changed:
 
-- **Is the host console meant to work on a phone?** No: it is designed for a laptop (1280 px) and a tablet (768 to 1024 px), as the brief and DESIGN-SYSTEM.md say. A phone layout is a scope choice for Cas.
-- **Holding page panels, why 12 seconds?** A fixed design value (`PANEL_MS`), long enough to read a panel from across the room. Making it a venue setting is a scope choice for Cas.
+- **Is the host console meant to work on a phone?** It was designed for a laptop and a tablet; Cas chose a phone layout for Run night only (UI-24). The other pages stay laptop and tablet.
+- **Holding page panels, why 12 seconds?** Now a venue setting (UI-23).

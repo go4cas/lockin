@@ -362,6 +362,8 @@ export interface VenueFile {
   holding: {
     minutesBefore: number;                     // 0..120, default 30
     panels: HoldingPanel[];                    // shown in this order; default all six
+    panelSeconds: number;                      // 5..60, default 12: each panel's time on screen (UI-23)
+    poster: string | null;                     // "assets/<file>" shown by the poster panel, JPEG/PNG/WebP <= 5 MB; null = the Lock-In mark (UI-22)
   };
   afterWinner: {                               // Quiz End: winner screen, then final standings (T-12; added by B6, Cas 2026-11-24)
     mode: "timer" | "host";                    // timer: standings after `seconds`; host: on the host's Next (final.show). Default "timer"
@@ -369,10 +371,10 @@ export interface VenueFile {
   };
 }
 export interface Prize { place: number; text: string }   // place 1.., text 1..80 chars
-export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "animation" | "prizes";
+export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "poster" | "prizes";
 ```
 
-Unknown panel names are ignored, so more panels can be added later (H-17).
+Unknown panel names are ignored, so more panels can be added later (H-17). "animation", the poster panel's old name, is read as "poster". The poster file lives in `theme/assets/` with the other uploads; saving a venue file that names a missing poster is refused.
 
 ### 5.5 Copy pools
 
@@ -756,7 +758,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `POST /api/quizzes/:id/media` | B3 | multipart `file`, `questionId` → `{ file }` |
 | `GET /api/theme` | B4 | → `{ theme: ThemeFile, version, countdownStyles: CountdownStyle[], problems }` |
 | `PUT /api/theme` | B4 | `{ theme: ThemeFile }` → `{ theme, version }` |
-| `POST /api/theme/assets` | B4 | multipart `file`, `kind: "logo" \| "displayBackground"` → `{ file: "assets/<name>" }` |
+| `POST /api/theme/assets` | B4 | multipart `file`, `kind: "logo" \| "displayBackground" \| "poster"` → `{ file: "assets/<name>" }` |
 | `GET /api/venue` / `PUT /api/venue` | B4 | `VenueFile` |
 | `GET /api/theme/preview.css` | B4 | `?theme=<url-encoded ThemeFile JSON>` → CSS, for the live preview (H-16); an invalid theme gets `400` with a fixed comment, never the input (SA-19) |
 | `GET /api/history` | B1 | → `HistoryList`: `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` (saved nights, newest first, at most 500: SA-21) |
@@ -844,6 +846,8 @@ export interface NightInfo {
   plannedStart: number | null;
   holdingFrom: number | null;      // 7.4
   holdingPanels: HoldingPanel[];
+  holdingSeconds: number;          // venue holding.panelSeconds
+  poster: string | null;           // the poster's URL, or null for the Lock-In mark
   prizes: Prize[];
   roundCount: number;
   round: RoundInfo | null;         // current or upcoming round; null in lobby and ended
@@ -1237,7 +1241,7 @@ Done when:
 - `GET /theme.css` emits the venue tokens (docs/DESIGN-SYSTEM.md section 2.2), and tests check them for sample colours; `themeVersion` changes when the theme changes.
 - Asset uploads (logo, display background, fonts) are checked by type and size, stored under generated names, and served per 12.4.
 - The branding page (`public/host/brand/`) sets name, logo, the four colours, fonts (bundled list or upload) and display background, shows a live display and phone preview, and warns (without blocking) on failed contrast rules. It is built with Arrow (3.4): unsaved settings live in a local store, and the previews update from it as the QM types.
-- The venue page sets default prizes and the holding page minutes and panels.
+- The venue page sets default prizes and the holding page minutes, panels, seconds per panel and poster.
 - `CopyPicker` (8.6) merges default and theme pools, fills placeholders, skips lines with missing values and `{n}` lines when `n < 2`, and never repeats the last line; tested.
 
 ### B5 Host console: run the night and history

@@ -1,9 +1,9 @@
-// Theme asset uploads (TECH-SPEC 5.3, 9.2, 12.4): the logo and the display background picture.
+// Theme asset uploads (TECH-SPEC 5.3, 9.2, 12.4): the logo, the display background picture and the holding-page poster.
 // Files are checked by their first bytes, never by the name or type the browser sent.
 
-export type AssetKind = "logo" | "displayBackground";
+export type AssetKind = "logo" | "displayBackground" | "poster";
 
-export const ASSET_KINDS: readonly AssetKind[] = ["logo", "displayBackground"];
+export const ASSET_KINDS: readonly AssetKind[] = ["logo", "displayBackground", "poster"];
 
 const MB = 1024 * 1024;
 
@@ -12,6 +12,7 @@ interface KindRule { maxBytes: number; types: string[]; label: string; typesText
 export const ASSET_RULES: Record<AssetKind, KindRule> = {
   logo: { maxBytes: 2 * MB, types: ["png", "svg", "jpg"], label: "logo", typesText: "a PNG, SVG or JPEG file" },
   displayBackground: { maxBytes: 5 * MB, types: ["jpg", "png", "webp"], label: "display background picture", typesText: "a JPEG, PNG or WebP picture" },
+  poster: { maxBytes: 5 * MB, types: ["jpg", "png", "webp"], label: "poster", typesText: "a JPEG, PNG or WebP picture" },
 };
 
 const starts = (b: Uint8Array, sig: number[], at = 0) => sig.every((v, i) => b[at + i] === v);

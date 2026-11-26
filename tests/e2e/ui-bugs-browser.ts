@@ -8,6 +8,9 @@
 // UI-16: leaving a page with unsaved changes through a link asks in the design system's dialog.
 // UI-18: Branding, going from Holding page to Prizes shows the Prizes tab (it was blank).
 // UI-20: Holding page, a panel that is switched off stays in the list (it disappeared).
+// UI-23: Holding page, how long each panel shows is a venue setting (it was a fixed 12 s).
+// UI-22: Holding page, a Poster panel shows the venue's uploaded picture.
+// UI-24: Run night on a phone (390 px): nothing is cut off and the Night menu is in reach.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -148,6 +151,22 @@ async function main() {
     check(first.filled === 2 && /2 of 3/.test(first.text), `UI-13 first reveal: ${first.filled} dots, "${first.text}"`);
     check(second.filled === 1 && /1 of 3/.test(second.text), `UI-13 second reveal: ${second.filled} dots, "${second.text}"`);
 
+    // UI-24: Run night on a phone, mid-reveal
+    const phoneHostCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await phoneHostCtx.addCookies([{ name: cname!, value: cvalue!, url: PUBLIC }]);
+    const phoneHost = await phoneHostCtx.newPage();
+    watch("console-phone", phoneHost);
+    await phoneHost.goto(`${PUBLIC}/host/run`);
+    await phoneHost.waitForSelector(".menu-btn", { timeout: 5000 });
+    await phoneHost.waitForTimeout(300);
+    await phoneHost.screenshot({ path: join(OUT, "ui-23-run-phone.png"), fullPage: true });
+    const fit = await phoneHost.evaluate(() => {
+      const r = document.querySelector(".menu-btn")!.getBoundingClientRect();
+      return { pageWidth: document.documentElement.scrollWidth, menuRight: Math.round(r.right) };
+    });
+    check(fit.pageWidth <= 390 && fit.menuRight <= 390, `UI-24 the phone page is ${fit.pageWidth} px wide, the Night menu ends at ${fit.menuRight} px`);
+    await phoneHostCtx.close();
+
     // UI-18: tabs on the Branding page
     const brand = await hostCtx.newPage();
     watch("branding", brand);
@@ -165,6 +184,18 @@ async function main() {
     const after = await rows();
     check(before === 6 && after === 6, `UI-20 switching a panel off keeps its row (${before} rows, then ${after})`);
     await brand.click(".panel-row input.switch >> nth=0");
+
+    // UI-23, UI-22: panel seconds and a poster, saved
+    await brand.fill("#panel-seconds", "20");
+    await brand.setInputFiles("#poster-file", join(import.meta.dir, "pub-picture.jpg"));
+    await brand.waitForSelector("img.poster-thumb", { timeout: 5000 });
+    await brand.click('.tabs > div:not([hidden]) button[type=submit]');
+    await brand.waitForFunction(() => /Saved/.test(document.body.innerText), null, { timeout: 5000 });
+    const saved = await (await fetch(`${PUBLIC}/api/venue`, { headers: { cookie: night.cookie } })).json() as { holding: { panelSeconds: number; poster: string | null } };
+    check(saved.holding.panelSeconds === 20, `UI-23 panel seconds saved: ${saved.holding.panelSeconds}`);
+    const posterRes = saved.holding.poster ? await fetch(`${PUBLIC}/theme/${saved.holding.poster}`) : null;
+    check(!!posterRes && posterRes.ok && /image\/jpeg/.test(posterRes.headers.get("content-type") ?? ""), `UI-22 poster saved and served: ${saved.holding.poster}`);
+    await brand.screenshot({ path: join(OUT, "ui-21-22-holding-tab.png"), fullPage: true });
 
     // UI-16: unsaved changes, then a nav link
     await brand.click('[role=tab]:has-text("Branding")');

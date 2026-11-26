@@ -51,8 +51,8 @@ describe("lobby and the holding page (T-02, T-12, TECH-SPEC 7.4)", () => {
 
   test("panels keep the venue's order and skip ones with nothing to show (H-17)", () => {
     const n = night();
-    expect(holdingPanels(n, 6)).toEqual(["countdown", "teams", "join", "install", "animation", "prizes"]);
-    expect(holdingPanels({ ...n, prizes: [], plannedStart: null }, 0)).toEqual(["join", "install", "animation"]);
+    expect(holdingPanels(n, 6)).toEqual(["countdown", "teams", "join", "install", "poster", "prizes"]);
+    expect(holdingPanels({ ...n, prizes: [], plannedStart: null }, 0)).toEqual(["join", "install", "poster"]);
     expect(holdingPanels({ ...n, holdingPanels: ["prizes", "countdown"] }, 6)).toEqual(["prizes", "countdown"]);
     expect(holdingPanels({ ...n, holdingPanels: ["countdown", "fireworks" as never] }, 6)).toEqual(["countdown"]);
   });
