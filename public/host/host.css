@@ -275,3 +275,20 @@ button.primary:not(.btn):disabled { background: var(--status-disabled-tint); col
 .host-credit a { color: var(--ash); text-decoration: none; display: inline-flex; align-items: center; }
 .host-credit a:hover { color: var(--bone); }
 .host-credit .lockup { font-size: 14px; }
+
+/* Phone: the top nav scrolls sideways so every section and Sign out stay reachable (Run night phone layout). */
+@media (max-width: 599px) {
+  .host-nav { gap: 16px; padding: 0 16px; overflow-x: auto; overflow-y: hidden; }
+  .host-nav ul { gap: 14px; }
+  .host-brand { flex: none; font-size: 18px; }
+  .host-signout { flex: none; }
+}
+
+/* ---- Page head and settings cards, shared by Venue settings and the quiz builder ----
+   Title on the left, a segmented tab bar on the right; settings sit in 680 px cards with an
+   overline title, one field per row, a short input with its unit after it, the hint under it. */
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+.form-card { max-width: 680px; margin-bottom: 20px; }
+.card.form-card h2 { margin: 0 0 12px; font-size: var(--host-text-overline); color: var(--ash); text-transform: uppercase; letter-spacing: 0.14em; font-weight: 500; }
+.form-card .field + .field, .form-card .field + .readiness { margin-top: 20px; }
+.field > .seg { align-self: flex-start; }

@@ -104,6 +104,10 @@ export class BrandingStore {
       if (places.has(p.place)) problems.push({ path: `prizes.${i}.place`, message: `There are two prizes for place ${p.place}.` });
       places.add(p.place);
     });
+    const poster = v.value.holding.poster;
+    if (poster && !this.assetPath(poster.slice("assets/".length))) {
+      problems.push({ path: "holding.poster", message: "That poster has not been uploaded, or it was removed. Upload it again." });
+    }
     if (problems.length > 0) return { ok: false, problems };
     v.value.prizes.sort((a, b) => a.place - b.place);
     writeJsonAtomic(this.venuePath, v.value);

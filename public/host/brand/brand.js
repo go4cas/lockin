@@ -12,18 +12,21 @@ import { saveDraft } from "./save.js";
 import { DEFAULT_INPUTS, checkReadability, deriveBrandTokens, assetUrl } from "./derive.js";
 import { countdown } from "/static/shared/countdown.mjs";
 import { lockup, mark } from "/static/shared/mark.mjs";
+import { pairCard } from "../run/pairing.js";
+import { page as hostPage, setClient, ui as hostUi } from "../run/state.js";
 
 /** @typedef {import('../../../src/shared/formats').ThemeFile} ThemeFile */
 /** @typedef {import('../../../src/shared/formats').VenueFile} VenueFile */
 /** @typedef {import('../../../src/shared/formats').HoldingPanel} HoldingPanel */
 /** @typedef {import('../../../src/shared/formats').CountdownStyle} CountdownStyle */
-/** @typedef {"branding" | "holding" | "prizes"} Tab */
+/** @typedef {"branding" | "holding" | "prizes" | "displays"} Tab */
 
 /** @type {{ id: Tab, label: string }[]} */
 const TABS = [
   { id: "branding", label: "Branding" },
   { id: "holding", label: "Holding page" },
-  { id: "prizes", label: "Prizes" },
+  { id: "prizes", label: "Default prizes" },
+  { id: "displays", label: "Displays" },
 ];
 
 /** @type {{ id: HoldingPanel, label: string }[]} */
@@ -32,7 +35,7 @@ const PANELS = [
   { id: "teams", label: "Teams that have joined" },
   { id: "join", label: "How to join" },
   { id: "install", label: "Put the quiz on your home screen" },
-  { id: "animation", label: "Brand animation" },
+  { id: "poster", label: "Poster (your picture, or the Lock-In mark when there is none)" },
   { id: "prizes", label: "Prizes" },
 ];
 
@@ -87,6 +90,9 @@ const draft = reactive({
 /** Unsaved venue settings. */
 const venue = reactive({
   minutesBefore: "30",
+  panelSeconds: "12",
+  /** @type {string | null} "assets/<file>" */
+  poster: null,
   /** every panel, in order, with on/off */
   panels: PANELS.map((p) => ({ id: p.id, on: true })),
   /** @type {{ key: number, place: string, text: string }[]} */
@@ -139,6 +145,8 @@ function themeFromDraft() {
 /** @param {VenueFile} v */
 function draftFromVenue(v) {
   venue.minutesBefore = String(v.holding.minutesBefore);
+  venue.panelSeconds = String(v.holding.panelSeconds);
+  venue.poster = v.holding.poster;
   const on = v.holding.panels;
   venue.panels = [
     ...on.map((id) => ({ id, on: true })),
@@ -153,12 +161,15 @@ function draftFromVenue(v) {
 function venueFromDraft() {
   const minutes = Number(venue.minutesBefore);
   const seconds = Number(venue.afterSeconds);
+  const every = Number(venue.panelSeconds);
   return {
     format: "lockin.venue/1",
     prizes: venue.prizes.map((p) => ({ place: Number(p.place), text: p.text.trim() })),
     holding: {
       minutesBefore: venue.minutesBefore.trim() === "" || !Number.isFinite(minutes) ? venue.minutesBefore : minutes,
       panels: venue.panels.filter((p) => p.on).map((p) => p.id),
+      panelSeconds: venue.panelSeconds.trim() === "" || !Number.isFinite(every) ? venue.panelSeconds : every,
+      poster: venue.poster,
     },
     afterWinner: {
       mode: venue.afterMode,
@@ -256,7 +267,7 @@ async function saveVenue() {
 /**
  * Uploads a picked file and returns its "assets/<name>", or null.
  * @param {Event} e
- * @param {"logo" | "displayBackground"} kind
+ * @param {"logo" | "displayBackground" | "poster"} kind
  * @returns {Promise<string | null>}
  */
 async function upload(e, kind) {
@@ -404,9 +415,11 @@ function brandingTab() {
           <label class="swatch" aria-label="Main colour">
             <input type="color" value="${() => draft.accent}" @input="${(/** @type {Event} */ e) => setAccent(/** @type {HTMLInputElement} */ (e.target).value)}">
           </label>
-          <span class="hex">${() => draft.accent}</span>
+          <input class="input hex" id="accent-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Colour code"
+            value="${() => draft.accent}" @input="${(/** @type {Event} */ e) => { const v = /** @type {HTMLInputElement} */ (e.target).value.trim(); const h = v.startsWith("#") ? v : "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(h)) setAccent(h); }}">
           <span class="hint">${() => (draft.accentDefault ? "Lock-In mint" : "")}</span>
         </div>
+        <p class="hint">Any colour: click the square to pick one, or type your brand's colour code (like #c8102e). The dots below are suggestions.</p>
         <div class="suggest" role="group" aria-label="Suggested colours">${SUGGESTED.map((c) => html`
           <button type="button" class="sw" style="${"background:" + c}" aria-label="${"Use " + c}" aria-pressed="${() => String(draft.accent === c)}" @click="${() => setAccent(c)}"></button>`)}
         </div>
@@ -448,7 +461,10 @@ function brandingTab() {
 
     <div class="preview-col">
       <p class="label">Preview</p>
-      <div class="preview-wrap">${previewDisplay()}${previewPhone()}</div>
+      <div class="preview-wrap">
+        <figure class="pv-fig">${previewDisplay()}<figcaption class="hint">The TV</figcaption></figure>
+        <figure class="pv-fig">${previewPhone()}<figcaption class="hint">A team's phone</figcaption></figure>
+      </div>
     </div>
   </div>`;
 }
@@ -492,15 +508,31 @@ function holdingTab() {
       <p class="hint" style="margin-top:6px">Before that, the display shows the plain lobby. Without a planned start time there is no countdown. 0 to 120 minutes.</p>
     </div>
     <div class="card">
-      <h2>Panels (they take turns, 12 seconds each; joining stays on screen)</h2>
+      <h2>Panels (they take turns; joining stays on screen)</h2>
+      <div class="row panel-time">
+        <label for="panel-seconds">Show each panel for</label>
+        <input id="panel-seconds" class="input short" type="number" min="5" max="60" step="1" inputmode="numeric" value="${() => venue.panelSeconds}" @input="${(/** @type {Event} */ e) => { venue.panelSeconds = /** @type {HTMLInputElement} */ (e.target).value; }}">
+        <span>seconds (5 to 60)</span>
+      </div>
       ${() => venue.panels.map((p, i) => html`
-        <div class="${p.on ? "panel-row" : "panel-row off"}">
+        <div class="${p.on ? "panel-row" : "panel-row is-off"}">
           <input type="checkbox" class="switch" id="${"panel-" + p.id}" checked="${p.on}" @change="${() => togglePanel(i)}">
           <label class="name" for="${"panel-" + p.id}">${PANELS.find((x) => x.id === p.id)?.label ?? p.id}</label>
           <button type="button" class="btn ghost small" aria-label="${"Move " + p.id + " up"}" disabled="${i === 0}" @click="${() => movePanel(i, -1)}">↑</button>
           <button type="button" class="btn ghost small" aria-label="${"Move " + p.id + " down"}" disabled="${i === venue.panels.length - 1}" @click="${() => movePanel(i, 1)}">↓</button>
         </div>`.key(p.id))}
       <p class="hint" style="margin-top:8px">Panels that are on are shown in this order.</p>
+    </div>
+    <div class="card">
+      <h2>Poster</h2>
+      <div class="row poster-row">
+        ${() => (venue.poster ? html`<img class="poster-thumb" src="${assetUrl(venue.poster)}" alt="Your poster">` : html`<span class="poster-thumb none">No poster</span>`)}
+        <label class="btn small file-btn">${() => (ui.uploading === "poster" ? "Uploading…" : venue.poster ? "Change poster" : "Upload a poster")}
+          <input type="file" id="poster-file" accept="image/jpeg,image/png,image/webp" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "poster"); if (f) venue.poster = f; }}">
+        </label>
+        <button type="button" class="btn ghost small" hidden="${() => !venue.poster}" @click="${() => { venue.poster = null; }}">Remove</button>
+      </div>
+      <p class="hint" style="margin-top:6px">Shown in the Poster panel, for example a "Live music on Thursday" poster. Without one, the panel shows the Lock-In mark and a tagline. JPEG, PNG or WebP, up to 5 MB.</p>
     </div>
     <div class="card">
       <h2>After the winner</h2>
@@ -550,7 +582,7 @@ function prizesTab() {
   <form @submit="${(/** @type {Event} */ e) => { e.preventDefault(); saveVenue(); }}">
     <div class="card">
       <h2>Default prizes for new nights</h2>
-      <p class="hint" style="margin-bottom:12px">The host can still change them for a night in the lobby. They show on the display and phones in the lobby, at halftime and at the end.</p>
+      <p class="hint" style="margin-bottom:12px">These fill in "Prizes tonight" when you open a night, where you can change them for that night only. They show on the display and phones in the lobby, at halftime and at the end.</p>
       ${() => (venue.prizes.length === 0 ? html`<p class="hint">No prizes yet.</p>` : "")}
       ${() => venue.prizes.map((p) => html`
         <div class="prize-row">
@@ -574,6 +606,43 @@ function tabFromHash() {
   return /** @type {Tab} */ (TABS.some((t) => t.id === h) ? h : "branding");
 }
 
+/**
+ * All three tabs are built once and shown or hidden (UI-18). Swapping one tab's template for
+ * another in the same slot broke in Arrow 1.0.6 ("getNode(...).after is not a function" going
+ * from Holding page to Prizes), which left the Prizes tab blank.
+ */
+function allTabs() {
+  return html`<div hidden="${() => page.tab !== "branding"}">${brandingTab()}</div>
+    <div hidden="${() => page.tab !== "holding"}">${holdingTab()}</div>
+    <div hidden="${() => page.tab !== "prizes"}">${prizesTab()}</div>
+    <div hidden="${() => page.tab !== "displays"}">${displaysTab()}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Displays tab: the TVs paired with this server (Cas, 2026-11-26). Pairing lasts across
+// nights, so it is a venue setting; Run night keeps the same card for pairing on the spot.
+// ---------------------------------------------------------------------------
+
+function displaysTab() {
+  return html`<div>
+    <p class="hint tab-intro">A paired display stays paired across nights and restarts, until you unpair it. You can also pair one from Run night.</p>
+    <div class="error-box" role="alert" hidden="${() => !hostUi.error}">${() => hostUi.error}</div>
+    <p class="hint" hidden="${() => hostPage.status === "online"}">${() => (hostPage.status === "offline" ? "Not connected to Lock-In. Trying again…" : "Connecting…")}</p>
+    ${pairCard()}
+  </div>`;
+}
+
+/** The host socket the Displays tab uses: the server's view carries the paired displays. */
+const hostClient = /** @type {any} */ (window).LockIn.connect({
+  role: "host",
+  onState(/** @type {any} */ v) { hostPage.view = v; },
+  onStatus(/** @type {string} */ status) { hostPage.status = status; },
+  onBye(/** @type {string} */ reason) {
+    if (reason === "signed_out") location.href = "/host/login?next=/host/brand";
+  },
+});
+setClient(hostClient);
+
 /** @param {Tab} id */
 function showTab(id) {
   page.tab = id;
@@ -583,7 +652,7 @@ function showTab(id) {
 
 const view = html`
 <div class="brand-page">
-  <div class="brand-head">
+  <div class="page-head">
     <h1>Venue settings</h1>
     <div class="seg" role="tablist" aria-label="Venue settings">${TABS.map((t) => html`
       <button type="button" role="tab" aria-selected="${() => String(page.tab === t.id)}" @click="${() => showTab(t.id)}">${t.label}</button>`)}
@@ -593,7 +662,7 @@ const view = html`
     ? html`<p class="placeholder">Loading the venue settings…</p>`
     : page.loadError
       ? html`<div class="error-box">${page.loadError}</div>`
-      : page.tab === "branding" ? brandingTab() : page.tab === "holding" ? holdingTab() : prizesTab()}
+      : html`<div class="tabs">${allTabs()}</div>`}
 </div>`;
 
 const main = document.getElementById("host-main");
@@ -603,9 +672,8 @@ if (main) {
 }
 
 window.addEventListener("hashchange", () => { page.tab = tabFromHash(); ui.message = null; });
-window.addEventListener("beforeunload", (e) => {
-  if (themeDirty() || venueDirty()) e.preventDefault();
-});
+// Unsaved edits: the design system's dialog for links, the browser's prompt on reload (UI-16).
+/** @type {any} */ (window).LockIn.nav.guardUnsaved(() => themeDirty() || venueDirty());
 
 // The preview's countdown runs on its own, a 30 s loop, so the style can be seen moving.
 setInterval(() => { preview.now = Date.now(); }, 250);

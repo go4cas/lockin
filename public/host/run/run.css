@@ -200,3 +200,33 @@ td.move.up { color: var(--venue); }
 @media (min-width: 1024px) {
   .side { height: calc(100vh - 64px); position: sticky; top: 0; align-self: start; }
 }
+
+/* Phone: under 600 px (UI-24; Cas, 2026-11-26: a phone layout for Run night only). One column, the
+   Night menu always in reach, wide tables scroll sideways instead of cutting off. */
+@media (max-width: 599px) {
+  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; gap: 6px 12px; padding: 8px 16px; }
+  .topbar .host-brand { font-size: 18px; }
+  .phase-steps { display: none; }
+  .menu-btn { margin-left: auto; }
+  .night-menu { top: 52px; left: 16px; right: 16px; width: auto; }
+  .runbody { padding: 0 16px; }
+  .stage { padding: 20px 0; gap: 16px; }
+  .host-main { padding: 20px 16px; }
+  .host-main h1, .host h1 { font-size: 34px; }
+  .qbig { font-size: 23px; }
+  .q-meta { flex-wrap: wrap; gap: 8px; }
+  .hide-toggle { margin-left: 0; }
+  .timer-cd { min-width: 0; flex-basis: 100%; }
+  .run-foot { padding-bottom: 16px; }
+  .btn.next { font-size: 17px; padding: 0 18px; }
+  .stage table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .stage td, .stage th { padding: 0 8px; }
+  .group { grid-template-columns: minmax(0, 1fr); }
+  .group .mark-btns { justify-self: start; }
+  .quiz-opt { grid-template-columns: auto minmax(0, 1fr); padding: 10px; }
+  .quiz-opt > :not(input) { grid-column: 2; justify-self: start; }
+  .join-card { flex-wrap: wrap; }
+  .room-code { font-size: 44px; }
+  .move { flex-wrap: wrap; }
+  .card { padding: 16px; }
+}

@@ -186,7 +186,7 @@ async function main() {
   writeFileSync(join(dataDir, "venue.json"), JSON.stringify({
     format: "lockin.venue/1",
     prizes: [{ place: 1, text: "£50 bar tab" }, { place: 2, text: "A bottle of house red" }, { place: 3, text: "Bragging rights" }],
-    holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "animation", "prizes"] },
+    holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "poster", "prizes"] },
     afterWinner: { mode: "host", seconds: 15 },
   }, null, 2));
   if (MODE === "branded") {
@@ -194,6 +194,13 @@ async function main() {
     writeFileSync(join(dataDir, "theme", "assets", "logo.svg"),
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="94" fill="#d9a441"/><circle cx="100" cy="100" r="80" fill="none" stroke="#1f2a24" stroke-width="6"/><path d="M52 70 L78 48 L92 80 L108 80 L122 48 L148 70 L132 120 L100 150 L68 120 Z" fill="#1f2a24"/></svg>`);
     copyFileSync(join(import.meta.dir, "pub-picture.jpg"), join(dataDir, "theme", "assets", "tv-picture.jpg"));
+    // The holding page's Poster panel shows a venue picture (UI-22).
+    copyFileSync(join(import.meta.dir, "pub-picture.jpg"), join(dataDir, "theme", "assets", "poster.jpg"));
+    writeFileSync(join(dataDir, "venue.json"), JSON.stringify({
+      format: "lockin.venue/1", prizes: [{ place: 1, text: "£50 bar tab" }],
+      holding: { minutesBefore: 30, panels: ["poster", "countdown", "join"], panelSeconds: 12, poster: "assets/poster.jpg" },
+      afterWinner: { mode: "host", seconds: 15 },
+    }, null, 2));
     writeFileSync(join(dataDir, "theme", "theme.json"), JSON.stringify({
       format: "lockin.theme/1", name: "The Crooked Fox", logo: "assets/logo.svg",
       // background/text/accent2 and fonts are pre-Last Call keys: still accepted, ignored.
@@ -270,23 +277,23 @@ async function main() {
     const builder = async (step: string, note: string, quizId: string, ...clicks: string[]) => {
       for (const c of [con, tab]) {
         await c.page.goto(`${PUBLIC}/host/build?quiz=${quizId}`);
-        await c.page.waitForSelector(".b-side", { timeout: 5000 });
+        await c.page.waitForSelector(".b-head", { timeout: 5000 });
         for (const click of clicks) { await c.page.locator(click).first().click(); await Bun.sleep(150); }
       }
       await snap(step, note, isConsole);
     };
-    await builder("builder-quiz-settings", "Builder: quiz title and night settings (lock mode, timer, halftime, joker, sudden death).", quiz.id, '.b-side a:has-text("Quiz and settings")');
+    await builder("builder-quiz-settings", "Builder: quiz title and night settings (lock mode, timer, halftime, joker, sudden death).", quiz.id, '[role=tab]:has-text("Settings")');
     await builder("builder-round", "Builder: a round with its question list.", quiz.id, '.b-side a:has-text("General Knowledge")');
-    await builder("builder-question-text", "Builder: a free-text question with accepted answers.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-side a:has-text("Q1")');
-    await builder("builder-question-choice", "Builder: a multiple-choice question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-side a:has-text("Q2")');
-    await builder("builder-question-picture", "Builder: a picture question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-side a:has-text("Q3")');
-    await builder("builder-question-number", "Builder: a number question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-side a:has-text("Q4")');
-    await builder("builder-question-year", "Builder: a year (date/time) question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-side a:has-text("Q5")');
-    await builder("builder-sudden-death", "Builder: the sudden-death questions.", quiz.id, '.b-side a:has-text("Sudden death")');
-    await builder("builder-draft-problems", "Builder: an unfinished quiz with its list of problems.", draftQuiz.id);
-    await builder("builder-draft-empty-question", "Builder: an empty multiple-choice question in a draft.", draftQuiz.id, '.b-side a:has-text("Number Ones")', '.b-side a:has-text("Q2")');
+    await builder("builder-question-text", "Builder: a free-text question with accepted answers.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=0');
+    await builder("builder-question-choice", "Builder: a multiple-choice question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=1');
+    await builder("builder-question-picture", "Builder: a picture question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=2');
+    await builder("builder-question-number", "Builder: a number question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=3');
+    await builder("builder-question-year", "Builder: a year (date/time) question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=4');
+    await builder("builder-sudden-death", "Builder: the sudden-death questions.", quiz.id, '[role=tab]:has-text("Sudden death")');
+    await builder("builder-draft-problems", "Builder: an unfinished quiz with its list of problems.", draftQuiz.id, '[role=tab]:has-text("Settings")');
+    await builder("builder-draft-empty-question", "Builder: an empty multiple-choice question in a draft.", draftQuiz.id, '.b-side a:has-text("Number Ones")', '.b-qs a.b-q >> nth=1');
 
-    for (const [tabName, label] of [["branding", "Branding"], ["holding", "Holding page"], ["prizes", "Prizes"]] as const) {
+    for (const [tabName, label] of [["branding", "Branding"], ["holding", "Holding page"], ["prizes", "Default prizes"], ["displays", "Displays"]] as const) {
       for (const c of [con, tab]) {
         await c.page.goto(`${PUBLIC}/host/brand`);
         await c.page.waitForSelector('[role=tab]', { timeout: 5000 });

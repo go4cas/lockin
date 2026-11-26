@@ -220,7 +220,7 @@ describe("validateVenue", () => {
   test("an empty venue file means every default", () => {
     const r = validateVenue({ format: "lockin.venue/1" });
     expect(r.ok && r.value).toEqual(defaultVenue());
-    expect(defaultVenue().holding).toEqual({ minutesBefore: 30, panels: [...HOLDING_PANELS] });
+    expect(defaultVenue().holding).toEqual({ minutesBefore: 30, panels: [...HOLDING_PANELS], panelSeconds: 12, poster: null });
   });
 
   test("accepts prizes and panels; unknown and repeated panels are dropped", () => {
@@ -230,7 +230,22 @@ describe("validateVenue", () => {
       holding: { minutesBefore: 45, panels: ["join", "laser-show", "countdown", "join"] },
     });
     expect(r.ok && r.value.prizes).toHaveLength(2);
-    expect(r.ok && r.value.holding).toEqual({ minutesBefore: 45, panels: ["join", "countdown"] });
+    expect(r.ok && r.value.holding).toEqual({ minutesBefore: 45, panels: ["join", "countdown"], panelSeconds: 12, poster: null });
+  });
+
+  test("old venue files keep their animation panel as the poster panel (UI-22)", () => {
+    const r = validateVenue({ format: "lockin.venue/1", holding: { panels: ["animation", "join"] } });
+    expect(r.ok && r.value.holding.panels).toEqual(["poster", "join"]);
+  });
+
+  test("panel seconds and the poster (UI-23, UI-22)", () => {
+    const r = validateVenue({ format: "lockin.venue/1", holding: { panelSeconds: 20, poster: "assets/poster-abc.jpg" } });
+    expect(r.ok && r.value.holding.panelSeconds).toBe(20);
+    expect(r.ok && r.value.holding.poster).toBe("assets/poster-abc.jpg");
+    expect(messages(validateVenue({ format: "lockin.venue/1", holding: { panelSeconds: 3, poster: "../x.gif" } }))).toEqual([
+      "Each holding page panel must show for 5 to 60 seconds.",
+      "The poster must be a JPEG, PNG or WebP picture in the theme's assets folder.",
+    ]);
   });
 
   test("reports bad prizes and minutes", () => {

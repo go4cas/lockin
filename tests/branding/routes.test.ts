@@ -211,7 +211,7 @@ describe("venue settings (5.4)", () => {
     try {
       const c = await t.signIn();
       expect(await (await t.fetch("/api/venue", { cookie: c })).json()).toEqual({
-        format: "lockin.venue/1", prizes: [], holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "animation", "prizes"] }, afterWinner: { mode: "timer", seconds: 15 },
+        format: "lockin.venue/1", prizes: [], holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "poster", "prizes"], panelSeconds: 12, poster: null }, afterWinner: { mode: "timer", seconds: 15 },
       });
     } finally { await t.stop(); }
   });
@@ -222,11 +222,24 @@ describe("venue settings (5.4)", () => {
       body: JSON.stringify({ format: "lockin.venue/1", prizes: [{ place: 2, text: "A round of shots" }, { place: 1, text: "R300 bar tab" }], holding: { minutesBefore: 45, panels: ["join", "prizes", "fireworks"] } }),
     });
     expect(res.status).toBe(200);
-    const saved = { format: "lockin.venue/1", prizes: [{ place: 1, text: "R300 bar tab" }, { place: 2, text: "A round of shots" }], holding: { minutesBefore: 45, panels: ["join", "prizes"] }, afterWinner: { mode: "timer", seconds: 15 } };
+    const saved = { format: "lockin.venue/1", prizes: [{ place: 1, text: "R300 bar tab" }, { place: 2, text: "A round of shots" }], holding: { minutesBefore: 45, panels: ["join", "prizes"], panelSeconds: 12, poster: null }, afterWinner: { mode: "timer", seconds: 15 } };
     expect(await res.json()).toEqual(saved);
     expect(JSON.parse(readFileSync(join(s.dataDir, "venue.json"), "utf8"))).toEqual(saved);
     expect(await (await s.fetch("/api/venue", { cookie })).json()).toEqual(saved);
     expect(s.app.services.branding.venue()).toEqual(saved as never);
+  });
+
+  test("a poster must be uploaded before the venue can use it (UI-22)", async () => {
+    const missing = await s.fetch("/api/venue", { method: "PUT", cookie, body: JSON.stringify({ format: "lockin.venue/1", holding: { poster: "assets/poster-0000000000.jpg" } }) });
+    expect(missing.status).toBe(400);
+    expect((await missing.json()).error.problems[0].path).toBe("holding.poster");
+    const up = await upload("poster", JPEG, "live-music.jpg");
+    expect(up.status).toBe(200);
+    const file = (await up.json()).file as string;
+    expect(file).toMatch(/^assets\/poster-[0-9a-f]{10}\.jpg$/);
+    const ok = await s.fetch("/api/venue", { method: "PUT", cookie, body: JSON.stringify({ format: "lockin.venue/1", holding: { poster: file, panelSeconds: 20 } }) });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).holding).toMatchObject({ poster: file, panelSeconds: 20 });
   });
 
   test("bad values and two prizes for one place are refused", async () => {

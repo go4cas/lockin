@@ -10,7 +10,7 @@
 /** @typedef {import("../../src/shared/protocol").Standings} Standings */
 /** @typedef {Standings["rows"][number]} StandingRowView */
 
-/** Seconds a holding-page panel stays up before the next one (moments.md 2). */
+/** How long a holding-page panel stays up when the venue has no setting (moments.md 2; venue holding.panelSeconds). */
 export const PANEL_MS = 12000;
 /** A flash line is shown for this long after it arrives (TECH-SPEC 10.4). */
 export const FLASH_MS = 6000;
@@ -94,7 +94,7 @@ export function holdingPanels(night, teamCount) {
     if (p === "countdown" && night.plannedStart === null) continue;
     if (p === "teams" && teamCount === 0) continue;
     if (p === "prizes" && night.prizes.length === 0) continue;
-    if (["countdown", "teams", "join", "install", "animation", "prizes"].indexOf(p) < 0) continue;  // unknown panels are ignored (5.4)
+    if (["countdown", "teams", "join", "install", "poster", "prizes"].indexOf(p) < 0) continue;  // unknown panels are ignored (5.4)
     if (out.indexOf(p) < 0) out.push(p);
   }
   return out;

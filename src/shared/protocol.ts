@@ -192,6 +192,8 @@ export interface NightInfo {
   plannedStart: number | null;
   holdingFrom: number | null;      // 7.4
   holdingPanels: HoldingPanel[];
+  holdingSeconds: number;          // each holding panel's time on screen (venue holding.panelSeconds)
+  poster: string | null;           // URL of the venue's poster, or null for the Lock-In mark
   prizes: Prize[];
   roundCount: number;
   round: RoundInfo | null;         // current or upcoming round; null in lobby and ended

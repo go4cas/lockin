@@ -11,6 +11,7 @@ import { FLASH_MS, TEAM_COLOURS, type Engine } from "./engine.ts";
 import { answerText, halftimeRound, inputOf, timerSecondsOf, valueKey, valueText } from "./quiz.ts";
 import { LINE_SLOTS } from "./state.ts";
 import { imageUrl } from "./media.ts";
+import { assetUrl } from "../branding/derive.ts";
 
 function common(e: Engine): Omit<Common, "flash"> {
   const v = e.venue();
@@ -38,6 +39,8 @@ function nightInfo(e: Engine): NightInfo | null {
     plannedStart: n.plannedStart,
     holdingFrom: n.plannedStart === null ? null : n.plannedStart - venue.holding.minutesBefore * 60_000,
     holdingPanels: venue.holding.panels,
+    holdingSeconds: venue.holding.panelSeconds,
+    poster: venue.holding.poster ? assetUrl(venue.holding.poster) : null,
     prizes: n.prizes,
     roundCount: n.quiz.rounds.length,
     round: s.phase === "lobby" || s.phase === "ended" ? null : roundInfo(e, Math.min(s.round, n.quiz.rounds.length - 1)),
@@ -300,7 +303,7 @@ export function teamView(e: Engine, teamId: string | null): TeamView {
 /** The whole TeamView an unbound phone gets (SA-07, TECH-SPEC 10.3). */
 function unboundTeamView(base: Omit<TeamView, "flash" | "self" | "teams" | "questions" | "answers" | "standings" | "suddenDeath" | "lines">, lobby: Lines["lobby"]): TeamView {
   const night: NightInfo | null = base.night ? {
-    id: "", roomCode: "", joinUrl: "", quizTitle: "", plannedStart: null, holdingFrom: null, holdingPanels: [], prizes: [],
+    id: "", roomCode: "", joinUrl: "", quizTitle: "", plannedStart: null, holdingFrom: null, holdingPanels: [], holdingSeconds: 12, poster: null, prizes: [],
     roundCount: 0, round: null, joker: false, lockMode: "question", teamCount: 0, started: base.night.started,
   } : null;
   return {

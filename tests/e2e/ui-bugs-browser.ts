@@ -5,6 +5,15 @@
 //
 // UI-01: Run night, Open a night: a quiz that is not ready shows its problem text, never
 //        "[object Object]", and "1 round", not "1 rounds".
+// UI-16: leaving a page with unsaved changes through a link asks in the design system's dialog.
+// UI-18: Branding, going from Holding page to Prizes shows the Prizes tab (it was blank).
+// UI-20: Holding page, a panel that is switched off stays in the list (it disappeared).
+// UI-23: Holding page, how long each panel shows is a venue setting (it was a fixed 12 s).
+// UI-22: Holding page, a Poster panel shows the venue's uploaded picture.
+// UI-24: Run night on a phone (390 px): nothing is cut off and the Night menu is in reach.
+// UI-25: Venue settings, the prizes tab says "Default prizes".
+// UI-26: Venue settings, a Displays tab lists the paired TVs and can pair or unpair them.
+// UI-27: the quiz builder uses Venue settings' page head (title, tabs) and settings cards.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -144,6 +153,90 @@ async function main() {
     await tv.screenshot({ path: join(OUT, "ui-13-reveal-q2.png") });
     check(first.filled === 2 && /2 of 3/.test(first.text), `UI-13 first reveal: ${first.filled} dots, "${first.text}"`);
     check(second.filled === 1 && /1 of 3/.test(second.text), `UI-13 second reveal: ${second.filled} dots, "${second.text}"`);
+
+    // UI-24: Run night on a phone, mid-reveal
+    const phoneHostCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await phoneHostCtx.addCookies([{ name: cname!, value: cvalue!, url: PUBLIC }]);
+    const phoneHost = await phoneHostCtx.newPage();
+    watch("console-phone", phoneHost);
+    await phoneHost.goto(`${PUBLIC}/host/run`);
+    await phoneHost.waitForSelector(".menu-btn", { timeout: 5000 });
+    await phoneHost.waitForTimeout(300);
+    await phoneHost.screenshot({ path: join(OUT, "ui-23-run-phone.png"), fullPage: true });
+    const fit = await phoneHost.evaluate(() => {
+      const r = document.querySelector(".menu-btn")!.getBoundingClientRect();
+      return { pageWidth: document.documentElement.scrollWidth, menuRight: Math.round(r.right) };
+    });
+    check(fit.pageWidth <= 390 && fit.menuRight <= 390, `UI-24 the phone page is ${fit.pageWidth} px wide, the Night menu ends at ${fit.menuRight} px`);
+    await phoneHostCtx.close();
+
+    // UI-18: tabs on the Branding page
+    const brand = await hostCtx.newPage();
+    watch("branding", brand);
+    await brand.goto(`${PUBLIC}/host/brand`);
+    await brand.waitForSelector("#venue-name", { timeout: 5000 });
+    const shown = () => brand.evaluate(() => [...document.querySelectorAll<HTMLElement>(".tabs > div")].map((d) => (d.hidden ? "" : d.innerText.toLowerCase())).join("|"));
+    for (const t of ["Holding page", "Prizes", "Branding", "Prizes"]) await brand.click(`[role=tab]:has-text("${t}")`);
+    check(/default prizes/.test(await shown()), "UI-18 Prizes shows after Holding page and Branding");
+
+    // UI-20
+    await brand.click('[role=tab]:has-text("Holding page")');
+    const rows = () => brand.evaluate(() => [...document.querySelectorAll<HTMLElement>(".panel-row")].filter((r) => r.offsetParent !== null).length);
+    const before = await rows();
+    await brand.click(".panel-row input.switch >> nth=0");
+    const after = await rows();
+    check(before === 6 && after === 6, `UI-20 switching a panel off keeps its row (${before} rows, then ${after})`);
+    await brand.click(".panel-row input.switch >> nth=0");
+
+    // UI-23, UI-22: panel seconds and a poster, saved
+    await brand.fill("#panel-seconds", "20");
+    await brand.setInputFiles("#poster-file", join(import.meta.dir, "pub-picture.jpg"));
+    await brand.waitForSelector("img.poster-thumb", { timeout: 5000 });
+    await brand.click('.tabs > div:not([hidden]) button[type=submit]');
+    await brand.waitForFunction(() => /Saved/.test(document.body.innerText), null, { timeout: 5000 });
+    const saved = await (await fetch(`${PUBLIC}/api/venue`, { headers: { cookie: night.cookie } })).json() as { holding: { panelSeconds: number; poster: string | null } };
+    check(saved.holding.panelSeconds === 20, `UI-23 panel seconds saved: ${saved.holding.panelSeconds}`);
+    const posterRes = saved.holding.poster ? await fetch(`${PUBLIC}/theme/${saved.holding.poster}`) : null;
+    check(!!posterRes && posterRes.ok && /image\/jpeg/.test(posterRes.headers.get("content-type") ?? ""), `UI-22 poster saved and served: ${saved.holding.poster}`);
+    await brand.screenshot({ path: join(OUT, "ui-21-22-holding-tab.png"), fullPage: true });
+
+    // UI-25, UI-26
+    const tabs = await brand.evaluate(() => [...document.querySelectorAll("[role=tab]")].map((t) => t.textContent?.trim()));
+    check(tabs.includes("Default prizes") && tabs.includes("Displays"), `UI-25/26 tabs: ${tabs.join(", ")}`);
+    await brand.click('[role=tab]:has-text("Displays")');
+    const listed = await brand.waitForFunction(() => [...document.querySelectorAll<HTMLElement>(".paired-list li")].some((li) => !li.hidden && /Display 1/.test(li.textContent ?? "")), null, { timeout: 5000 }).then(() => true, () => false);
+    await brand.screenshot({ path: join(OUT, "ui-26-displays-tab.png"), fullPage: true });
+    check(listed, "UI-26 the Displays tab lists the paired TV");
+
+    // UI-27: builder tabs and settings cards
+    const build = await hostCtx.newPage();
+    watch("builder", build);
+    await build.goto(`${PUBLIC}/host/build?quiz=${ready.id}`);
+    await build.waitForSelector("#round-title", { timeout: 5000 });
+    const buildTabs = await build.evaluate(() => [...document.querySelectorAll(".b-head [role=tab]")].map((t) => t.textContent?.trim()).join(", "));
+    await build.click('[role=tab]:has-text("Settings")');
+    await build.waitForSelector("#quiz-title", { timeout: 5000 });
+    const settings = await build.evaluate(() => ({
+      cards: document.querySelectorAll(".b-settings .form-card").length,
+      side: (document.querySelector(".b-side") as HTMLElement | null)?.offsetParent !== null,
+    }));
+    await build.screenshot({ path: join(OUT, "ui-27-builder-settings.png"), fullPage: true });
+    check(buildTabs === "Rounds, Sudden death, Settings" && settings.cards === 4 && !settings.side, `UI-27 builder tabs "${buildTabs}", ${settings.cards} settings cards, outline shown: ${settings.side}`);
+    await build.close();
+
+    // UI-16: unsaved changes, then a nav link
+    await brand.click('[role=tab]:has-text("Branding")');
+    await brand.fill("#venue-name", "The Unsaved Arms");
+    await brand.click('#host-nav a[href="/host/build"]');
+    const asked = await brand.waitForSelector("dialog.leave-dlg[open]", { timeout: 3000 }).then(() => true, () => false);
+    await brand.screenshot({ path: join(OUT, "ui-16-leave-dialog.png") });
+    check(asked, "UI-16 leaving with unsaved changes opens the Leave dialog");
+    await brand.click('dialog.leave-dlg button:has-text("Stay")');
+    check(new URL(brand.url()).pathname === "/host/brand" && (await brand.inputValue("#venue-name")) === "The Unsaved Arms", "UI-16 Stay keeps the page and the typing");
+    await brand.click('#host-nav a[href="/host/build"]');
+    await brand.click('dialog.leave-dlg button:has-text("Leave")');
+    await brand.waitForURL(/\/host\/build/, { timeout: 5000 });
+    check(true, "UI-16 Leave goes to the link");
   } finally {
     await browser.close();
     await night.stop();

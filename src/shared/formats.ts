@@ -129,6 +129,8 @@ export interface VenueFile {
   holding: {
     minutesBefore: number;                     // 0..120, default 30
     panels: HoldingPanel[];                    // shown in this order; default all six
+    panelSeconds: number;                      // 5..60, default 12: how long each panel stays up
+    poster: string | null;                     // "assets/<file>" for the poster panel, JPEG/PNG/WebP <= 5 MB; null = the Lock-In mark
   };
   afterWinner: {                               // Quiz End: winner screen, then final standings (T-12)
     mode: "timer" | "host";                    // timer: standings after `seconds`; host: on the host's Next (final.show). Default "timer"
@@ -136,7 +138,7 @@ export interface VenueFile {
   };
 }
 export interface Prize { place: number; text: string }   // place 1.., text 1..80 chars
-export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "animation" | "prizes";
+export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "poster" | "prizes";
 
 // ---------------------------------------------------------------------------
 // Defaults and constants
@@ -157,7 +159,7 @@ export const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
   closestScoring: "closest",
 };
 
-export const HOLDING_PANELS: readonly HoldingPanel[] = ["countdown", "teams", "join", "install", "animation", "prizes"];
+export const HOLDING_PANELS: readonly HoldingPanel[] = ["countdown", "teams", "join", "install", "poster", "prizes"];
 
 export function defaultTheme(): ThemeFile {
   return {
@@ -172,7 +174,7 @@ export function defaultTheme(): ThemeFile {
 }
 
 export function defaultVenue(): VenueFile {
-  return { format: VENUE_FORMAT, prizes: [], holding: { minutesBefore: 30, panels: [...HOLDING_PANELS] }, afterWinner: { mode: "timer", seconds: 15 } };
+  return { format: VENUE_FORMAT, prizes: [], holding: { minutesBefore: 30, panels: [...HOLDING_PANELS], panelSeconds: 12, poster: null }, afterWinner: { mode: "timer", seconds: 15 } };
 }
 
 // ---------------------------------------------------------------------------
@@ -645,9 +647,20 @@ export function validateVenue(json: unknown): Validated<VenueFile> {
         if (!Array.isArray(h.panels)) add("holding.panels", "The holding page panels must be a list.");
         else {
           const panels: HoldingPanel[] = [];
-          for (const p of h.panels) if (oneOf(p, HOLDING_PANELS) && !panels.includes(p)) panels.push(p);
+          for (const raw of h.panels) {
+            const p = raw === "animation" ? "poster" : raw;   // "animation" was renamed "poster" (UI-22)
+            if (oneOf(p, HOLDING_PANELS) && !panels.includes(p)) panels.push(p);
+          }
           v.holding.panels = panels;
         }
+      }
+      if (h.panelSeconds !== undefined) {
+        if (isInt(h.panelSeconds) && h.panelSeconds >= 5 && h.panelSeconds <= 60) v.holding.panelSeconds = h.panelSeconds;
+        else add("holding.panelSeconds", "Each holding page panel must show for 5 to 60 seconds.");
+      }
+      if (h.poster !== undefined && h.poster !== null) {
+        if (assetPath(h.poster, ["jpg", "jpeg", "png", "webp"])) v.holding.poster = h.poster as string;
+        else add("holding.poster", "The poster must be a JPEG, PNG or WebP picture in the theme's assets folder.");
       }
     }
   }

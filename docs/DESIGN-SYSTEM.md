@@ -129,12 +129,17 @@ Before the timer starts it shows the full time, dimmed. The last ten seconds tur
   pairing and idle.
 - **Phone**: top bar (bubble, team, `R1 · 02/05`, ⋮), body, sticky footer with the main button.
   "Locked in." moment with the shackle, your answer, and the place card after each round.
-- **Console**: a 64 px top nav (lockup, Library, Branding, Run night, History, room code and live
+- **Console**: a 64 px top nav (lockup, Quizzes, Venue settings, Run night, History, room code and live
   dot on Run night, Sign out). Run night has its own header (lockup, title, room, phase steps
   Lobby · Ask · Lock · Reveal · Table, Night menu), the main column with the question, answer and
   host note, the timer row and marking, a 300 px teams sidebar, and a footer with "On the display
   now" and the next-step button. Library rows show a status dot, edited date and "Open night →" or
-  "N problems ▾". The builder is outline + editor. Branding has a live TV and phone preview.
+  "N problems ▾". The builder and Venue settings share one page head: the title on the left, a
+  `.seg` tab bar on the right (builder: Rounds · Sudden death · Settings; Venue settings: Branding ·
+  Holding page · Default prizes · Displays). The builder's Rounds and Sudden death tabs are a slim
+  outline (one line per round or question) + editor. Settings forms are 680 px `.form-card`s with an
+  overline title, one field per row, the unit after a short input and the hint under it. Branding
+  has a live TV and phone preview.
 
 ## 6. Differences from the design canvas
 

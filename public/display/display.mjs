@@ -169,7 +169,8 @@ function createDisplay(root, now) {
     }
     if (view && screen === "holding" && view.night) {
       const list = holdingPanels(view.night, view.teams.length);
-      const panel = list.length ? list[Math.floor(t / PANEL_MS) % list.length] || "" : "";
+      const every = view.night.holdingSeconds ? view.night.holdingSeconds * 1000 : PANEL_MS;
+      const panel = list.length ? list[Math.floor(t / every) % list.length] || "" : "";
       if (page.panel !== panel) page.panel = panel;
     }
     if (view && view.standings && screen === "leaderboard") {
@@ -431,7 +432,7 @@ function createDisplay(root, now) {
   }
 
   function holdingScreen() {
-    /** The panel on show: they take turns every PANEL_MS, from the server clock so every display agrees. */
+    /** The panel on show: they take turns every holdingSeconds (venue setting), from the server clock so every display agrees. */
     const panels = () => holdingPanels(/** @type {any} */ (v().night), v().teams.length);
     const current = () => page.panel;
     return html`<div class="display-main row">
@@ -491,7 +492,9 @@ function createDisplay(root, now) {
         </div>
       </div>`;
     }
-    if (name === "animation") {
+    if (name === "poster") {
+      // The venue's poster (UI-22); without one, the Lock-In mark and a tagline.
+      if (night.poster) return html`<div class="grow col center fade-in poster"><img src="${night.poster}" alt=""></div>`;
       return html`<div class="grow col center fade-in">
         ${mark(html, "sweep")}
         <div class="voice-line mt4">${BRAND.tagline}</div>
