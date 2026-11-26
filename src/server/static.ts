@@ -117,8 +117,8 @@ export async function serveFile(req: Request, files: FileSource, path: string, e
 
 /** Host console sections: URL segment -> folder in public/host/ and its owner thread. */
 export const HOST_SECTIONS = {
-  build: "Library",       // B3
-  brand: "Branding",      // B4
+  build: "Quizzes",       // B3 (shown as "Quizzes" since UI-14)
+  brand: "Venue settings", // B4 (was "Branding", UI-21)
   run: "Run night",       // B5
   history: "History",     // B5
 } as const;

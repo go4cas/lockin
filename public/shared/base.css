@@ -166,7 +166,23 @@ textarea {
   overflow: hidden;
 }
 .cd-flip b.none { display: none; }
-.cd-flip b::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: var(--ink); }
+/* Two halves of the digit (data-d), split at the hinge. The lower flap falls into place on each
+   change (UI-17); the hinge is a 1 px line, not a gap. */
+.cd-flip b::before, .cd-flip b::after {
+  content: attr(data-d);
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--smoke);
+}
+.cd-flip b::before { -webkit-clip-path: inset(0 0 50% 0); clip-path: inset(0 0 50% 0); box-shadow: inset 0 -1px 0 var(--ink); }
+.cd-flip b::after { -webkit-clip-path: inset(50% 0 0 0); clip-path: inset(50% 0 0 0); transform-origin: 50% 50%; }
+.cd-flip b.fa::after { -webkit-animation: cd-flap-a 260ms ease-in both; animation: cd-flap-a 260ms ease-in both; }
+.cd-flip b.fb::after { -webkit-animation: cd-flap-b 260ms ease-in both; animation: cd-flap-b 260ms ease-in both; }
+@-webkit-keyframes cd-flap-a { 0% { -webkit-transform: perspective(400px) rotateX(90deg); } 100% { -webkit-transform: perspective(400px) rotateX(0); } }
+@keyframes cd-flap-a { 0% { transform: perspective(400px) rotateX(90deg); } 100% { transform: perspective(400px) rotateX(0); } }
+@-webkit-keyframes cd-flap-b { 0% { -webkit-transform: perspective(400px) rotateX(90deg); } 100% { -webkit-transform: perspective(400px) rotateX(0); } }
+@keyframes cd-flap-b { 0% { transform: perspective(400px) rotateX(90deg); } 100% { transform: perspective(400px) rotateX(0); } }
+@media (prefers-reduced-motion: reduce) { .cd-flip b.fa::after, .cd-flip b.fb::after { -webkit-animation: none; animation: none; } }
 .cd[data-style="ring"] .cd-ringbox { display: block; }
 .cd[data-style="ring"] .cd-num { position: absolute; left: 0; top: 0; display: flex; align-items: center; justify-content: center; }
 .cd[data-style="bar"] .cd-track { display: block; }
@@ -189,7 +205,7 @@ textarea {
 .cd-tv .cd-segs i:first-child { margin-left: 0; }
 .cd-tv .cd-flip b { width: 24vh; height: 33vh; border-radius: 1.8vh; font-size: 28vh; margin-left: 1.3vh; }
 .cd-tv .cd-flip b:first-child { margin-left: 0; }
-.cd-tv .cd-flip b::after { height: 0.45vh; margin-top: -0.22vh; }
+.cd-tv .cd-flip b::before { box-shadow: inset 0 -0.2vh 0 var(--ink); }
 
 /* Small: one 64 px row on phones and the host console */
 .cd-small { height: 64px; }

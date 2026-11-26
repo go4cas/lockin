@@ -1,13 +1,13 @@
 // @ts-check
-// Host console top nav (Last Call): the Lock-In lockup · Library · Branding · Run night ·
+// Host console top nav (Last Call): the Lock-In lockup · Quizzes · Venue settings · Run night ·
 // History, under a hairline. The current section (from <body data-section>) gets a 2 px venue
 // underline. While a night runs, Run night shows a venue dot and the nav shows the room code:
 // the Run night page reports that through LockIn.nav.setNight(roomCode | null).
 (function () {
   "use strict";
   const SECTIONS = [
-    { id: "build", label: "Library", href: "/host/build" },
-    { id: "brand", label: "Branding", href: "/host/brand" },
+    { id: "build", label: "Quizzes", href: "/host/build" },
+    { id: "brand", label: "Venue settings", href: "/host/brand" },
     { id: "run", label: "Run night", href: "/host/run" },
     { id: "history", label: "History", href: "/host/history" },
   ];
@@ -84,6 +84,7 @@
   out.className = "host-signout";
   out.textContent = "Sign out";
   out.addEventListener("click", async () => {
+    if (isDirty()) { askToLeave(() => out.click()); return; }
     out.disabled = true;
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
@@ -113,7 +114,77 @@
       } else if (!code && dot) dot.remove();
     }
   }
-  w.LockIn.nav = { setNight };
+  // ---- Unsaved changes (UI-16) --------------------------------------------------------------
+  // A page with unsaved work registers a check. Leaving it through a link or Sign out asks in the
+  // design system's dialog. Reloading or closing the tab can only use the browser's own prompt
+  // (browsers allow nothing else there), which the pages keep through beforeunload.
+  /** @type {(() => boolean)[]} */
+  const dirtyChecks = [];
+  let leaving = false;
+  const isDirty = () => !leaving && dirtyChecks.some((f) => { try { return f(); } catch { return false; } });
+
+  /** @param {() => void} go what leaving does */
+  function askToLeave(go) {
+    const dlg = document.createElement("dialog");
+    dlg.className = "dlg leave-dlg";
+    dlg.setAttribute("aria-labelledby", "leave-title");
+    const h = document.createElement("h2");
+    h.id = "leave-title";
+    h.textContent = "Leave without saving?";
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "You have changes on this page that are not saved yet. If you leave now, they are lost.";
+    const row = document.createElement("div");
+    row.className = "row end";
+    const leave = document.createElement("button");
+    leave.type = "button";
+    leave.className = "btn danger";
+    leave.textContent = "Leave without saving";
+    const stay = document.createElement("button");
+    stay.type = "button";
+    stay.className = "btn primary";
+    stay.textContent = "Stay on this page";
+    row.appendChild(leave);
+    row.appendChild(stay);
+    dlg.appendChild(h);
+    dlg.appendChild(p);
+    dlg.appendChild(row);
+    document.body.appendChild(dlg);
+    const close = () => { dlg.close(); dlg.remove(); };
+    stay.addEventListener("click", close);
+    dlg.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+    leave.addEventListener("click", () => { leaving = true; close(); go(); });
+    dlg.showModal();
+    stay.focus();
+  }
+
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = /** @type {HTMLElement | null} */ (e.target instanceof Element ? e.target.closest("a[href]") : null);
+    if (!a || !(a instanceof HTMLAnchorElement) || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin) return;
+    if (url.pathname === location.pathname && url.search === location.search && url.hash) return;   // a tab on this page
+    if (!isDirty()) return;
+    e.preventDefault();
+    askToLeave(() => { location.href = url.href; });
+  }, true);
+
+  /**
+   * Register a page's unsaved-work check. Also returns whether the browser's own prompt should
+   * show on reload or close (false once the person chose "Leave without saving").
+   * @param {() => boolean} check
+   */
+  function guardUnsaved(check) {
+    dirtyChecks.push(check);
+    window.addEventListener("beforeunload", (e) => {
+      if (leaving || !check()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    });
+  }
+
+  w.LockIn.nav = { setNight, guardUnsaved };
 
   // "Powered by Lock-In", linked to the source (AGPL-3.0 section 13; the address is in shared/source.js).
   const source = w.LockIn.SOURCE_URL;

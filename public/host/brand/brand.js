@@ -32,7 +32,7 @@ const PANELS = [
   { id: "teams", label: "Teams that have joined" },
   { id: "join", label: "How to join" },
   { id: "install", label: "Put the quiz on your home screen" },
-  { id: "animation", label: "Brand animation" },
+  { id: "animation", label: "Lock-In animation (the Lock-In mark and a tagline)" },
   { id: "prizes", label: "Prizes" },
 ];
 
@@ -404,9 +404,11 @@ function brandingTab() {
           <label class="swatch" aria-label="Main colour">
             <input type="color" value="${() => draft.accent}" @input="${(/** @type {Event} */ e) => setAccent(/** @type {HTMLInputElement} */ (e.target).value)}">
           </label>
-          <span class="hex">${() => draft.accent}</span>
+          <input class="input hex" id="accent-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Colour code"
+            value="${() => draft.accent}" @input="${(/** @type {Event} */ e) => { const v = /** @type {HTMLInputElement} */ (e.target).value.trim(); const h = v.startsWith("#") ? v : "#" + v; if (/^#[0-9a-fA-F]{6}$/.test(h)) setAccent(h); }}">
           <span class="hint">${() => (draft.accentDefault ? "Lock-In mint" : "")}</span>
         </div>
+        <p class="hint">Any colour: click the square to pick one, or type your brand's colour code (like #c8102e). The dots below are suggestions.</p>
         <div class="suggest" role="group" aria-label="Suggested colours">${SUGGESTED.map((c) => html`
           <button type="button" class="sw" style="${"background:" + c}" aria-label="${"Use " + c}" aria-pressed="${() => String(draft.accent === c)}" @click="${() => setAccent(c)}"></button>`)}
         </div>
@@ -448,7 +450,10 @@ function brandingTab() {
 
     <div class="preview-col">
       <p class="label">Preview</p>
-      <div class="preview-wrap">${previewDisplay()}${previewPhone()}</div>
+      <div class="preview-wrap">
+        <figure class="pv-fig">${previewDisplay()}<figcaption class="hint">The TV</figcaption></figure>
+        <figure class="pv-fig">${previewPhone()}<figcaption class="hint">A team's phone</figcaption></figure>
+      </div>
     </div>
   </div>`;
 }
@@ -494,7 +499,7 @@ function holdingTab() {
     <div class="card">
       <h2>Panels (they take turns, 12 seconds each; joining stays on screen)</h2>
       ${() => venue.panels.map((p, i) => html`
-        <div class="${p.on ? "panel-row" : "panel-row off"}">
+        <div class="${p.on ? "panel-row" : "panel-row is-off"}">
           <input type="checkbox" class="switch" id="${"panel-" + p.id}" checked="${p.on}" @change="${() => togglePanel(i)}">
           <label class="name" for="${"panel-" + p.id}">${PANELS.find((x) => x.id === p.id)?.label ?? p.id}</label>
           <button type="button" class="btn ghost small" aria-label="${"Move " + p.id + " up"}" disabled="${i === 0}" @click="${() => movePanel(i, -1)}">↑</button>
@@ -574,6 +579,17 @@ function tabFromHash() {
   return /** @type {Tab} */ (TABS.some((t) => t.id === h) ? h : "branding");
 }
 
+/**
+ * All three tabs are built once and shown or hidden (UI-18). Swapping one tab's template for
+ * another in the same slot broke in Arrow 1.0.6 ("getNode(...).after is not a function" going
+ * from Holding page to Prizes), which left the Prizes tab blank.
+ */
+function allTabs() {
+  return html`<div hidden="${() => page.tab !== "branding"}">${brandingTab()}</div>
+    <div hidden="${() => page.tab !== "holding"}">${holdingTab()}</div>
+    <div hidden="${() => page.tab !== "prizes"}">${prizesTab()}</div>`;
+}
+
 /** @param {Tab} id */
 function showTab(id) {
   page.tab = id;
@@ -593,7 +609,7 @@ const view = html`
     ? html`<p class="placeholder">Loading the venue settings…</p>`
     : page.loadError
       ? html`<div class="error-box">${page.loadError}</div>`
-      : page.tab === "branding" ? brandingTab() : page.tab === "holding" ? holdingTab() : prizesTab()}
+      : html`<div class="tabs">${allTabs()}</div>`}
 </div>`;
 
 const main = document.getElementById("host-main");
@@ -603,9 +619,8 @@ if (main) {
 }
 
 window.addEventListener("hashchange", () => { page.tab = tabFromHash(); ui.message = null; });
-window.addEventListener("beforeunload", (e) => {
-  if (themeDirty() || venueDirty()) e.preventDefault();
-});
+// Unsaved edits: the design system's dialog for links, the browser's prompt on reload (UI-16).
+/** @type {any} */ (window).LockIn.nav.guardUnsaved(() => themeDirty() || venueDirty());
 
 // The preview's countdown runs on its own, a 30 s loop, so the style can be seen moving.
 setInterval(() => { preview.now = Date.now(); }, 250);

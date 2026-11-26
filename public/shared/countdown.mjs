@@ -78,6 +78,16 @@ export function countdown(html, o) {
     const d = st().text.replace(":", "");
     return d.charAt(i);
   };
+  // Flip (UI-17): each card's lower flap falls into place when its digit changes. The class
+  // swaps between two copies of the same animation (by the digit's parity, which changes on every
+  // tick of that digit), which restarts it without touching the DOM. Only while running.
+  const flipCls = (/** @type {number} */ i, /** @type {string} */ hideWhenShort) => () => {
+    const s = st();
+    if (i === 2 && s.text.length <= 2) return hideWhenShort;
+    if (!s.running) return "";
+    const ch = s.text.replace(":", "").charCodeAt(i) || 0;
+    return ch % 2 ? "fa" : "fb";
+  };
   const segOn = (/** @type {number} */ i) => () => (i < Math.ceil(st().fraction * segs) ? "on" : "");
   return html`<div class="${() => "cd cd-" + o.size + (st().hot ? " hot" : "") + (st().idle ? " idle" : "") + (st().paused ? " paused" : "")}"
       data-style="${() => countdownStyle(o.style())}" role="timer" aria-label="${() => (st().idle ? "Timer not started" : st().secs + " seconds left")}">
@@ -86,7 +96,7 @@ export function countdown(html, o) {
     <span class="cd-num" aria-hidden="true">${() => st().text}</span>
     <span class="cd-track" aria-hidden="true"><span class="cd-fill" style="${() => "transform:scaleX(" + st().fraction + ")"}"></span></span>
     <span class="cd-segs" aria-hidden="true">${Array.from({ length: segs }, (_, i) => html`<i class="${segOn(i)}"></i>`)}</span>
-    <span class="cd-flip" aria-hidden="true"><b>${digit(0)}</b><b>${digit(1)}</b><b class="${() => (st().text.length > 2 ? "" : "none")}">${digit(2)}</b></span>
+    <span class="cd-flip" aria-hidden="true"><b class="${flipCls(0, "")}" data-d="${digit(0)}"></b><b class="${flipCls(1, "")}" data-d="${digit(1)}"></b><b class="${flipCls(2, "none")}" data-d="${digit(2)}"></b></span>
     ${o.label ? html`<span class="cd-label">${o.label}</span>` : ""}
   </div>`;
 }

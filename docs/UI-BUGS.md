@@ -25,3 +25,19 @@ casting device, phones), from 2026-11-24. Each is reproduced against `main` in
 - TV shows "1:00" while the phone says "Timer not started": both mean the host has not started the timer yet; the TV shows the full time dimmed.
 - Join page "Quiz night at Lock-In": the default venue name until one is set in Branding.
 - UI-12, phone date questions show mm/dd/yyyy on a US-locale phone: the native picker follows the phone's own date settings, which is what its owner reads every day; the answer is sent as an ISO date either way. Left as it is unless Cas wants a day/month/year picker.
+
+## Host console review on v0.3.0 (Last Call), batch 1 (Cas, 2026-11-26)
+
+| # | Where | Report | Finding | Status |
+|---|---|---|---|---|
+| UI-14 | Console nav | The first nav item says "Library", but the page says "Quizzes". | Naming. | Fixed: the nav item, the home page text and the Run night link say "Quizzes". |
+| UI-15 | Branding, Main colour | The colours are a set list; what if the pub's colour is not in it? | Any colour already works (the big square is a colour picker); the dots are suggestions only. Nothing on the page said so. | Fixed: a colour-code field next to the square (type #c8102e) and a line saying any colour works. |
+| UI-16 | Console, unsaved changes | Leaving with unsaved changes shows the browser's own alert. | Browsers allow only their own prompt on reload or closing the tab. Links inside the console can use our own dialog. | Fixed: nav links and Sign out ask in the design system's dialog ("Leave without saving?"); reload and close keep the browser's prompt. Branding and the quiz builder use it. |
+| UI-17 | Flip countdown | The numbers just change; expected a flip. The gap between the top and bottom halves looks too big. | No animation; the hinge was a 2 px (TV 0.45vh) band. | Fixed: the lower flap falls into place on each change (260 ms, off with reduced motion); the hinge is a 1 px line. |
+| UI-18 | Branding, Prizes tab | The Prizes section is empty. | Going from Holding page to Prizes threw an Arrow error ("getNode(...).after is not a function") and left the tab blank. | Fixed: the three tabs are built once and shown or hidden. |
+| UI-19 | Branding, preview | Are the preview cards the team's view or the TV as well? | Both: the left card is the TV, the right one a team's phone. Not labelled. | Fixed: captions "The TV" and "A team's phone". |
+
+Questions answered, not changed:
+
+- **Is the host console meant to work on a phone?** No: it is designed for a laptop (1280 px) and a tablet (768 to 1024 px), as the brief and DESIGN-SYSTEM.md say. A phone layout is a scope choice for Cas.
+- **Holding page panels, why 12 seconds?** A fixed design value (`PANEL_MS`), long enough to read a panel from across the room. Making it a venue setting is a scope choice for Cas.

@@ -130,9 +130,8 @@ export function mountBuilder(root, quizId) {
     schedule();
   });
 
-  window.addEventListener("beforeunload", (e) => {
-    if (ui.draft && draftJson() !== lastSent) { e.preventDefault(); e.returnValue = ""; }
-  });
+  // Unsaved edits: the design system's dialog for links, the browser's prompt on reload (UI-16).
+  /** @type {any} */ (window).LockIn.nav.guardUnsaved(() => !!ui.draft && draftJson() !== lastSent);
 
   // ---- Lookups and edits ----------------------------------------------------
   const d = () => /** @type {QuizDraft} */ (ui.draft);
