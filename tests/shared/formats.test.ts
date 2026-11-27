@@ -266,4 +266,15 @@ describe("validateVenue", () => {
       "The winner screen must show for 5 to 120 seconds.",
     ]);
   });
+
+  test("quizDefaults (UI-33): 6 rounds of 5 and the quiz defaults; checked like a quiz's settings", () => {
+    expect(defaultVenue().quizDefaults).toEqual({ rounds: 6, questionsPerRound: 5, settings: DEFAULT_QUIZ_SETTINGS });
+    const ok = validateVenue({ format: "lockin.venue/1", quizDefaults: { rounds: 8, questionsPerRound: 10, settings: { timerSeconds: 45, joker: true } } });
+    expect(ok.ok && ok.value.quizDefaults).toEqual({ rounds: 8, questionsPerRound: 10, settings: { ...DEFAULT_QUIZ_SETTINGS, timerSeconds: 45, joker: true } });
+    const bad = validateVenue({ format: "lockin.venue/1", quizDefaults: { rounds: 0, questionsPerRound: 31, settings: { timerSeconds: 5 } } });
+    expect(bad.ok ? [] : bad.problems.map((p) => p.path)).toEqual(["quizDefaults.rounds", "quizDefaults.questionsPerRound", "quizDefaults.settings.timerSeconds"]);
+    expect(messages(validateVenue({ format: "lockin.venue/1", quizDefaults: { rounds: 4, settings: { halftimeAfterRound: 4 } } }))).toEqual([
+      "Halftime is set after round 4, but a new quiz starts with 4 rounds.",
+    ]);
+  });
 });

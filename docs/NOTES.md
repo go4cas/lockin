@@ -17,7 +17,7 @@ Decisions from the Interview thread (and findings from later threads). Each entr
 - **Halftime placement follows from the number of rounds** (the quizmaster sets it; no fixed rule).
 - **Lock timing is a config option: per question or per round.** Per question: each question has its own timer and locks on its own. Per round: answers stay open across the round and lock together at the end, like collecting paper sheets. Affects the "answers locked" moment (once per question vs once per round), reveal flow and the WS protocol.
 - **Pilot pub sizing:** a typical night is about 6 teams of 4 people.
-- **Default quiz: 6 rounds of 5 questions** (30 questions), configurable. Halftime defaults to after round 3 (assumption, not stated by Cas).
+- **Default quiz: 6 rounds of 5 questions** (30 questions), configurable. Since 2026-11-27 the venue sets these in Venue settings, Quiz defaults (UI-33). Halftime defaults to after round 3 (assumption, not stated by Cas).
 - **Design target (assumption, proposed by the interviewer, not contested):** layouts and load tests aim for up to 20 teams, with the app still working at 30. The TV leaderboard must stay readable at 20 teams.
 
 ### 3. The TV (2026-11-23)

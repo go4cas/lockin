@@ -195,3 +195,5 @@ input[type="date"].input, input[type="time"].input { -webkit-appearance: none; a
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
 }
+/* The server's version after the credit (UI-28). */
+.credit .app-version { letter-spacing: 0.04em; text-transform: none; }

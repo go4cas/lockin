@@ -138,8 +138,10 @@ Before the timer starts it shows the full time, dimmed. The last ten seconds tur
   `.seg` tab bar on the right (builder: Rounds · Sudden death · Settings; Venue settings: Branding ·
   Holding page · Default prizes · Displays). The builder's Rounds and Sudden death tabs are a slim
   outline (one line per round or question) + editor. Settings forms are 680 px `.form-card`s with an
-  overline title, one field per row, the unit after a short input and the hint under it. Branding
-  has a live TV and phone preview.
+  overline title, one field per row, the unit after a short input and the hint under it. The quiz
+  Settings tab uses `.form-card.cols` (880 px): the canvas's field grid, label in a 200 px left
+  column, control and hint on the right, a hairline between rows. Branding has a live TV and phone
+  preview. The console's top nav is sticky. Every client's credit ends with the server's version.
 
 ## 6. Differences from the design canvas
 

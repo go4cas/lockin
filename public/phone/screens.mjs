@@ -75,10 +75,15 @@ const swap = (slot, key, build) => {
   return "";
 };
 
+/** The server's version, shown small after the credit (UI-28). */
+const about = reactive({ version: "" });
+if (W.LockIn.version) W.LockIn.version((/** @type {string} */ v) => { about.version = v; });
+const versionTag = () => html`<span class="app-version">${() => (about.version ? "v" + about.version : "")}</span>`;
+
 /** The credit links to Lock-In's source (AGPL-3.0 section 13; the address is in shared/source.js). */
 const credit = () => (W.LockIn.SOURCE_URL
-  ? html`<div class="credit">Powered by <a href="${W.LockIn.SOURCE_URL}" target="_blank" rel="noopener noreferrer" aria-label="Lock-In, free software">${lockup(html, "mono")}</a></div>`
-  : html`<div class="credit">Powered by ${lockup(html, "mono")}</div>`);
+  ? html`<div class="credit">Powered by <a href="${W.LockIn.SOURCE_URL}" target="_blank" rel="noopener noreferrer" aria-label="Lock-In, free software">${lockup(html, "mono")}</a>${versionTag()}</div>`
+  : html`<div class="credit">Powered by ${lockup(html, "mono")}${versionTag()}</div>`);
 
 /** A host-voice line, or nothing (never carries information the team needs). */
 const voice = (/** @type {() => string | null} */ get) => html`${() => (get() ? html`<p class="voice">${() => get() ?? ""}</p>` : "")}`;

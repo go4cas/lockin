@@ -62,7 +62,7 @@
 /* Live preview. The page sets the venue tokens on .lockin-preview     */
 /* from the unsaved settings, and the roles that use them follow.      */
 /* ------------------------------------------------------------------ */
-.preview-col { position: sticky; top: 24px; }
+.preview-col { position: sticky; top: 88px; }
 .preview-col .label { margin-bottom: 12px; }
 .preview-wrap { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
 .pv-fig { margin: 0; }  /* UI-19: say which preview is which */

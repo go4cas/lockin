@@ -14,6 +14,13 @@
 // UI-25: Venue settings, the prizes tab says "Default prizes".
 // UI-26: Venue settings, a Displays tab lists the paired TVs and can pair or unpair them.
 // UI-27: the quiz builder uses Venue settings' page head (title, tabs) and settings cards.
+// UI-28: the server's version shows after the credit on the host console, the display and the phone.
+// UI-29: the builder's "Add a picture" button has its text in the middle.
+// UI-30: the host console's header stays at the top when the page scrolls.
+// UI-31: the builder's Settings tab lines its labels and controls up in two columns.
+// UI-32: the host home page shows the Lock-In lockup and Cas's animated "Last orders" artwork.
+// UI-33: Venue settings has Quiz defaults; a new quiz starts with them.
+// UI-34: the Quizzes list has a title search and an All / Ready / Needs work filter.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -102,6 +109,13 @@ async function main() {
     await phone.goto(`${PUBLIC}${new URL(night.hostView().night!.joinUrl).pathname}`);
     const joinLine = await phone.waitForSelector(".voice", { timeout: 5000 }).then(() => true, () => false);
     check(joinLine, `UI-02 the join page shows a lobby line (room ${roomCode})`);
+
+    // UI-28: the version shows after the credit on the phone and the display
+    const version = (await (await fetch(`${PUBLIC}/api/ping`)).json() as { version: string }).version;
+    const shownOn = (p: Page, sel: string) => p.waitForFunction((s) => document.querySelector(s)?.textContent ?? "", sel, { timeout: 5000 }).then((h) => h.jsonValue(), () => "");
+    const phoneVersion = await shownOn(phone, ".credit .app-version");
+    const tvVersion = await shownOn(tv, ".display-credit .app-version");
+    check(phoneVersion === `v${version}` && tvVersion === `v${version}`, `UI-28 phone shows "${phoneVersion}", display shows "${tvVersion}" (server ${version})`);
     await phone.fill("#team-name", "Test Team");
     await phone.click(".ph-foot .btn.primary");
     await phone.waitForFunction(() => document.querySelector(".ph-top .team")?.textContent === "Test Team", null, { timeout: 5000 });
@@ -222,7 +236,104 @@ async function main() {
     }));
     await build.screenshot({ path: join(OUT, "ui-27-builder-settings.png"), fullPage: true });
     check(buildTabs === "Rounds, Sudden death, Settings" && settings.cards === 4 && !settings.side, `UI-27 builder tabs "${buildTabs}", ${settings.cards} settings cards, outline shown: ${settings.side}`);
+
+    // UI-31: every settings field puts its label in the same left column, as in Venue settings
+    const columns = await build.evaluate(() => {
+      const rows = [...document.querySelectorAll<HTMLElement>(".b-settings .form-card .field")];
+      const lefts = new Set(rows.map((r) => Math.round((r.querySelector(".l") as HTMLElement).getBoundingClientRect().left)));
+      const controls = new Set(rows.map((r) => {
+        const c = r.querySelector(".ctl") as HTMLElement | null;
+        return c ? Math.round(c.getBoundingClientRect().left) : -1;
+      }));
+      return { rows: rows.length, lefts: [...lefts], controls: [...controls] };
+    });
+    check(columns.rows >= 8 && columns.lefts.length === 1 && columns.controls.length === 1, `UI-31 settings: ${columns.rows} fields, label columns ${columns.lefts.join("/")}, control columns ${columns.controls.join("/")}`);
+
+    // UI-29: "Add a picture" text sits in the middle of its button
+    await build.click('[role=tab]:has-text("Rounds")');
+    await build.click(".b-qs a.b-q >> nth=0");
+    await build.waitForSelector(".file-btn", { timeout: 5000 });
+    const off = await build.evaluate(() => {
+      const label = document.querySelector(".file-btn") as HTMLElement;
+      const text = [...label.childNodes].find((n) => n.nodeType === 3 && n.textContent!.trim()) as Text;
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const t = range.getBoundingClientRect(), b = label.getBoundingClientRect();
+      return Math.abs((t.top + t.bottom) / 2 - (b.top + b.bottom) / 2);
+    });
+    await build.locator(".file-btn").first().screenshot({ path: join(OUT, "ui-29-add-picture.png") });
+    check(off <= 2, `UI-29 "Add a picture" text is ${off.toFixed(1)} px off the button's middle`);
+
+    // UI-30: the host header stays at the top when the page scrolls
+    await build.evaluate(() => window.scrollTo(0, 400));
+    const navTop = await build.evaluate(() => Math.round(document.getElementById("host-nav")!.getBoundingClientRect().top));
+    check(navTop === 0, `UI-30 host header top after scrolling: ${navTop}px`);
+
+    // UI-28: the version shows after the credit (host here; display and phone below)
+    const want = (await (await fetch(`${PUBLIC}/api/ping`)).json() as { version: string }).version;
+    const hostVersion = await build.waitForFunction(() => document.querySelector(".host-credit .app-version")?.textContent ?? "", null, { timeout: 5000 }).then((h) => h.jsonValue(), () => "");
+    check(hostVersion === `· v${want}`, `UI-28 host console shows "${hostVersion}" (server ${want})`);
     await build.close();
+
+    // UI-32: the home page shows the lockup and the "Last orders" artwork, in the venue's colour,
+    // still with reduced motion
+    for (const motion of ["no-preference", "reduce"] as const) {
+      const homeCtx = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: motion });
+      await homeCtx.addCookies([{ name: cname!, value: cvalue!, url: PUBLIC }]);
+      const home = await homeCtx.newPage();
+      watch("home", home);
+      await home.goto(`${PUBLIC}/host`);
+      const art = await home.evaluate(() => {
+        const svg = document.querySelector(".home-art svg") as SVGSVGElement | null;
+        return {
+          shown: !!svg && svg.getBoundingClientRect().width > 300,
+          lockup: document.querySelector(".home-copy .lockup")?.getAttribute("aria-label") ?? "",
+          inlineStyles: document.querySelectorAll(".home-art [style]").length,
+          venue: getComputedStyle(document.querySelector(".li-art")!).getPropertyValue("--li-venue").trim(),
+          moving: getComputedStyle(document.querySelector(".li-liq")!).animationName !== "none",
+        };
+      });
+      if (motion === "no-preference") await home.screenshot({ path: join(OUT, "ui-32-home.png") });
+      check(art.shown && art.lockup === "Lock-In" && art.inlineStyles === 0 && art.venue !== "" && art.moving === (motion === "no-preference"),
+        `UI-32 home (${motion}): artwork shown ${art.shown}, lockup "${art.lockup}", ${art.inlineStyles} style attributes, venue colour "${art.venue}", animated ${art.moving}`);
+      await homeCtx.close();
+    }
+
+    // UI-34: the Quizzes list has a title search and an All / Ready / Needs work filter
+    const lib = await hostCtx.newPage();
+    watch("library", lib);
+    await lib.goto(`${PUBLIC}/host/build`);
+    await lib.waitForSelector("#lib-search", { timeout: 5000 });
+    const visibleTitles = () => lib.evaluate(() => [...document.querySelectorAll<HTMLElement>(".lib tbody tr")].filter((r) => !r.hidden).map((r) => r.querySelector(".lib-name a")?.textContent?.trim()).join(", "));
+    const all = await visibleTitles();
+    await lib.click('.lib-tools [role=radio]:has-text("Needs work")');
+    const work = await visibleTitles();
+    await lib.click('.lib-tools [role=radio]:has-text("All")');
+    await lib.fill("#lib-search", "ready q");
+    const searched = await visibleTitles();
+    await lib.fill("#lib-search", "nothing like this");
+    const none = await lib.evaluate(() => !(document.querySelector(".lib-none") as HTMLElement).hidden);
+    await lib.fill("#lib-search", "");
+    await lib.screenshot({ path: join(OUT, "ui-34-quizzes-search.png") });
+    check(all === "Test Quiz, Ready Quiz" || all === "Ready Quiz, Test Quiz", `UI-34 all quizzes: ${all}`);
+    check(work === "Test Quiz" && searched === "Ready Quiz" && none, `UI-34 Needs work: "${work}", search "ready q": "${searched}", no match says so: ${none}`);
+    await lib.close();
+
+    // UI-33: Venue settings, Quiz defaults: a new quiz starts with the venue's rounds, questions and settings
+    await brand.click('[role=tab]:has-text("Quiz defaults")');
+    await brand.fill("#qd-rounds", "3");
+    await brand.fill("#qd-questions", "2");
+    await brand.fill("#qd-timer", "45");
+    await brand.click('[aria-label="Joker"] [role=radio]:has-text("On")');
+    await brand.click('form:visible button[type=submit]');
+    await brand.waitForFunction(() => /saved/i.test(document.querySelector(".ok-box:not([hidden])")?.textContent ?? ""), null, { timeout: 5000 });
+    await brand.screenshot({ path: join(OUT, "ui-33-quiz-defaults.png"), fullPage: true });
+    const made = await brand.evaluate(async () => {
+      const res = await fetch("/api/quizzes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "Defaults Quiz" }) });
+      const body = await res.json() as { quiz: { rounds: { questions: unknown[] }[]; settings: { timerSeconds: number; joker: boolean } } };
+      return { rounds: body.quiz.rounds.length, questions: body.quiz.rounds.map((r) => r.questions.length).join("/"), timer: body.quiz.settings.timerSeconds, joker: body.quiz.settings.joker };
+    });
+    check(made.rounds === 3 && made.questions === "2/2/2" && made.timer === 45 && made.joker, `UI-33 a new quiz: ${made.rounds} rounds of ${made.questions} questions, timer ${made.timer} s, joker ${made.joker}`);
 
     // UI-16: unsaved changes, then a nav link
     await brand.click('[role=tab]:has-text("Branding")');

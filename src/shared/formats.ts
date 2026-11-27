@@ -136,6 +136,13 @@ export interface VenueFile {
     mode: "timer" | "host";                    // timer: standings after `seconds`; host: on the host's Next (final.show). Default "timer"
     seconds: number;                           // 5..120, default 15; used in timer mode
   };
+  quizDefaults: QuizDefaults;                  // what a new quiz starts with (UI-33); missing = the built-in defaults
+}
+/** A new quiz's shape and settings, set in Venue settings (UI-33). Existing quizzes keep their own. */
+export interface QuizDefaults {
+  rounds: number;                              // 1..20, default 6 empty rounds
+  questionsPerRound: number;                   // 1..30, default 5 empty questions in each
+  settings: QuizSettings;                      // default DEFAULT_QUIZ_SETTINGS; same checks as a quiz's settings
 }
 export interface Prize { place: number; text: string }   // place 1.., text 1..80 chars
 export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "poster" | "prizes";
@@ -173,8 +180,12 @@ export function defaultTheme(): ThemeFile {
   };
 }
 
+export function defaultQuizDefaults(): QuizDefaults {
+  return { rounds: 6, questionsPerRound: 5, settings: { ...DEFAULT_QUIZ_SETTINGS } };
+}
+
 export function defaultVenue(): VenueFile {
-  return { format: VENUE_FORMAT, prizes: [], holding: { minutesBefore: 30, panels: [...HOLDING_PANELS], panelSeconds: 12, poster: null }, afterWinner: { mode: "timer", seconds: 15 } };
+  return { format: VENUE_FORMAT, prizes: [], holding: { minutesBefore: 30, panels: [...HOLDING_PANELS], panelSeconds: 12, poster: null }, afterWinner: { mode: "timer", seconds: 15 }, quizDefaults: defaultQuizDefaults() };
 }
 
 // ---------------------------------------------------------------------------
@@ -677,6 +688,24 @@ export function validateVenue(json: unknown): Validated<VenueFile> {
         if (isInt(w.seconds) && w.seconds >= 5 && w.seconds <= 120) v.afterWinner.seconds = w.seconds;
         else add("afterWinner.seconds", "The winner screen must show for 5 to 120 seconds.");
       }
+    }
+  }
+
+  if (json.quizDefaults !== undefined) {
+    const q = json.quizDefaults;
+    if (!isObj(q)) add("quizDefaults", "The quiz defaults are not a JSON object.");
+    else {
+      if (q.rounds !== undefined) {
+        if (isInt(q.rounds) && q.rounds >= 1 && q.rounds <= QUIZ_LIMITS.rounds) v.quizDefaults.rounds = q.rounds;
+        else add("quizDefaults.rounds", `A new quiz must start with 1 to ${QUIZ_LIMITS.rounds} rounds.`);
+      }
+      if (q.questionsPerRound !== undefined) {
+        if (isInt(q.questionsPerRound) && q.questionsPerRound >= 1 && q.questionsPerRound <= QUIZ_LIMITS.questionsPerRound) v.quizDefaults.questionsPerRound = q.questionsPerRound;
+        else add("quizDefaults.questionsPerRound", `Each round of a new quiz must start with 1 to ${QUIZ_LIMITS.questionsPerRound} questions.`);
+      }
+      v.quizDefaults.settings = validateSettings(q.settings, (path, message) => add(`quizDefaults.${path}`, message));
+      const h = v.quizDefaults.settings.halftimeAfterRound;
+      if (typeof h === "number" && h >= v.quizDefaults.rounds) add("quizDefaults.settings.halftimeAfterRound", `Halftime is set after round ${h}, but a new quiz starts with ${v.quizDefaults.rounds} rounds.`);
     }
   }
 

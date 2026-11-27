@@ -19,13 +19,14 @@ import { page as hostPage, setClient, ui as hostUi } from "../run/state.js";
 /** @typedef {import('../../../src/shared/formats').VenueFile} VenueFile */
 /** @typedef {import('../../../src/shared/formats').HoldingPanel} HoldingPanel */
 /** @typedef {import('../../../src/shared/formats').CountdownStyle} CountdownStyle */
-/** @typedef {"branding" | "holding" | "prizes" | "displays"} Tab */
+/** @typedef {"branding" | "holding" | "prizes" | "quizzes" | "displays"} Tab */
 
 /** @type {{ id: Tab, label: string }[]} */
 const TABS = [
   { id: "branding", label: "Branding" },
   { id: "holding", label: "Holding page" },
   { id: "prizes", label: "Default prizes" },
+  { id: "quizzes", label: "Quiz defaults" },
   { id: "displays", label: "Displays" },
 ];
 
@@ -89,6 +90,17 @@ const draft = reactive({
 
 /** Unsaved venue settings. */
 const venue = reactive({
+  // What a new quiz starts with (UI-33). Numbers are kept as typed; the server checks them.
+  qdRounds: "6",
+  qdQuestions: "5",
+  qdTimer: "60",
+  qdTeams: "30",
+  qdSdMax: "3",
+  /** @type {"question" | "round"} */ qdLock: "question",
+  /** "auto", "none" or a round number */ qdHalf: "auto",
+  qdJoker: false,
+  /** @type {"closest" | "range"} */ qdClosest: "closest",
+  /** @type {"first" | "all"} */ qdScope: "first",
   minutesBefore: "30",
   panelSeconds: "12",
   /** @type {string | null} "assets/<file>" */
@@ -155,7 +167,21 @@ function draftFromVenue(v) {
   venue.prizes = v.prizes.map((p) => ({ key: prizeKey++, place: String(p.place), text: p.text }));
   venue.afterMode = v.afterWinner.mode;
   venue.afterSeconds = String(v.afterWinner.seconds);
+  const qd = v.quizDefaults;
+  venue.qdRounds = String(qd.rounds);
+  venue.qdQuestions = String(qd.questionsPerRound);
+  venue.qdTimer = String(qd.settings.timerSeconds);
+  venue.qdTeams = String(qd.settings.maxTeams);
+  venue.qdSdMax = String(qd.settings.suddenDeathMax);
+  venue.qdLock = qd.settings.lockMode;
+  venue.qdHalf = String(qd.settings.halftimeAfterRound);
+  venue.qdJoker = qd.settings.joker;
+  venue.qdClosest = qd.settings.closestScoring;
+  venue.qdScope = qd.settings.suddenDeathScope;
 }
+
+/** A number field as typed: a number when it reads as one, else the text, so the server can say what is wrong. @param {string} v */
+const typed = (v) => (v.trim() === "" || !Number.isFinite(Number(v)) ? v : Number(v));
 
 /** @returns {unknown} sent as typed; the server validates it */
 function venueFromDraft() {
@@ -174,6 +200,20 @@ function venueFromDraft() {
     afterWinner: {
       mode: venue.afterMode,
       seconds: venue.afterSeconds.trim() === "" || !Number.isFinite(seconds) ? venue.afterSeconds : seconds,
+    },
+    quizDefaults: {
+      rounds: typed(venue.qdRounds),
+      questionsPerRound: typed(venue.qdQuestions),
+      settings: {
+        lockMode: venue.qdLock,
+        timerSeconds: typed(venue.qdTimer),
+        halftimeAfterRound: venue.qdHalf === "auto" || venue.qdHalf === "none" ? venue.qdHalf : typed(venue.qdHalf),
+        joker: venue.qdJoker,
+        maxTeams: typed(venue.qdTeams),
+        suddenDeathScope: venue.qdScope,
+        suddenDeathMax: typed(venue.qdSdMax),
+        closestScoring: venue.qdClosest,
+      },
     },
   };
 }
@@ -257,7 +297,7 @@ async function saveVenue() {
     });
     ui.message = { kind: "ok", text: keptEdits
       ? "Saved what you had when you pressed Save. Your newer changes are not saved yet."
-      : "Saved. New nights use these settings.", problems: [] };
+      : page.tab === "quizzes" ? "Saved. New quizzes start with these." : "Saved. New nights use these settings.", problems: [] };
   } catch (e) {
     ui.message = { kind: "error", text: e instanceof Error ? e.message : String(e), problems: (/** @type {any} */ (e).problems ?? []).map((/** @type {any} */ p) => p.message) };
   }
@@ -562,6 +602,73 @@ function venueActions() {
 }
 
 // ---------------------------------------------------------------------------
+// Quiz defaults tab (UI-33, Cas 2026-11-27): what a new quiz starts with. Quizzes that
+// exist keep their own settings; each quiz can still change any of these in its Settings tab.
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {string} label @param {[string, string][]} options
+ * @param {() => string} get @param {(v: string) => void} set
+ */
+const seg = (label, options, get, set) => html`
+  <div class="seg" role="radiogroup" aria-label="${label}">
+    ${options.map(([v, text]) => html`<button type="button" role="radio" aria-checked="${() => (get() === v ? "true" : "false")}"
+      @click="${() => set(v)}">${text}</button>`)}
+  </div>`;
+
+/**
+ * A short number input with its unit, in the two-column card layout.
+ * @param {string} id @param {string} label @param {"qdRounds" | "qdQuestions" | "qdTimer" | "qdTeams" | "qdSdMax"} key
+ * @param {number} min @param {number} max @param {string} unit @param {string} hint @param {number} [step]
+ */
+const numberField = (id, label, key, min, max, unit, hint, step = 1) => html`
+  <div class="field"><label class="l" for="${id}">${label}</label>
+    <div class="ctl"><div class="unit"><input id="${id}" class="input short" type="number" min="${String(min)}" max="${String(max)}" step="${String(step)}" inputmode="numeric"
+      value="${() => venue[key]}" @input="${(/** @type {Event} */ e) => { venue[key] = /** @type {HTMLInputElement} */ (e.target).value; }}"><span>${unit}</span></div>
+    <p class="hint">${hint}</p></div></div>`;
+
+function quizDefaultsTab() {
+  return html`
+  <form @submit="${(/** @type {Event} */ e) => { e.preventDefault(); saveVenue(); }}">
+    <p class="hint tab-intro">A new quiz starts with these. Quizzes you already have keep their own, and every quiz can change them in its Settings tab.</p>
+    <section class="card form-card cols">
+      <h2>A new quiz</h2>
+      ${numberField("qd-rounds", "Rounds", "qdRounds", 1, 20, "rounds", "1 to 20. You can add or remove rounds in the quiz.")}
+      ${numberField("qd-questions", "Questions in each round", "qdQuestions", 1, 30, "questions", "1 to 30.")}
+    </section>
+    <section class="card form-card cols">
+      <h2>Answers</h2>
+      <div class="field"><span class="l">Lock answers</span>
+        <div class="ctl">${seg("Lock answers", [["question", "After each question"], ["round", "At the end of each round"]], () => venue.qdLock, (v) => { venue.qdLock = /** @type {any} */ (v); })}</div></div>
+      ${numberField("qd-timer", "Timer per question", "qdTimer", 10, 300, "seconds", "10 to 300. A question can set its own.", 5)}
+    </section>
+    <section class="card form-card cols">
+      <h2>Rounds and teams</h2>
+      <div class="field"><label class="l" for="qd-half">Halftime</label>
+        <div class="ctl"><select id="qd-half" class="input narrow" @change="${(/** @type {Event} */ e) => { venue.qdHalf = /** @type {HTMLSelectElement} */ (e.target).value; }}">
+          <option value="auto" selected="${() => venue.qdHalf === "auto"}">Halfway</option>
+          <option value="none" selected="${() => venue.qdHalf === "none"}">No halftime</option>
+          ${() => (venue.qdHalf !== "auto" && venue.qdHalf !== "none" ? html`<option value="${venue.qdHalf}" selected>After round ${venue.qdHalf}</option>` : "")}
+        </select></div></div>
+      <div class="field"><span class="l">Joker</span>
+        <div class="ctl">${seg("Joker", [["false", "Off"], ["true", "On"]], () => String(venue.qdJoker), (v) => { venue.qdJoker = v === "true"; })}
+        <p class="hint">Each team picks one round to score double.</p></div></div>
+      ${numberField("qd-teams", "Most teams", "qdTeams", 2, 30, "teams", "2 to 30.")}
+    </section>
+    <section class="card form-card cols">
+      <h2>Ties and closest numbers</h2>
+      <div class="field"><span class="l">Closest-number scoring</span>
+        <div class="ctl">${seg("Closest-number scoring", [["closest", "Closest team wins"], ["range", "Everyone within range"]], () => venue.qdClosest, (v) => { venue.qdClosest = /** @type {any} */ (v); })}</div></div>
+      <div class="field"><span class="l">Sudden death decides</span>
+        <div class="ctl">${seg("Sudden death decides", [["first", "First place only"], ["all", "Every tied place"]], () => venue.qdScope, (v) => { venue.qdScope = /** @type {any} */ (v); })}</div></div>
+      ${numberField("qd-sdmax", "Sudden-death questions", "qdSdMax", 1, 10, "per place, at most", "1 to 10. After that the place is shared.")}
+    </section>
+    ${message()}
+    ${venueActions()}
+  </form>`;
+}
+
+// ---------------------------------------------------------------------------
 // Prizes tab (H-15 venue defaults)
 // ---------------------------------------------------------------------------
 
@@ -615,6 +722,7 @@ function allTabs() {
   return html`<div hidden="${() => page.tab !== "branding"}">${brandingTab()}</div>
     <div hidden="${() => page.tab !== "holding"}">${holdingTab()}</div>
     <div hidden="${() => page.tab !== "prizes"}">${prizesTab()}</div>
+    <div hidden="${() => page.tab !== "quizzes"}">${quizDefaultsTab()}</div>
     <div hidden="${() => page.tab !== "displays"}">${displaysTab()}</div>`;
 }
 

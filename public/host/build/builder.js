@@ -387,60 +387,62 @@ export function mountBuilder(root, quizId) {
   /** @param {number} n @param {number} max */
   const count = (n, max) => `${n} of ${max} characters.`;
 
-  /** The Settings tab: the same cards and fields as Venue settings. */
+  /** The Settings tab: settings cards with the label on the left and the control on the right,
+   *  as in the design canvas's builder (UI-31). Each control's hint sits under it. */
   const quizEditor = () => html`<div class="b-pane b-settings">
-    <section class="card form-card">
+    <section class="card form-card cols">
       <h2>Quiz</h2>
       <div class="field">
         <label class="l" for="quiz-title">Quiz title</label>
-        <input id="quiz-title" class="input" maxlength="80" spellcheck="true" autocomplete="off"
+        <div class="ctl"><input id="quiz-title" class="input" maxlength="80" spellcheck="true" autocomplete="off"
           value="${() => d().title}" @input="${(/** @type {Event} */ e) => { d().title = val(e); }}">
-        <p class="hint">Renaming changes the title the teams see, not the quiz's folder name (${d().id}).</p>
+        <p class="hint">Renaming changes the title the teams see, not the quiz's folder name (${d().id}).</p></div>
       </div>
-      <div class="readiness">${() => (ui.ready
-        ? html`<p class="hint"><span class="pill ok"><i></i>Ready</span> Every round has questions and every question has an answer, so this quiz can open a night.</p>`
-        : html`<p class="hint"><span class="pill warn"><i></i>${() => readinessLabel(ui.ready, ui.problems)}</span> This quiz can't open a night until these are fixed:</p>
-            <ul class="problem-list">${() => groupProblems(ui.problems).slice(0, 40).map((p) => html`<li><a href="#" @click="${(/** @type {Event} */ e) => { e.preventDefault(); goTo(p.path); }}">${p.message}</a></li>`)}</ul>
-            ${() => (groupProblems(ui.problems).length > 40 ? html`<p class="hint">And ${groupProblems(ui.problems).length - 40} more.</p>` : "")}`)}
-      </div>
+      <div class="field"><span class="l">Ready to run</span>
+        <div class="ctl readiness">${() => (ui.ready
+          ? html`<p class="hint"><span class="pill ok"><i></i>Ready</span> Every round has questions and every question has an answer.</p>`
+          : html`<p class="hint"><span class="pill warn"><i></i>${() => readinessLabel(ui.ready, ui.problems)}</span> Fix these before this quiz can open a night:</p>
+              <ul class="problem-list">${() => groupProblems(ui.problems).slice(0, 40).map((p) => html`<li><a href="#" @click="${(/** @type {Event} */ e) => { e.preventDefault(); goTo(p.path); }}">${p.message}</a></li>`)}</ul>
+              ${() => (groupProblems(ui.problems).length > 40 ? html`<p class="hint">And ${groupProblems(ui.problems).length - 40} more.</p>` : "")}`)}
+        </div></div>
     </section>
-    <section class="card form-card">
+    <section class="card form-card cols">
       <h2>Answers</h2>
       <div class="field"><span class="l">Lock answers</span>
-        ${seg("Lock answers", [["question", "After each question"], ["round", "At the end of each round"]], () => d().settings.lockMode, (v) => { d().settings.lockMode = /** @type {any} */ (v); })}</div>
+        <div class="ctl">${seg("Lock answers", [["question", "After each question"], ["round", "At the end of each round"]], () => d().settings.lockMode, (v) => { d().settings.lockMode = /** @type {any} */ (v); })}</div></div>
       <div class="field"><label class="l" for="set-timer">Timer per question</label>
-        <div class="row"><input id="set-timer" class="input short" type="number" min="10" max="300" step="5" value="${() => d().settings.timerSeconds}"
+        <div class="ctl"><div class="unit"><input id="set-timer" class="input short" type="number" min="10" max="300" step="5" value="${() => d().settings.timerSeconds}"
           @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.timerSeconds = n; }}"><span>seconds</span></div>
-        <p class="hint">10 to 300. A question can set its own.</p></div>
+        <p class="hint">10 to 300. A question can set its own.</p></div></div>
     </section>
-    <section class="card form-card">
+    <section class="card form-card cols">
       <h2>Rounds and teams</h2>
       <div class="field"><label class="l" for="set-half">Halftime</label>
-        <select id="set-half" class="input narrow" @change="${(/** @type {Event} */ e) => { const v = val(e); d().settings.halftimeAfterRound = v === "auto" || v === "none" ? v : Number(v); }}">
+        <div class="ctl"><select id="set-half" class="input narrow" @change="${(/** @type {Event} */ e) => { const v = val(e); d().settings.halftimeAfterRound = v === "auto" || v === "none" ? v : Number(v); }}">
           ${() => [
             html`<option value="auto" selected="${() => d().settings.halftimeAfterRound === "auto"}">Halfway (after round ${Math.ceil(d().rounds.length / 2)})</option>`,
             html`<option value="none" selected="${() => d().settings.halftimeAfterRound === "none"}">No halftime</option>`,
             ...d().rounds.slice(0, -1).map((_, i) => html`<option value="${String(i + 1)}" selected="${() => d().settings.halftimeAfterRound === i + 1}">After round ${i + 1}</option>`),
           ]}
-        </select></div>
+        </select></div></div>
       <div class="field"><span class="l">Joker</span>
-        ${seg("Joker", [["false", "Off"], ["true", "On"]], () => d().settings.joker, (v) => { d().settings.joker = v === "true"; })}
-        <p class="hint">With the joker on, each team picks one round to score double.</p></div>
+        <div class="ctl">${seg("Joker", [["false", "Off"], ["true", "On"]], () => d().settings.joker, (v) => { d().settings.joker = v === "true"; })}
+        <p class="hint">Each team picks one round to score double.</p></div></div>
       <div class="field"><label class="l" for="set-teams">Most teams</label>
-        <div class="row"><input id="set-teams" class="input short" type="number" min="2" max="30" value="${() => d().settings.maxTeams}"
+        <div class="ctl"><div class="unit"><input id="set-teams" class="input short" type="number" min="2" max="30" value="${() => d().settings.maxTeams}"
           @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.maxTeams = n; }}"><span>teams</span></div>
-        <p class="hint">2 to 30.</p></div>
+        <p class="hint">2 to 30.</p></div></div>
     </section>
-    <section class="card form-card">
+    <section class="card form-card cols">
       <h2>Ties and closest numbers</h2>
       <div class="field"><span class="l">Closest-number scoring</span>
-        ${seg("Closest-number scoring", [["closest", "Closest team wins"], ["range", "Everyone within range"]], () => d().settings.closestScoring, (v) => { d().settings.closestScoring = /** @type {any} */ (v); })}</div>
+        <div class="ctl">${seg("Closest-number scoring", [["closest", "Closest team wins"], ["range", "Everyone within range"]], () => d().settings.closestScoring, (v) => { d().settings.closestScoring = /** @type {any} */ (v); })}</div></div>
       <div class="field"><span class="l">Sudden death decides</span>
-        ${seg("Sudden death decides", [["first", "First place only"], ["all", "Every tied place"]], () => d().settings.suddenDeathScope, (v) => { d().settings.suddenDeathScope = /** @type {any} */ (v); })}</div>
-      <div class="field"><label class="l" for="set-sdmax">Most sudden-death questions per place</label>
-        <div class="row"><input id="set-sdmax" class="input short" type="number" min="1" max="10" value="${() => d().settings.suddenDeathMax}"
-          @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.suddenDeathMax = n; }}"><span>questions</span></div>
-        <p class="hint">1 to 10. After that the place is shared.</p></div>
+        <div class="ctl">${seg("Sudden death decides", [["first", "First place only"], ["all", "Every tied place"]], () => d().settings.suddenDeathScope, (v) => { d().settings.suddenDeathScope = /** @type {any} */ (v); })}</div></div>
+      <div class="field"><label class="l" for="set-sdmax">Sudden-death questions</label>
+        <div class="ctl"><div class="unit"><input id="set-sdmax" class="input short" type="number" min="1" max="10" value="${() => d().settings.suddenDeathMax}"
+          @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) d().settings.suddenDeathMax = n; }}"><span>per place, at most</span></div>
+        <p class="hint">1 to 10. After that the place is shared.</p></div></div>
     </section>
   </div>`;
 

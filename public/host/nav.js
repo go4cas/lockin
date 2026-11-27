@@ -200,6 +200,10 @@
     link.appendChild(lockup(true));
     credit.appendChild(link);
     credit.appendChild(document.createTextNode("· free software under the AGPL-3.0"));
+    const version = document.createElement("span");
+    version.className = "app-version";
+    credit.appendChild(version);
     document.body.appendChild(credit);
+    if (w.LockIn.version) w.LockIn.version((/** @type {string} */ v) => { version.textContent = "· v" + v; });
   }
 })();

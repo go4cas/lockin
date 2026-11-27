@@ -8,8 +8,8 @@
 // every object in the format's field order, so files diff cleanly (5.1).
 
 import {
-  DEFAULT_QUIZ_SETTINGS, MEDIA_FILE, QUESTION_ID, QUIZ_FORMAT, QUIZ_LIMITS, ROUND_ID, validateSettings,
-  type DraftAnswer, type DraftMedia, type DraftQuestion, type DraftRound, type FutureAnswer, type Problem, type QuizDraft, type QuizSettings,
+  MEDIA_FILE, QUESTION_ID, QUIZ_FORMAT, QUIZ_LIMITS, ROUND_ID, defaultQuizDefaults, validateSettings,
+  type DraftAnswer, type DraftMedia, type DraftQuestion, type DraftRound, type FutureAnswer, type Problem, type QuizDefaults, type QuizDraft, type QuizSettings,
 } from "../../shared/formats.ts";
 
 // The ids, file names, limits and settings rules are the ones readiness uses (LI-009).
@@ -36,14 +36,14 @@ export function emptyQuestion(): DraftQuestion {
   return { id: newId("q-"), text: "", answer: { type: "text", accepted: [""] } };
 }
 
-/** A new quiz: 6 rounds of 5 empty questions and default settings (H-02). */
-export function newQuiz(id: string, title: string, updatedAt: string): QuizDraft {
-  const rounds: DraftRound[] = Array.from({ length: 6 }, () => ({
+/** A new quiz: the venue's quiz defaults, else 6 rounds of 5 empty questions and default settings (H-02, UI-33). */
+export function newQuiz(id: string, title: string, updatedAt: string, defaults: QuizDefaults = defaultQuizDefaults()): QuizDraft {
+  const rounds: DraftRound[] = Array.from({ length: defaults.rounds }, () => ({
     id: newId("r-"),
     title: "",
-    questions: Array.from({ length: 5 }, emptyQuestion),
+    questions: Array.from({ length: defaults.questionsPerRound }, emptyQuestion),
   }));
-  return { format: QUIZ_FORMAT, id, title, updatedAt, settings: { ...DEFAULT_QUIZ_SETTINGS }, rounds, suddenDeath: [] };
+  return { format: QUIZ_FORMAT, id, title, updatedAt, settings: { ...defaults.settings }, rounds, suddenDeath: [] };
 }
 
 /**

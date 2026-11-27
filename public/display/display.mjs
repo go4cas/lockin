@@ -113,6 +113,10 @@ function createDisplay(root, now) {
    * `now` is server time, ticked a few times a second for timers and countdowns.
    * Moment start times (`*At`) are server times, so progress is worked out from `now`.
    */
+  /** The server's version, shown small after the credit (UI-28). */
+  const shown = reactive({ version: "" });
+  if (window.LockIn && window.LockIn.version) window.LockIn.version((v) => { shown.version = v; });
+
   const page = reactive({
     /** @type {DisplayView | null} */ view: null,
     status: "connecting",
@@ -939,7 +943,7 @@ function createDisplay(root, now) {
       ${() => (SCREENS[page.screen] || idleScreen)()}
       <div class="display-foot">
         <div class="display-voice">${() => footerLine(page.view, page.screen, page.now) || ""}</div>
-        <div class="display-credit"><span class="credit-by">Powered by</span>${lockup(html, "mono")}</div>
+        <div class="display-credit"><span class="credit-by">Powered by</span>${lockup(html, "mono")}<span class="app-version">${() => (shown.version ? "v" + shown.version : "")}</span></div>
       </div>
     </div>
     ${() => (page.status === "offline" ? html`<div class="reconnect" role="status"><i></i>Reconnecting…</div>` : "")}

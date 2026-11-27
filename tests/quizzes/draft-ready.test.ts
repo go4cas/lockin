@@ -125,6 +125,13 @@ describe("QuizDraft is its own type (LI-009)", () => {
     expect(ready(d)).toBe(false);
   });
 
+  test("a new quiz takes the venue's quiz defaults when given (UI-33)", () => {
+    const d = newQuiz("fresh", "Fresh", "2026-11-24T10:00:00.000Z", { rounds: 3, questionsPerRound: 8, settings: { ...DEFAULT_QUIZ_SETTINGS, timerSeconds: 30 } });
+    expect(d.rounds.map((r) => r.questions.length)).toEqual([8, 8, 8]);
+    expect(d.settings.timerSeconds).toBe(30);
+    expect(saves(d)).toBe(true);
+  });
+
   test("an incomplete number answer saves as null and is not ready", () => {
     const d = base(["x"]) as QuizDraft;
     d.rounds[0]!.questions[0]!.answer = { type: "number", value: null };
