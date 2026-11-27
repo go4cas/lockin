@@ -24,6 +24,9 @@
 // UI-35: the console shows a loader (the mark's ring turning) instead of "Loading…" text.
 // UI-36: every console page lines up with the nav's left edge.
 // UI-37: selects are styled like the other fields, not the browser's own.
+// UI-38: console pages are a centred column (at most 1200 px, at least 48 px each side on a laptop).
+// UI-39: page loaders are centred.
+// UI-40: the open select list is styled where the browser allows it (customizable select).
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -336,10 +339,18 @@ async function main() {
       return /Loading/.test(main.textContent ?? "");
     });
     const label = await slow.evaluate(() => document.querySelector("#host-main .loading .visually-hidden")?.textContent ?? "");
+    // UI-39: the page loader sits in the middle of the page column
+    const offCentre = await slow.evaluate(() => {
+      const spin = document.querySelector("#host-main .loading .spin")!.getBoundingClientRect();
+      const nav = document.querySelector(".host-brand")!.getBoundingClientRect();
+      const signOut = document.querySelector(".host-signout")!.getBoundingClientRect();
+      return Math.abs((spin.left + spin.right) / 2 - (nav.left + signOut.right) / 2);
+    });
     await slow.screenshot({ path: join(OUT, "ui-35-loading.png") });
     letGo();
     await slow.waitForSelector("#lib-search", { timeout: 5000 });
     check(loader && !loadingText && label === "Loading quizzes", `UI-35 the quiz list shows a loader (${loader}), no visible loading text (${!loadingText}), read out as "${label}"`);
+    check(offCentre <= 2, `UI-39 the page loader is ${offCentre.toFixed(1)} px off the middle of the page column`);
 
     // UI-36: every console page starts at the nav's left edge, with the same top
     const edges: string[] = [];
@@ -354,15 +365,46 @@ async function main() {
     }
     check(edges.every((e) => / nav (\d+) title \1$/.test(e)), `UI-36 ${edges.join("; ")}`);
 
+    // UI-38: on a wide screen the pages are a centred 1200 px column; on a laptop at least 48 px each side
+    const column = async (width: number) => {
+      await slow.setViewportSize({ width, height: 900 });
+      return slow.evaluate(() => {
+        const nav = document.querySelector(".host-brand")!.getBoundingClientRect();
+        const out = document.querySelector(".host-signout")!.getBoundingClientRect();
+        const w = document.documentElement.clientWidth;
+        return { left: Math.round(nav.left), right: Math.round(w - out.right) };
+      });
+    };
+    const wide = await column(1600);
+    const laptop = await column(1280);
+    await slow.setViewportSize({ width: 1280, height: 900 });
+    check(Math.abs(wide.left - wide.right) <= 16 && wide.left >= 190 && laptop.left >= 48,
+      `UI-38 1600 px: ${wide.left} px left, ${wide.right} px right; 1280 px: ${laptop.left} px left`);
+
     // UI-37: selects are styled like the other fields
     await slow.goto(`${PUBLIC}/host/build?quiz=${ready.id}`);
     await slow.click('[role=tab]:has-text("Settings")');
     const sel = await slow.waitForSelector("#set-half", { timeout: 5000 }).then(() => slow.evaluate(() => {
       const cs = getComputedStyle(document.getElementById("set-half")!);
-      return { appearance: cs.appearance, chevron: cs.backgroundImage.includes("svg"), radius: cs.borderRadius };
+      // Where the browser can style the open list (customizable select), the chevron is its picker icon.
+      const icon = cs.appearance === "base-select" ? getComputedStyle(document.getElementById("set-half")!, "::picker-icon").backgroundImage : cs.backgroundImage;
+      return { appearance: cs.appearance, chevron: icon.includes("svg"), radius: cs.borderRadius };
     }));
+    // UI-40: the open list is the design system's menu where the browser allows it
+    let list = "native";
+    if (sel.appearance === "base-select") {
+      await slow.click("#set-half");
+      list = await slow.evaluate(() => {
+        const o = document.querySelector("#set-half option")!;
+        const r = o.getBoundingClientRect();
+        return `${getComputedStyle(o).backgroundColor} ${Math.round(r.height)}px`;
+      });
+      await slow.screenshot({ path: join(OUT, "ui-40-select-open.png") });
+      await slow.keyboard.press("Escape");
+    }
     await slow.locator("#set-half").screenshot({ path: join(OUT, "ui-37-select.png") });
-    check(sel.appearance === "none" && sel.chevron && sel.radius === "10px", `UI-37 select: appearance ${sel.appearance}, chevron ${sel.chevron}, radius ${sel.radius}`);
+    check((sel.appearance === "none" || sel.appearance === "base-select") && sel.chevron && sel.radius === "10px", `UI-37 select: appearance ${sel.appearance}, chevron ${sel.chevron}, radius ${sel.radius}`);
+    check(list === "native" || / 44px$/.test(list), `UI-40 open list: ${list}`);
     await slow.close();
 
     // UI-33: Venue settings, Quiz defaults: a new quiz starts with the venue's rounds, questions and settings
