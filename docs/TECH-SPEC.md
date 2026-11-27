@@ -376,11 +376,11 @@ export interface QuizDefaults {
   questionsPerRound: number;                   // 1..30, default 5 empty questions in each
   settings: QuizSettings;                      // default as 5.2; checked like a quiz's settings
 }
-export interface Prize { place: number; text: string }   // place 1.., text 1..80 chars
+export interface Prize { place: number; text: string; image?: string }   // place 1.., text 1..80 chars; image "assets/prize-<hash>.<jpg|png|webp>", <= 5 MB (UI-47)
 export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "poster" | "prizes";
 ```
 
-Unknown panel names are ignored, so more panels can be added later (H-17). A venue file without `quizDefaults` (or with only some of it) takes the built-in defaults for what is missing; existing quizzes never change when the defaults do. A halftime round number must be lower than the default number of rounds. "animation", the poster panel's old name, is read as "poster". The poster file lives in `theme/assets/` with the other uploads; saving a venue file that names a missing poster is refused.
+Unknown panel names are ignored, so more panels can be added later (H-17). A venue file without `quizDefaults` (or with only some of it) takes the built-in defaults for what is missing; existing quizzes never change when the defaults do. A halftime round number must be lower than the default number of rounds. "animation", the poster panel's old name, is read as "poster". The poster file lives in `theme/assets/` with the other uploads; saving a venue file that names a missing poster is refused. A prize picture (UI-47) is uploaded the same way (`kind: "prize"`) and is refused when it is missing or is not a prize upload. The night's prizes (`night.open`, `night.update`, the `nights.prizes` column) are the same `Prize` JSON, so a picture travels with them and history keeps it; uploads are never deleted, so a past night's picture stays. The column did not change shape (it is JSON), so no migration.
 
 ### 5.5 Copy pools
 
@@ -764,7 +764,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `POST /api/quizzes/:id/media` | B3 | multipart `file`, `questionId` → `{ file }` |
 | `GET /api/theme` | B4 | → `{ theme: ThemeFile, version, countdownStyles: CountdownStyle[], problems }` |
 | `PUT /api/theme` | B4 | `{ theme: ThemeFile }` → `{ theme, version }` |
-| `POST /api/theme/assets` | B4 | multipart `file`, `kind: "logo" \| "displayBackground" \| "poster"` → `{ file: "assets/<name>" }` |
+| `POST /api/theme/assets` | B4 | multipart `file`, `kind: "logo" \| "displayBackground" \| "poster" \| "prize"` → `{ file: "assets/<name>" }` |
 | `GET /api/venue` / `PUT /api/venue` | B4 | `VenueFile` |
 | `GET /api/theme/preview.css` | B4 | `?theme=<url-encoded ThemeFile JSON>` → CSS, for the live preview (H-16); an invalid theme gets `400` with a fixed comment, never the input (SA-19) |
 | `GET /api/history` | B1 | → `HistoryList`: `{ nights: { id, quizTitle, openedAt, endedAt, teams, winners: string[] }[] }` (saved nights, newest first, at most 500: SA-21) |
@@ -854,7 +854,7 @@ export interface NightInfo {
   holdingPanels: HoldingPanel[];
   holdingSeconds: number;          // venue holding.panelSeconds
   poster: string | null;           // the poster's URL, or null for the Lock-In mark
-  prizes: Prize[];
+  prizes: PrizeInfo[];             // Prize plus imageUrl: the picture's URL, or null (UI-47)
   roundCount: number;
   round: RoundInfo | null;         // current or upcoming round; null in lobby and ended
   joker: boolean;                  // quiz has the joker on

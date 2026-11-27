@@ -99,7 +99,7 @@ const top = (/** @type {() => string} */ status = () => "", menu = true) => html
 
 const prizesCard = (/** @type {string} */ label) => html`<section class="card" hidden="${() => !(night()?.prizes ?? []).length}">
   <div class="eyebrow" style="margin-bottom:6px">${label}</div>
-  ${pool(() => night()?.prizes ?? [], (p) => html`<div class="prize" hidden="${() => !p()}"><b>${() => L.ordinal(p()?.place ?? 1)}</b><span>${() => p()?.text ?? ""}</span></div>`)}
+  ${pool(() => night()?.prizes ?? [], (p) => html`<div class="prize" hidden="${() => !p()}"><b>${() => L.ordinal(p()?.place ?? 1)}</b><img class="prize-pic" alt="" loading="lazy" hidden="${() => !p()?.imageUrl}" src="${() => p()?.imageUrl ?? ""}"><span>${() => p()?.text ?? ""}</span></div>`)}
 </section>`;
 
 const homeCard = () => html`
@@ -362,7 +362,7 @@ const endScreen = () => html`
         const r = L.myRow(page.view);
         const prize = r ? L.prizeFor(page.view, r.position) : null;
         if (!prize) return "";
-        return html`<section class="card"><div class="eyebrow" style="margin-bottom:6px">Your prize</div><div class="prize"><b>${() => L.ordinal(L.myRow(page.view)?.position ?? 1)}</b><span>${() => `${L.prizeFor(page.view, L.myRow(page.view)?.position ?? 0)?.text ?? ""}. The quizmaster will hand it over.`}</span></div></section>`;
+        return html`<section class="card"><div class="eyebrow" style="margin-bottom:6px">Your prize</div><div class="prize"><b>${() => L.ordinal(L.myRow(page.view)?.position ?? 1)}</b><img class="prize-pic" alt="" hidden="${() => !L.prizeFor(page.view, L.myRow(page.view)?.position ?? 0)?.imageUrl}" src="${() => L.prizeFor(page.view, L.myRow(page.view)?.position ?? 0)?.imageUrl ?? ""}"><span>${() => `${L.prizeFor(page.view, L.myRow(page.view)?.position ?? 0)?.text ?? ""}. The quizmaster will hand it over.`}</span></div></section>`;
       }}
       ${voice(() => v().lines.winner)}
       ${voice(() => v().lines.goodbye)}

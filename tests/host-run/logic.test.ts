@@ -198,6 +198,9 @@ describe("prizes and answers", () => {
   test("blank prize rows drop out and places renumber", () => {
     expect(cleanPrizes([{ text: " Bar tab " }, { text: "" }, { text: "Chips" }])).toEqual([{ place: 1, text: "Bar tab" }, { place: 2, text: "Chips" }]);
     expect(cleanPrizes([{ text: "x".repeat(100) }])[0]!.text.length).toBe(80);
+    // A picture stays with its prize (UI-47); a blank prize drops its picture too.
+    expect(cleanPrizes([{ text: "", image: "assets/prize-aaaaaa.png" }, { text: "Cake", image: "assets/prize-bbbbbb.jpg" }, { text: "Chips", image: null }]))
+      .toEqual([{ place: 1, text: "Cake", image: "assets/prize-bbbbbb.jpg" }, { place: 2, text: "Chips" }]);
   });
   test("answer text from the history API", () => {
     expect(answerValueText(null)).toBe("no answer");

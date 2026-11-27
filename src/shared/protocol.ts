@@ -194,7 +194,7 @@ export interface NightInfo {
   holdingPanels: HoldingPanel[];
   holdingSeconds: number;          // each holding panel's time on screen (venue holding.panelSeconds)
   poster: string | null;           // URL of the venue's poster, or null for the Lock-In mark
-  prizes: Prize[];
+  prizes: PrizeInfo[];
   roundCount: number;
   round: RoundInfo | null;         // current or upcoming round; null in lobby and ended
   joker: boolean;                  // quiz has the joker on
@@ -202,6 +202,8 @@ export interface NightInfo {
   teamCount: number;
   started: boolean;                // after Quiz Start
 }
+/** A prize as the screens get it: the stored prize plus its picture's URL (UI-47). */
+export interface PrizeInfo extends Prize { imageUrl: string | null }
 export interface RoundInfo { index: number; title: string; questionCount: number; isHalftimeRound: boolean; isLast: boolean }
 
 export interface TeamChip { id: string; name: string; colour: number; jokerThisRound: boolean }

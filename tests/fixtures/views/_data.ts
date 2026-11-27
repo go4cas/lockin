@@ -53,7 +53,7 @@ export function night(over: Partial<NightInfo> = {}): NightInfo {
     holdingPanels: ["countdown", "teams", "join", "install", "poster", "prizes"],
     holdingSeconds: 12,
     poster: null,
-    prizes: [{ place: 1, text: "A round of drinks" }, { place: 2, text: "A bowl of chips" }],
+    prizes: [{ place: 1, text: "A round of drinks", imageUrl: null }, { place: 2, text: "A bowl of chips", imageUrl: null }],
     roundCount: 6,
     round: null,
     joker: true,

@@ -34,6 +34,8 @@
 // UI-44: the home page's text and artwork sit together in the middle, without a wide gap.
 // UI-45: deleting a question keeps the builder working (no Arrow error).
 // UI-46: Quiz defaults' Halftime names Halfway's round and can be set to a round.
+// UI-47: a prize can have a picture: uploaded in Default prizes or Prizes tonight, shown on the display and phones.
+// UI-48..UI-56: the consistency review: section titles, History's head, dialog titles, nav size.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -506,6 +508,76 @@ async function main() {
     await brand.click('dialog.leave-dlg button:has-text("Leave")');
     await brand.waitForURL(/\/host\/build/, { timeout: 5000 });
     check(true, "UI-16 Leave goes to the link");
+
+    // UI-47: a prize with a picture: Default prizes uploads and saves it; the night carries it to the
+    // host's Prizes tonight, the phone and the display (holding page's Playing for panel).
+    const pz = await hostCtx.newPage();
+    watch("prizes", pz);
+    await pz.goto(`${PUBLIC}/host/brand`);
+    await pz.waitForSelector("#venue-name", { timeout: 5000 });
+    await pz.click('[role=tab]:has-text("Default prizes")');
+    await pz.click('button:has-text("Add a prize")');
+    await pz.fill('.prize-row input[aria-label^="Prize for place"] >> nth=-1', "A whole cake");
+    await pz.setInputFiles('.prize-row input[type=file] >> nth=-1', join(import.meta.dir, "pub-picture.jpg"));
+    await pz.waitForSelector(".prize-row img.prize-thumb:not([hidden])", { timeout: 5000 });
+    await pz.click('.tabs > div:not([hidden]) button[type=submit]');
+    await pz.waitForFunction(() => /Saved/.test(document.body.innerText), null, { timeout: 5000 });
+    await pz.screenshot({ path: join(OUT, "ui-47-default-prizes.png"), fullPage: true });
+    const venueNow = await (await fetch(`${PUBLIC}/api/venue`, { headers: { cookie: night.cookie } })).json() as { prizes: { place: number; text: string; image?: string }[]; holding: object };
+    const cake = venueNow.prizes.find((p) => p.text === "A whole cake");
+    check(!!cake && /^assets\/prize-[0-9a-f]+\.jpg$/.test(cake.image ?? ""), `UI-47 Default prizes saved the picture: ${cake?.image}`);
+    // The prize panel alone on the holding page, so the display shows it.
+    const put = await fetch(`${PUBLIC}/api/venue`, { method: "PUT", headers: { cookie: night.cookie, origin: PUBLIC, "Content-Type": "application/json" }, body: JSON.stringify({ ...venueNow, holding: { ...venueNow.holding, panels: ["prizes"] } }) });
+    if (!put.ok) problems.push(`UI-47 venue PUT: ${put.status} ${await put.text()}`);
+    await new Promise((r) => setTimeout(r, 2_100));   // the night engine reads venue settings at most every 2 s
+    await ok(night.host, "quiz.end", { early: true });
+    await ok(night.host, "night.close");
+    night.phones.length = 0;   // the last night's phones were sent away
+    const night2 = await ok(night.host, "night.open", { quizId: ready.id, plannedStart: Date.now() + 10 * 60_000 }) as { roomCode: string };
+    await night.synced();
+    const shownPrizes = night.hostView().night!.prizes;
+    check(shownPrizes.some((p) => p.text === "A whole cake" && p.imageUrl === `/theme/${cake?.image}`), `UI-47 the new night has the picture: ${JSON.stringify(shownPrizes.map((p) => p.imageUrl))}`);
+    await pz.goto(`${PUBLIC}/host/run`);
+    await pz.waitForSelector('button:has-text("Edit prizes")', { timeout: 5000 });
+    await pz.click('button:has-text("Edit prizes")');
+    const hostThumb = await pz.waitForSelector(".prize-rows img.prize-thumb:not([hidden])", { timeout: 5000 }).then(() => true, () => false);
+    await pz.screenshot({ path: join(OUT, "ui-47-prizes-tonight.png") });
+    check(hostThumb, "UI-47 Prizes tonight shows the picture");
+    await pz.close();
+    const ph2 = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+    watch("phone-prizes", ph2);
+    await ph2.goto(`${PUBLIC}${new URL(night.hostView().night!.joinUrl).pathname}`);
+    await ph2.fill("#team-name", "Cake Team");
+    await ph2.click(".ph-foot .btn.primary");
+    const phonePic = await ph2.waitForFunction(() => { const i = document.querySelector<HTMLImageElement>(".prize img.prize-pic:not([hidden])"); return !!i && i.complete && i.naturalWidth > 0; }, null, { timeout: 8000 }).then(() => true, () => false);
+    await ph2.screenshot({ path: join(OUT, "ui-47-phone-prizes.png"), fullPage: true });
+    check(phonePic, `UI-47 the phone shows the prize picture (room ${night2.roomCode})`);
+    const tvPic = await tv.waitForFunction(() => { const i = document.querySelector<HTMLImageElement>(".prizes.big img.prize-pic"); return !!i && i.complete && i.naturalWidth > 0; }, null, { timeout: 15000 }).then(() => true, () => false);
+    await tv.screenshot({ path: join(OUT, "ui-47-display-prizes.png") });
+    check(tvPic, "UI-47 the display's Playing for panel shows the prize picture");
+
+    // UI-48..UI-54: consistency with the design system's type (one look per role)
+    const cs = await hostCtx.newPage();
+    watch("consistency", cs);
+    await cs.goto(`${PUBLIC}/host/run`);
+    await cs.waitForSelector('button:has-text("Edit prizes")', { timeout: 5000 });
+    const runType = await cs.evaluate(() => ({
+      labels: [...new Set([...document.querySelectorAll<HTMLElement>(".stage .label")].filter((e) => e.offsetParent && !e.closest(".side-teams")).map((e) => getComputedStyle(e).fontSize))].join("/"),
+      menu: getComputedStyle(document.querySelector(".menu-btn")!).fontSize,
+    }));
+    check(runType.labels === "12px" && runType.menu === "15px", `UI-48/54 Run night section titles ${runType.labels}, Night menu ${runType.menu}`);
+    await cs.click('button:has-text("Edit prizes")');
+    const dlgTitle = await cs.evaluate(() => { const h = document.querySelector(".dialog-head h2")!; const s = getComputedStyle(h); return `${s.fontSize} ${s.fontWeight} ${s.fontFamily.split(",")[0]}`; });
+    check(dlgTitle === '26px 500 "Funnel Display"', `UI-52 dialog title: ${dlgTitle}`);
+    await cs.goto(`${PUBLIC}/host/history`);
+    await cs.waitForSelector('button:has-text("Refresh")', { timeout: 5000 });
+    const hist = await cs.evaluate(() => ({
+      refresh: Math.round(document.querySelector<HTMLElement>('.stage button')!.getBoundingClientRect().right),
+      page: Math.round(document.querySelector<HTMLElement>(".host-main")!.getBoundingClientRect().right - parseFloat(getComputedStyle(document.querySelector(".host-main")!).paddingRight)),
+      nav14: getComputedStyle(document.querySelector("#host-nav a[href='/host/build']")!).fontSize,
+    }));
+    check(hist.refresh === hist.page && hist.nav14 === "15px", `UI-49/54 History's Refresh ends at ${hist.refresh}px, the page column at ${hist.page}px; nav links ${hist.nav14}`);
+    await cs.close();
   } finally {
     await browser.close();
     await night.stop();

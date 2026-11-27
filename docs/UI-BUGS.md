@@ -98,8 +98,31 @@ Questions answered, not changed:
 | UI-43 | Quiz builder | Do all the outstanding issues need to be listed on the main page? | No. The Settings tab carried the whole list (up to 40 lines) inside the "Ready to run" row. | Moved: the header's "N questions need work" pill opens "What needs fixing", the design system's Popover, wherever you are in the builder; each line goes to the problem and closes it. Settings keeps one line and "See what needs fixing". |
 | UI-44 | Host home page | The text and the artwork have a big space between them; bring them to the centre. | The text took the whole left column, so the artwork was pushed to the right edge. | Fixed: text and artwork are one centred group with a small gap. |
 | UI-46 | Venue settings, Quiz defaults | Is Halfway always after round 3? Should it be a default setting? | It was already a quiz default, but only "Halfway" or "No halftime", and "Halfway" did not say which round. | Done: the default can be Halfway (with its round shown, e.g. "after round 3" for 6 rounds), No halftime, or after a set round (1 up to one less than the default round count). The file format already allowed a round number (`quizDefaults.settings.halftimeAfterRound`), so no format change. |
+| UI-47 | Prizes | Prizes should have an option to upload an image. | A prize was a place and a line of text. Cas chose prize pictures now (2026-11-27). | Done: a prize can have a picture (JPEG, PNG or WebP, up to 5 MB), added in Venue settings → Default prizes and in Run night → Prizes tonight. The display shows it in the Playing for panel, the halftime list and beside the 1st prize on the winner screen; phones show it in their prize cards. Format: `Prize.image` ("assets/prize-…", TECH-SPEC 5.4), checked by the venue validator and by `night.open` / `night.update`, which refuse a picture that was not uploaded. Screens get `imageUrl`. The night's prizes column is JSON, so no migration. |
 | UI-45 | Quiz builder | (Found by the UI-41 check.) Deleting a question could stop the builder updating. | The delete ran in `nextTick`, which can come before Arrow's queued updates; the outline row being taken down in the same pass threw "expressionPool[effect] is not a function". | Fixed: deletes run after the page has drawn (a new task), for rounds and questions. |
 
 Questions answered, not changed:
 
 - **Is Halfway always after round 3?** No. "Halfway" is after round ceil(rounds ÷ 2): round 3 of 6, round 4 of 8, round 1 of a one-round test quiz. Each quiz can pick a round instead (Settings → Halftime), and Quiz defaults now can too (UI-46).
+
+### Full UI consistency review (batch 7, 2026-11-27)
+
+Method: `tests/e2e/ui-audit.ts` opens 22 screens on a real server (home, Quizzes, the builder's three views, every Venue settings tab, History, sign in, Run night idle, lobby, round intro and asking, the phone's join, lobby and question, the display's pairing, lobby and question) and measures every button, field, heading, card, text size and text colour, which were then compared with the design system's tokens (`tokens.json` in the Design System artifact, `assets/tokens.css`). Buttons, fields, cards, radii, spacing and page edges were already consistent; these were not:
+
+| # | Where | Finding | Status |
+|---|---|---|---|
+| UI-48 | Run night | Section titles on one page came in two styles: "Quiz", "Planned start" were the 12 px overline, "Prizes tonight", "Pair a display", "Teams join at", "Room code" were 15 px (an `h3` rule won over `.label`). | Fixed: every section title is the overline (12 px, Ash, 0.14em). |
+| UI-49 | History | The Refresh button stopped 160 px short of the page's right edge (History used Run night's 1,040 px column). | Fixed: History's head runs to the page column's edge like every other page. |
+| UI-50 | Sign in, first-run setup | The button was 52 px and 16 px text (the phone's size); console primary buttons are 44 px and 15 px. | Fixed. |
+| UI-51 | Quizzes, Open a night | Quiz names were 16 px; the design system's list title (host-title) is 18 px. | Fixed. |
+| UI-52 | Every console dialog | Dialog titles were 18 px Funnel Sans; the design system's dialog title (title-m) is 26 px Funnel Display 500. | Fixed (the delete and leave dialogs and every Run night dialog). |
+| UI-53 | Run night, marking | Answer groups were 20 px Funnel Sans; the design system's marking answer group is title-m. | Fixed. |
+| UI-54 | Console header | Nav links, Sign out and Night menu were 14 px, between the scale's 13 and 15. | Fixed: 15 px (host-body). |
+| UI-55 | Display, Branding preview | A grey that is not in the palette (#8a8a85) on the display's credit, the standings header and the preview's credit. | Fixed: Ash. |
+| UI-56 | Phone | Text between the phone scale's sizes: the team status 14 px, the voice line 17 px, lists, prizes and install steps 16 px, the overline 12 px. | Fixed: 15 (small), 18 (body), 18, 13 (label). |
+
+Kept as they are, on purpose:
+
+- Page titles are 44 px (title-l), not the design system's 64 px title-xl for Library and Marking: one title size for every console page was agreed in UI-36.
+- The builder outline's row numbers are 20 px and 16 px, not number-m's 24 px, so the slim outline stays slim.
+- The phone's screen titles are 34 px, not the scale's 44 px (the canvas's phone screens use 34). Worth a look on the device check if they should grow.

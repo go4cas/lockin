@@ -77,7 +77,7 @@ export function register(app: App): void {
     if (!form) return errorResponse(400, "bad_request", "Send the file as a form upload.");
     const kind = form.get("kind");
     if (typeof kind !== "string" || !(ASSET_KINDS as readonly string[]).includes(kind)) {
-      return errorResponse(400, "bad_request", "Say whether the file is the logo or the display background picture.");
+      return errorResponse(400, "bad_request", "Say which picture this is: the logo, the display background, the poster or a prize.");
     }
     const file = form.get("file");
     if (!file || typeof file === "string") return errorResponse(400, "bad_request", "No file was sent.");

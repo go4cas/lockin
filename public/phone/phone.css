@@ -12,7 +12,7 @@ body.phone { font-size: var(--ph-text-body); line-height: 1.4; overscroll-behavi
 .ph { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--ink); position: relative; padding-top: env(safe-area-inset-top); }
 .ph-top { display: flex; align-items: center; gap: 10px; margin: 0 var(--ph-gutter); min-height: 60px; border-bottom: 1px solid var(--line); }
 .ph-top .team { font-weight: 600; font-size: 15px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ph-top .status { font-size: 14px; color: var(--ash); white-space: nowrap; }
+.ph-top .status { font-size: var(--ph-text-small); color: var(--ash); white-space: nowrap; }
 .icon-btn { width: var(--ph-tap); height: var(--ph-tap); margin-right: -14px; border-radius: var(--radius-m); display: flex; align-items: center; justify-content: center; color: var(--fog); background: none; border: 0; font-size: 24px; line-height: 1; flex: none; cursor: pointer; }
 .icon-btn.back { margin: 0 0 0 -14px; }
 .ph-body { flex: 1; padding: 16px var(--ph-gutter) 24px; display: flex; flex-direction: column; gap: 18px; }
@@ -21,11 +21,11 @@ body.phone { font-size: var(--ph-text-body); line-height: 1.4; overscroll-behavi
 
 /* Type */
 .eyebrow, .label { font-size: var(--ph-text-label); color: var(--ash); }
-.eyebrow { text-transform: uppercase; letter-spacing: 0.14em; font-size: 12px; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.14em; font-size: var(--ph-text-label); }
 .title { font-family: var(--font-display); font-size: 34px; font-weight: 400; line-height: 1.02; letter-spacing: -0.035em; margin: 0; overflow-wrap: anywhere; }
 .title.moment { font-weight: 300; font-size: var(--ph-text-title); letter-spacing: -0.045em; }
 .qtext { font-size: var(--ph-text-question); font-weight: 600; line-height: 1.22; letter-spacing: -0.01em; margin: 0; overflow-wrap: anywhere; }
-.voice { font-style: italic; font-size: 17px; color: var(--fog); line-height: 1.3; margin: 0; }
+.voice { font-style: italic; font-size: var(--ph-text-body); color: var(--fog); line-height: 1.3; margin: 0; }
 .muted { color: var(--ash); }
 .small { font-size: var(--ph-text-small); }
 .xs { font-size: var(--ph-text-label); }
@@ -126,7 +126,7 @@ input[type="date"].input, input[type="time"].input { -webkit-appearance: none; a
 .joker-card .joker-tag { align-self: flex-start; font-size: 11px; }
 
 .list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.list li { display: flex; align-items: center; gap: 12px; min-height: 52px; border-top: 1px solid var(--line); font-size: 16px; }
+.list li { display: flex; align-items: center; gap: 12px; min-height: 52px; border-top: 1px solid var(--line); font-size: var(--ph-text-body); }
 .list .n { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
 .list .p { font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; }
 .list .pos { width: 30px; flex: none; color: var(--ash); }
@@ -150,7 +150,7 @@ input[type="date"].input, input[type="time"].input { -webkit-appearance: none; a
 .tabs button { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-s); font: inherit; font-weight: 500; font-size: var(--ph-text-small); color: var(--ash); background: none; border: 0; cursor: pointer; }
 .tabs button.on { background: var(--raised); color: var(--bone); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .steps { counter-reset: s; display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.steps li { padding: 14px 0 14px 44px; position: relative; font-size: 16px; border-top: 1px solid var(--line); }
+.steps li { padding: 14px 0 14px 44px; position: relative; font-size: var(--ph-text-body); border-top: 1px solid var(--line); }
 .steps li::before { counter-increment: s; content: "0" counter(s); position: absolute; left: 0; top: 13px; font-family: var(--font-display); font-weight: 300; font-size: 18px; color: var(--dim); }
 
 /* Home-screen guide animation: a phone, the share/menu button pulses, then the menu row lights up. */
@@ -186,8 +186,11 @@ input[type="date"].input, input[type="time"].input { -webkit-appearance: none; a
 .dl .opt.sel b { background: var(--deadlock-ember); color: var(--ink); }
 .dl .voice { color: var(--fog); }
 
-.prize { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 16px; }
+.prize { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: var(--ph-text-body); }
 .prize b { color: var(--venue); width: 40px; flex: none; font-family: var(--font-display); font-weight: 400; }
+/* A prize's picture (UI-47). */
+.prize { align-items: center; }
+.prize .prize-pic { width: 48px; height: 48px; flex: none; object-fit: cover; border-radius: var(--radius-s); background: var(--smoke); }
 .credit { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ash); padding: 8px 0 12px; }
 .credit a { color: inherit; text-decoration: none; display: inline-flex; }
 .credit .lockup { font-size: 14px; text-transform: none; letter-spacing: -0.04em; }

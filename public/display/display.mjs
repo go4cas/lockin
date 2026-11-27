@@ -350,13 +350,17 @@ function createDisplay(root, now) {
     return m ? m[1] : url;
   }
 
-  /** Prizes as "1st R300 bar tab" items. */
+  /** Prizes as "1st R300 bar tab" items; a prize's picture (UI-47) shows in the lists, not the one-line strip.
+   *  Keyed by what they show, so a changed prize is drawn again rather than keeping its old text. */
   function prizeItems(/** @type {boolean} */ inline) {
-    const prizes = withNight((n) => n.prizes, /** @type {import("../../src/shared/formats").Prize[]} */ ([]));
+    const prizes = withNight((n) => n.prizes, /** @type {import("../../src/shared/protocol").PrizeInfo[]} */ ([]));
     return prizes.map(function (p) {
+      const key = p.place + "|" + p.text + "|" + (p.imageUrl || "");
       return inline
-        ? html`<span class="prize-inline"><b>${ordinal(p.place)}</b> ${p.text}</span>`.key(p.place)
-        : html`<div class="prize"><b>${ordinal(p.place)}</b><span>${p.text}</span></div>`.key(p.place);
+        ? html`<span class="prize-inline"><b>${ordinal(p.place)}</b> ${p.text}</span>`.key(key)
+        : p.imageUrl
+          ? html`<div class="prize has-pic"><b>${ordinal(p.place)}</b><img class="prize-pic" src="${p.imageUrl}" alt=""><span>${p.text}</span></div>`.key(key)
+          : html`<div class="prize"><b>${ordinal(p.place)}</b><span>${p.text}</span></div>`.key(key);
     });
   }
 
@@ -847,7 +851,7 @@ function createDisplay(root, now) {
       })}</div>
       ${() => (points() !== null ? html`<div class="winner-points mt3"><span class="big-num venue">${() => points()}</span><span class="t-s muted">points</span></div>` : "")}
       ${() => (v().lines.winner ? html`<div class="voice-line mt3">${() => v().lines.winner}</div>` : "")}
-      ${() => (first() ? html`<div class="first-prize mt4"><span class="overline">1st prize</span><span class="t-s">${() => (first() ? /** @type {any} */ (first()).text : "")}</span></div>` : "")}
+      ${() => (first() ? html`<div class="first-prize mt4"><span class="overline">1st prize</span><img class="prize-pic" alt="" hidden="${() => !(first() && /** @type {any} */ (first()).imageUrl)}" src="${() => (first() && /** @type {any} */ (first()).imageUrl) || ""}"><span class="t-s">${() => (first() ? /** @type {any} */ (first()).text : "")}</span></div>` : "")}
     </div>`;
   }
 

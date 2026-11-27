@@ -144,7 +144,10 @@ export interface QuizDefaults {
   questionsPerRound: number;                   // 1..30, default 5 empty questions in each
   settings: QuizSettings;                      // default DEFAULT_QUIZ_SETTINGS; same checks as a quiz's settings
 }
-export interface Prize { place: number; text: string }   // place 1.., text 1..80 chars
+export interface Prize { place: number; text: string; image?: string }   // place 1.., text 1..80 chars; image "assets/<file>" (UI-47), JPEG/PNG/WebP <= 5 MB
+
+/** A prize picture's reference: an upload in theme/assets (UI-47). */
+export const PRIZE_IMAGE = /^assets\/prize-[a-f0-9]{6,64}\.(jpg|png|webp)$/;
 export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "poster" | "prizes";
 
 // ---------------------------------------------------------------------------
@@ -641,7 +644,8 @@ export function validateVenue(json: unknown): Validated<VenueFile> {
       json.prizes.forEach((p, i) => {
         if (!isObj(p) || !isInt(p.place) || p.place < 1) { add(`prizes.${i}.place`, `Prize ${i + 1} needs a place of 1 or more.`); return; }
         if (typeof p.text !== "string" || p.text.trim() === "" || len(p.text) > 80) { add(`prizes.${i}.text`, `The prize for place ${p.place} must be 1 to 80 characters.`); return; }
-        v.prizes.push({ place: p.place, text: p.text });
+        if (p.image !== undefined && p.image !== null && (typeof p.image !== "string" || !PRIZE_IMAGE.test(p.image))) { add(`prizes.${i}.image`, `The picture for place ${p.place} is not an uploaded prize picture.`); return; }
+        v.prizes.push(typeof p.image === "string" ? { place: p.place, text: p.text, image: p.image } : { place: p.place, text: p.text });
       });
     }
   }
