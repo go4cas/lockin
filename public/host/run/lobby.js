@@ -1,6 +1,7 @@
 // @ts-check
 // Idle (open a night) and lobby screens (H-05, H-06, H-15, H-17 on the console).
 import { html, reactive } from "/vendor/arrow/index.mjs";
+import { loading } from "../loading.js";
 import { cleanPrizes, hhmm, ordinal, plannedFromInput, plural } from "./logic.js";
 import { closeDialog, enabled, getJson, openDialog, page, send, serverNow, ui } from "./state.js";
 import { lobbyTeams } from "./teams.js";
@@ -66,7 +67,7 @@ export function idleScreen() {
     <form class="stack open-form" @submit="${submit}">
       <section class="card">
         <div class="row between"><h3 class="label">Quiz</h3><a class="link" href="/host/build">All quizzes</a></div>
-        <p class="muted" hidden="${() => !open.loading}">Loading the quiz library…</p>
+        <div hidden="${() => !open.loading}">${loading("Loading the quizzes")}</div>
         <p class="form-error" hidden="${() => !open.problem}">${() => open.problem} <button type="button" class="link" @click="${loadLibrary}">Try again</button></p>
         <p class="muted" hidden="${() => !(!open.loading && !open.problem && open.quizzes.length === 0)}">No quizzes yet. Make one in <a href="/host/build">Quizzes</a> first.</p>
         <ul class="quiz-pick">${pool(() => open.quizzes, (q) => html`<li hidden="${() => !q()}">

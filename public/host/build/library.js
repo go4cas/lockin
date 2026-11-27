@@ -1,6 +1,7 @@
 // @ts-check
 // Quiz library (H-01): list, create, open, duplicate, rename and delete quizzes.
 import { html, nextTick, reactive } from "/vendor/arrow/index.mjs";
+import { loading } from "../loading.js";
 import { ApiError, createQuiz, deleteQuiz, duplicateQuiz, getQuiz, groupProblems, listQuizzes, readinessLabel, saveQuiz, whenEdited } from "./api.js";
 
 /** @typedef {import("./api.js").QuizSummary} QuizSummary */
@@ -169,7 +170,7 @@ export function mountLibrary(root) {
       <button type="button" class="btn primary" @click="${() => openDialog("new", null)}">New quiz</button>
     </div>
     <p class="form-error" role="alert" hidden="${() => !page.error}">${() => page.error}</p>
-    ${() => (page.quizzes === null ? html`<p class="muted">Loading quizzes…</p>`
+    ${() => (page.quizzes === null ? loading("Loading quizzes")
       : page.quizzes.length === 0 ? html`<div class="empty"><p>No quizzes yet.</p><p class="muted">Make one with “New quiz”, or copy a quiz folder into the data folder's <code>quizzes/</code> folder.</p></div>`
       : html`<div class="lib-tools">
           <input id="lib-search" class="input" type="search" placeholder="Search by title" aria-label="Search quizzes by title" autocomplete="off" spellcheck="false"

@@ -2,6 +2,7 @@
 // Run night (B5): renders HostView for every phase and sends the host commands (TECH-SPEC
 // 7.2, 10.3). Built with Arrow (3.4); the server decides what is allowed through `view.can`.
 import { html } from "/vendor/arrow/index.mjs";
+import { loading } from "../loading.js";
 import { lockup } from "/static/shared/mark.mjs";
 import { askingScreen, roundIntroScreen } from "./asking.js";
 import { deadlockScreen } from "./deadlock.js";
@@ -15,7 +16,7 @@ import { cmdButton, dialogFrame, mountParts, nextButton } from "./ui.js";
 
 /** @typedef {import("../../../src/shared/protocol").HostView} HostView */
 
-const loadingScreen = () => html`<div class="stage"><p class="muted">Connecting to Lock-In…</p></div>`;
+const loadingScreen = () => html`<div class="stage">${loading("Connecting to Lock-In")}</div>`;
 
 /** @type {Record<string, () => any>} */
 const SCREENS = {

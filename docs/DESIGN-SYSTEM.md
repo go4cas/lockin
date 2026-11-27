@@ -85,7 +85,8 @@ fallback (`--font-legible`) in case Funnel Sans fails the back-of-the-room test.
 
 Spacing 4 to 56 px (`--space-1` to `--space-8`). Radii xs 4, s 8, m 10 (buttons, inputs), l 12
 (popovers, menus, toasts), xl 16 (answer rows, dialogs), pill. Phone: gutter 20, tap 52, option
-row 62. Console: tap 44, primary next-step button 64, sidebar 300. Display: safe area 5vw x 5vh,
+row 62. Console: tap 44, primary next-step button 64, sidebar 300, page gutter 32 (20 on a tablet,
+16 on a phone; `--host-gutter`, shared by the nav and every page, left aligned), page top 40. Display: safe area 5vw x 5vh,
 header 7.8vh, bubbles 6.7vh. Motion: fast 150 ms, base 250 ms, slow 600 ms, standings row 450 ms;
 transforms and opacity only.
 
@@ -141,7 +142,9 @@ Before the timer starts it shows the full time, dimmed. The last ten seconds tur
   overline title, one field per row, the unit after a short input and the hint under it. The quiz
   Settings tab uses `.form-card.cols` (880 px): the canvas's field grid, label in a 200 px left
   column, control and hint on the right, a hairline between rows. Branding has a live TV and phone
-  preview. The console's top nav is sticky. Every client's credit ends with the server's version.
+  preview. The console's top nav is sticky. Loading shows the mark's ring with the venue arc turning
+(`.loading`, `.spin`; a pulse with reduced motion) instead of text; selects use the field box with an
+Ash chevron. Every client's credit ends with the server's version.
 
 ## 6. Differences from the design canvas
 

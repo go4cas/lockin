@@ -2,6 +2,7 @@
 // History (S-08): past nights with their final standings, from GET /api/history and
 // GET /api/history/:nightId (TECH-SPEC 9.2). League screens are Launch, not here.
 import { html, reactive } from "/vendor/arrow/index.mjs";
+import { loading } from "../loading.js";
 import { ordinal, plural } from "../run/logic.js";
 
 /** @typedef {import("../../../src/shared/protocol").HistoryListItem} HistoryListItem */
@@ -78,7 +79,7 @@ function winnersText(n) {
 /** @param {string} id */
 function standings(id) {
   return html`<div class="card history-detail">
-    ${() => (state.details[id]?.loading ? html`<p class="muted">Loading the standings…</p>` : "")}
+    ${() => (state.details[id]?.loading ? loading("Loading the standings") : "")}
     ${() => (state.details[id]?.problem ? html`<p class="form-error">${() => state.details[id]?.problem || ""}</p>` : "")}
     ${() => {
       const d = state.details[id]?.detail;
@@ -98,7 +99,7 @@ function standings(id) {
 html`<div class="stage">
   <div class="row between"><h1>History</h1><button type="button" class="btn ghost" @click="${loadList}">Refresh</button></div>
   <p class="muted">Every night is saved when it ends. Open one to see its final standings.</p>
-  ${() => (state.loading ? html`<p class="muted">Loading past nights…</p>` : "")}
+  ${() => (state.loading ? loading("Loading past nights") : "")}
   ${() => (state.problem ? html`<p class="form-error">${() => state.problem}</p>` : "")}
   ${() => (!state.loading && !state.problem && state.nights.length === 0 ? html`<p class="muted">No nights yet. They appear here after the first Quiz End.</p>` : "")}
   ${() => (state.nights.length ? html`<table class="history">

@@ -3,6 +3,7 @@
 // from the standings (H-13). Earlier rounds' marks come from GET /api/history/:nightId,
 // which also answers for the open night (TECH-SPEC 9.2, agreed with Cas 2026-11-24).
 import { html, reactive } from "/vendor/arrow/index.mjs";
+import { loading } from "../loading.js";
 import { moveMark, ordinal, plural } from "./logic.js";
 import { stepsLine } from "./asking.js";
 import { enabled, getJson, openDialog, page, send, ui } from "./state.js";
@@ -195,7 +196,7 @@ export function disputeDialog() {
     return found || list[list.length - 1];
   };
   return dialogFrame(() => `Change a mark: ${ui.d.name || ""}`, html`
-    <p class="muted" hidden="${() => !(hist.loading && !hist.detail)}">Loading the team's answers…</p>
+    <div hidden="${() => !(hist.loading && !hist.detail)}">${loading("Loading the team's answers")}</div>
     <p class="form-error" hidden="${() => !hist.problem}">${() => `The team's answers could not be loaded: ${hist.problem}`}</p>
     <div class="q-tabs" role="tablist" aria-label="Rounds">${pool(rounds, (r) => html`<button type="button" role="tab" hidden="${() => !r()}"
       class="${() => `q-tab${r() && pickRound()?.index === r()?.index ? " on" : ""}`}" @click="${() => { const x = r(); if (x) ui.d.round = x.index; }}">${() => `Round ${(r()?.index ?? 0) + 1}`}</button>`)}</div>
