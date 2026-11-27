@@ -55,7 +55,11 @@ export interface LockInGlobal {
   /** The Lock-In lockup as a DOM node (host console, public/host/nav.js). */
   readonly lockup?: (mono: boolean) => HTMLElement;
   /** The host console's top nav (public/host/nav.js): marks Run night while a night is open. */
-  readonly nav?: { setNight(roomCode: string | null): void };
+  readonly nav?: {
+    setNight(roomCode: string | null): void;
+    /** The design system's confirm dialog (UI-41); never the browser's confirm(). */
+    ask(o: { title: string; text: string; ok: string; cancel: string; danger?: boolean; className?: string }): Promise<boolean>;
+  };
   readonly view: {
     countdown(ms: number, short?: boolean): string;
     joinNames(names: string[]): string;

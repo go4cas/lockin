@@ -196,18 +196,32 @@ export function mountBuilder(root, quizId) {
     select(sd ? "question" : "question", q.id);
   }
 
+  /** The design system's dialog for a delete (UI-41). @param {string} title @param {string} text @param {string} ok */
+  const askDelete = (title, text, ok) => {
+    return /** @type {any} */ (window).LockIn.nav.ask({ title, text, ok, cancel: "Keep it", danger: true });
+  };
+
+  /** Runs `fn` once Arrow has drawn the current change. nextTick() can run before the queued
+   *  updates, so a delete there could reach an outline row that is being taken down in the same
+   *  flush ("expressionPool[effect] is not a function", UI-45). A new task always comes after.
+   *  @param {() => void} fn */
+  const afterDraw = (fn) => { setTimeout(fn, 0); };
+
   /** @param {string} id */
-  function deleteRound(id) {
+  async function deleteRound(id) {
     const quiz = d();
     const i = roundIndex(id);
     if (i < 0) return;
     const r = /** @type {Round} */ (quiz.rounds[i]);
     const filled = r.questions.filter((q) => q.text.trim() !== "").length;
     const name = r.title ? `round ${i + 1}, “${r.title}”` : `round ${i + 1}`;
-    if (!confirm(filled > 0 ? `Delete ${name} and its ${filled} written question${filled === 1 ? "" : "s"}?` : `Delete ${name}?`)) return;
+    const ok = await askDelete(`Delete ${name}?`,
+      filled > 0 ? `Its ${filled} written question${filled === 1 ? "" : "s"} go with it. This can't be undone.` : "It has no written questions.",
+      "Delete round");
+    if (!ok || roundIndex(id) < 0) return;
     // Unmount the editor before the round goes, so no queued update points at it.
     ui.sel = { kind: "none", id: "" };
-    nextTick(() => {
+    afterDraw(() => {
       const at = roundIndex(id);
       if (at >= 0) quiz.rounds.splice(at, 1);
       const next = quiz.rounds[Math.min(Math.max(at, 0), quiz.rounds.length - 1)];
@@ -216,13 +230,14 @@ export function mountBuilder(root, quizId) {
   }
 
   /** @param {string} id */
-  function deleteQuestion(id) {
+  async function deleteQuestion(id) {
     const f = findQuestion(id);
     if (!f) return;
     const q = f.q;
-    if (q.text.trim() !== "" && !confirm(`Delete “${short(q.text, 60)}”?`)) return;
+    if (q.text.trim() !== "" && !(await askDelete("Delete this question?", `“${short(q.text, 60)}” and its answer go. This can't be undone.`, "Delete question"))) return;
+    if (!findQuestion(id)) return;
     ui.sel = { kind: "none", id: "" };
-    nextTick(() => {
+    afterDraw(() => {
       const g = findQuestion(id);
       if (!g) return select("quiz");
       g.list.splice(g.i, 1);
@@ -357,15 +372,37 @@ export function mountBuilder(root, quizId) {
     <div hidden="${() => tab() !== "rounds"}">${roundsOutline()}</div>
     <div hidden="${() => tab() !== "sd"}">${sdOutline()}</div>`;
 
-  const readyPill = () => (ui.ready
-    ? html`<span class="pill ok"><i></i>Ready</span>`
-    : html`<button type="button" class="pill warn as-btn" @click="${() => select("quiz")}"><i></i>${() => readinessLabel(ui.ready, ui.problems)}</button>`);
+  /** Closes the "What needs fixing" popover and goes to the problem. @param {Event} e @param {string} path */
+  const fixIt = (e, path) => {
+    e.preventDefault();
+    const pop = document.querySelector(".fix-pop");
+    if (pop) pop.removeAttribute("open");
+    goTo(path);
+  };
+
+  /** Opens the header's "What needs fixing" popover (from the Settings tab's Ready row). */
+  const openFixes = () => {
+    const pop = document.querySelector(".fix-pop");
+    if (pop) { pop.setAttribute("open", ""); window.scrollTo({ top: 0 }); }
+  };
+
+  /** Not ready: the warning pill opens "What needs fixing" (design system: Popover), each line going
+   *  to the part of the quiz it is about (UI-43). The list lives here, not on the Settings tab. */
+  const readyPill = () => html`<span class="pill ok" hidden="${() => !ui.ready}"><i></i>Ready</span>
+    <details class="problems fix-pop" hidden="${() => ui.ready}">
+      <summary class="pill warn as-btn"><i></i>${() => readinessLabel(ui.ready, ui.problems)} ▾</summary>
+      <div class="menu popover" role="dialog" aria-label="What needs fixing">
+        <p class="pop-title">What needs fixing</p>
+        <ul>${() => groupProblems(ui.problems).slice(0, 40).map((p) => html`<li><a href="#" @click="${(/** @type {Event} */ e) => fixIt(e, p.path)}">${p.message}</a></li>`)}</ul>
+        <p class="muted s" hidden="${() => groupProblems(ui.problems).length <= 40}">${() => `And ${groupProblems(ui.problems).length - 40} more.`}</p>
+      </div>
+    </details>`;
 
   const head = () => html`<div class="page-head b-head">
     <div class="b-head-l">
       <a class="b-back" href="/host/build">← Quizzes</a>
       <h1>${() => d().title || "Untitled quiz"}</h1>
-      <div class="row b-pills">${() => readyPill()} ${() => statusPill()}</div>
+      <div class="row b-pills">${readyPill()} ${() => statusPill()}</div>
     </div>
     <div class="seg" role="tablist" aria-label="Quiz">${TABS.map(([id, label]) => html`
       <button type="button" role="tab" aria-selected="${() => String(tab() === id)}" @click="${() => showTab(id)}">${label}</button>`)}
@@ -400,11 +437,10 @@ export function mountBuilder(root, quizId) {
         <p class="hint">Renaming changes the title the teams see, not the quiz's folder name (${d().id}).</p></div>
       </div>
       <div class="field"><span class="l">Ready to run</span>
-        <div class="ctl readiness">${() => (ui.ready
-          ? html`<p class="hint"><span class="pill ok"><i></i>Ready</span> Every round has questions and every question has an answer.</p>`
-          : html`<p class="hint"><span class="pill warn"><i></i>${() => readinessLabel(ui.ready, ui.problems)}</span> Fix these before this quiz can open a night:</p>
-              <ul class="problem-list">${() => groupProblems(ui.problems).slice(0, 40).map((p) => html`<li><a href="#" @click="${(/** @type {Event} */ e) => { e.preventDefault(); goTo(p.path); }}">${p.message}</a></li>`)}</ul>
-              ${() => (groupProblems(ui.problems).length > 40 ? html`<p class="hint">And ${groupProblems(ui.problems).length - 40} more.</p>` : "")}`)}
+        <div class="ctl readiness">
+          <p class="hint" hidden="${() => !ui.ready}"><span class="pill ok"><i></i>Ready</span> Every round has questions and every question has an answer.</p>
+          <p class="hint" hidden="${() => ui.ready}"><span class="pill warn"><i></i>${() => readinessLabel(ui.ready, ui.problems)}</span> This quiz can't open a night yet.
+            <button type="button" class="link" @click="${openFixes}">See what needs fixing</button></p>
         </div></div>
     </section>
     <section class="card form-card cols">

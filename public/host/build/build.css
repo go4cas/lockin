@@ -41,6 +41,19 @@
 .problems .pop-title { font-weight: 600; font-size: 15px; }
 .problems ul { margin: 0; padding-left: 18px; font-size: var(--host-text-small); color: var(--fog); display: flex; flex-direction: column; gap: 4px; }
 .problems .go { font-size: var(--host-text-small); margin-top: 4px; }
+/* The builder's "What needs fixing" (UI-43): under the header's warning pill, scrolls when long. */
+.fix-pop summary.pill { min-height: 28px; color: var(--bone); }
+.fix-pop .popover { top: calc(100% + 8px); width: 420px; max-height: min(60vh, 520px); overflow-y: auto; z-index: 25; }
+.fix-pop ul { padding-left: 18px; }
+.fix-pop li a { color: var(--fog); }
+.fix-pop li a:hover { color: var(--bone); }
+
+/* Quiz Settings (UI-42): on a laptop the four cards sit two by two, so the tab fits without
+   much scrolling; rows are tighter than Venue settings' long forms. */
+.b-pane.b-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; align-items: start; }
+.b-settings .form-card { margin: 0; max-width: none; }
+.b-fields:has(.b-settings) { max-width: none; }
+.b-settings .form-card.cols .field { grid-template-columns: 150px minmax(0, 1fr); column-gap: 20px; padding: 12px 0; }
 
 /* ---- Builder: a page head like Venue settings (title, tabs), then outline + editor ---- */
 body.builder-open .host-main { padding: 0; max-width: none; }
@@ -83,7 +96,6 @@ body.builder-open .host-main { padding: 0; max-width: none; }
 .no-side .b-editor { padding-left: var(--host-gutter); }
 .b-fields { border: 0; margin: 0; padding: 0; min-width: 0; max-width: 980px; }
 .b-pane { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
-.b-settings { gap: 0; }
 /* The quiz title is the page's h1; an editor's own title (Round 1 · Question 2) is one step down. */
 .b-editor h1 { font-size: 28px; font-weight: 400; letter-spacing: -0.03em; }
 .readiness .hint { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -91,8 +103,6 @@ body.builder-open .host-main { padding: 0; max-width: none; }
 .banner.warn { background: var(--status-warning-tint); }
 .banner.bad { background: var(--status-error-tint); }
 
-.problem-list { margin: 8px 0 0; padding-left: 20px; columns: 2 320px; font-size: var(--host-text-small); }
-.problem-list a { color: var(--bone); }
 
 .q-list { margin: 0; padding-left: 24px; display: flex; flex-direction: column; gap: 2px; }
 .q-list li { border-top: 1px solid var(--line); }
