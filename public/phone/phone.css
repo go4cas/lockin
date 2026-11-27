@@ -188,6 +188,9 @@ input[type="date"].input, input[type="time"].input { -webkit-appearance: none; a
 
 .prize { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 16px; }
 .prize b { color: var(--venue); width: 40px; flex: none; font-family: var(--font-display); font-weight: 400; }
+/* A prize's picture (UI-47). */
+.prize { align-items: center; }
+.prize .prize-pic { width: 48px; height: 48px; flex: none; object-fit: cover; border-radius: var(--radius-s); background: var(--smoke); }
 .credit { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ash); padding: 8px 0 12px; }
 .credit a { color: inherit; text-decoration: none; display: inline-flex; }
 .credit .lockup { font-size: 14px; text-transform: none; letter-spacing: -0.04em; }

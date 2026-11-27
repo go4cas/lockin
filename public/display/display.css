@@ -185,6 +185,11 @@ img.idle-mark.small { height: 14vh; }
 .prize { display: flex; align-items: baseline; font-size: var(--display-text-s); padding: 1.6vh 0; border-top: 1px solid var(--line); }
 .prize b { flex: none; width: 3em; font-family: var(--font-display); font-weight: 400; color: var(--venue); }
 .prizes.big .prize { font-size: var(--display-text-m); }
+/* Prize pictures (UI-47): a square picture between the place and the prize; bigger on the Playing for panel. */
+.prize.has-pic { align-items: center; }
+.prize .prize-pic { flex: none; width: 7vh; height: 7vh; object-fit: cover; border-radius: var(--radius-s); margin-right: 2vh; background: var(--smoke); }
+.prizes.big .prize .prize-pic { width: 12vh; height: 12vh; margin-right: 3vh; }
+.playing-for .prize .prize-pic { width: 5vh; height: 5vh; margin-right: 1.5vh; }
 
 /* ---- Round intro ------------------------------------------------------------ */
 .round-main { justify-content: center; }
@@ -322,8 +327,10 @@ img.idle-mark.small { height: 14vh; }
 .winners.shared .winner-bubble { width: 9vh; height: 9vh; font-size: 3.2vh; }
 .winner-points { display: flex; align-items: baseline; }
 .winner-points .big-num { margin-right: 2vh; }
-.first-prize { display: flex; align-items: baseline; padding-top: 2vh; border-top: 1px solid var(--line); }
+.first-prize { display: flex; align-items: center; padding-top: 2vh; border-top: 1px solid var(--line); }
 .first-prize .overline { margin-right: 3vh; }
+
+.first-prize .prize-pic { flex: none; width: 10vh; height: 10vh; object-fit: cover; border-radius: var(--radius-s); margin-right: 2.5vh; background: var(--smoke); }
 
 /* ---- Reconnecting: just under the header (UI-06) --------------------------------------- */
 .reconnect { position: absolute; right: var(--display-safe-x); top: calc(var(--display-safe-y) + var(--display-header-h) + 1.5vh); z-index: 5; display: flex; align-items: center; background: var(--status-warning-tint); border-radius: var(--radius-pill); padding: 1vh 2.4vh; font-size: var(--display-text-xs); color: var(--bone); }

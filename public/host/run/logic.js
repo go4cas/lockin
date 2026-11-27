@@ -365,12 +365,24 @@ export function plannedFromInput(value, now) {
 }
 
 /**
- * Prize rows from the edit form: blank text drops the row, places run 1, 2, 3 …
- * @param {{ text: string }[]} rows
- * @returns {{ place: number, text: string }[]}
+ * Prize rows from the edit form: blank text drops the row (and its picture), places run 1, 2, 3 …
+ * @param {{ text: string, image?: string | null }[]} rows
+ * @returns {{ place: number, text: string, image?: string }[]}
  */
 export function cleanPrizes(rows) {
-  return rows.map((r) => r.text.trim()).filter((t) => t.length > 0).map((text, i) => ({ place: i + 1, text: text.slice(0, 80) }));
+  return rows
+    .map((r) => ({ text: r.text.trim().slice(0, 80), image: r.image || null }))
+    .filter((r) => r.text.length > 0)
+    .map((r, i) => (r.image ? { place: i + 1, text: r.text, image: r.image } : { place: i + 1, text: r.text }));
+}
+
+/**
+ * Edit rows from prizes (the venue's defaults or the night's).
+ * @param {{ text: string, image?: string }[]} prizes
+ * @returns {{ text: string, image: string | null }[]}
+ */
+export function prizeRowsFrom(prizes) {
+  return prizes.map((p) => ({ text: p.text, image: p.image ?? null }));
 }
 
 /**

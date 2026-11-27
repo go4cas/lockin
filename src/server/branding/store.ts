@@ -104,6 +104,11 @@ export class BrandingStore {
       if (places.has(p.place)) problems.push({ path: `prizes.${i}.place`, message: `There are two prizes for place ${p.place}.` });
       places.add(p.place);
     });
+    v.value.prizes.forEach((p, i) => {
+      if (p.image && !this.assetPath(p.image.slice("assets/".length))) {
+        problems.push({ path: `prizes.${i}.image`, message: `The picture for place ${p.place} has not been uploaded, or it was removed. Upload it again.` });
+      }
+    });
     const poster = v.value.holding.poster;
     if (poster && !this.assetPath(poster.slice("assets/".length))) {
       problems.push({ path: "holding.poster", message: "That poster has not been uploaded, or it was removed. Upload it again." });

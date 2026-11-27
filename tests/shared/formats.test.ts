@@ -257,6 +257,14 @@ describe("validateVenue", () => {
     ]);
   });
 
+  test("a prize can name an uploaded prize picture (UI-47)", () => {
+    const ok = validateVenue({ format: "lockin.venue/1", prizes: [{ place: 1, text: "A cake", image: "assets/prize-0123456789.webp" }, { place: 2, text: "Chips", image: null }] });
+    expect(ok.ok && ok.value.prizes).toEqual([{ place: 1, text: "A cake", image: "assets/prize-0123456789.webp" }, { place: 2, text: "Chips" }]);
+    for (const image of ["assets/poster-0123456789.jpg", "assets/prize-0123456789.gif", "../prize-0123456789.png", 3]) {
+      expect(messages(validateVenue({ format: "lockin.venue/1", prizes: [{ place: 1, text: "A cake", image }] }))).toEqual(["The picture for place 1 is not an uploaded prize picture."]);
+    }
+  });
+
   test("afterWinner: timer 15 s by default; host mode and 5..120 seconds", () => {
     expect(defaultVenue().afterWinner).toEqual({ mode: "timer", seconds: 15 });
     const ok = validateVenue({ format: "lockin.venue/1", afterWinner: { mode: "host", seconds: 30 } });

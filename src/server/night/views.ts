@@ -41,7 +41,7 @@ function nightInfo(e: Engine): NightInfo | null {
     holdingPanels: venue.holding.panels,
     holdingSeconds: venue.holding.panelSeconds,
     poster: venue.holding.poster ? assetUrl(venue.holding.poster) : null,
-    prizes: n.prizes,
+    prizes: n.prizes.map((p) => ({ ...p, imageUrl: p.image ? assetUrl(p.image) : null })),
     roundCount: n.quiz.rounds.length,
     round: s.phase === "lobby" || s.phase === "ended" ? null : roundInfo(e, Math.min(s.round, n.quiz.rounds.length - 1)),
     joker: n.quiz.settings.joker,

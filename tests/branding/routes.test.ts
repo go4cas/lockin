@@ -244,6 +244,19 @@ describe("venue settings (5.4)", () => {
     expect((await ok.json()).holding).toMatchObject({ poster: file, panelSeconds: 20 });
   });
 
+  test("a prize picture must be uploaded before a prize can use it (UI-47)", async () => {
+    const missing = await s.fetch("/api/venue", { method: "PUT", cookie, body: JSON.stringify({ format: "lockin.venue/1", prizes: [{ place: 1, text: "A cake", image: "assets/prize-0000000000.jpg" }] }) });
+    expect(missing.status).toBe(400);
+    expect((await missing.json()).error.problems[0].path).toBe("prizes.0.image");
+    const up = await upload("prize", JPEG, "cake.jpg");
+    expect(up.status).toBe(200);
+    const file = (await up.json()).file as string;
+    expect(file).toMatch(/^assets\/prize-[0-9a-f]{10}\.jpg$/);
+    const ok = await s.fetch("/api/venue", { method: "PUT", cookie, body: JSON.stringify({ format: "lockin.venue/1", prizes: [{ place: 1, text: "A cake", image: file }] }) });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).prizes).toEqual([{ place: 1, text: "A cake", image: file }]);
+  });
+
   test("bad values and two prizes for one place are refused", async () => {
     const bad = await s.fetch("/api/venue", { method: "PUT", cookie, body: JSON.stringify({ format: "lockin.venue/1", holding: { minutesBefore: 121 } }) });
     expect(bad.status).toBe(400);

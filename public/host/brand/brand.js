@@ -108,7 +108,7 @@ const venue = reactive({
   poster: null,
   /** every panel, in order, with on/off */
   panels: PANELS.map((p) => ({ id: p.id, on: true })),
-  /** @type {{ key: number, place: string, text: string }[]} */
+  /** @type {{ key: number, place: string, text: string, image: string | null }[]} */
   prizes: [],
   /** @type {"timer" | "host"} after the winner screen (T-12) */
   afterMode: "timer",
@@ -165,7 +165,7 @@ function draftFromVenue(v) {
     ...on.map((id) => ({ id, on: true })),
     ...PANELS.filter((p) => !on.includes(p.id)).map((p) => ({ id: p.id, on: false })),
   ];
-  venue.prizes = v.prizes.map((p) => ({ key: prizeKey++, place: String(p.place), text: p.text }));
+  venue.prizes = v.prizes.map((p) => ({ key: prizeKey++, place: String(p.place), text: p.text, image: p.image ?? null }));
   venue.afterMode = v.afterWinner.mode;
   venue.afterSeconds = String(v.afterWinner.seconds);
   const qd = v.quizDefaults;
@@ -191,7 +191,7 @@ function venueFromDraft() {
   const every = Number(venue.panelSeconds);
   return {
     format: "lockin.venue/1",
-    prizes: venue.prizes.map((p) => ({ place: Number(p.place), text: p.text.trim() })),
+    prizes: venue.prizes.map((p) => (p.image ? { place: Number(p.place), text: p.text.trim(), image: p.image } : { place: Number(p.place), text: p.text.trim() })),
     holding: {
       minutesBefore: venue.minutesBefore.trim() === "" || !Number.isFinite(minutes) ? venue.minutesBefore : minutes,
       panels: venue.panels.filter((p) => p.on).map((p) => p.id),
@@ -308,15 +308,16 @@ async function saveVenue() {
 /**
  * Uploads a picked file and returns its "assets/<name>", or null.
  * @param {Event} e
- * @param {"logo" | "displayBackground" | "poster"} kind
+ * @param {"logo" | "displayBackground" | "poster" | "prize"} kind
+ * @param {string} [busy] what ui.uploading says while it runs (a prize row's own key)
  * @returns {Promise<string | null>}
  */
-async function upload(e, kind) {
+async function upload(e, kind, busy = kind) {
   const input = /** @type {HTMLInputElement} */ (e.target);
   const file = input.files && input.files[0];
   input.value = "";
   if (!file) return null;
-  ui.uploading = kind;
+  ui.uploading = busy;
   ui.message = null;
   try {
     const form = new FormData();
@@ -680,7 +681,7 @@ function quizDefaultsTab() {
 function addPrize() {
   let next = 1;
   for (const p of venue.prizes) next = Math.max(next, (Number(p.place) || 0) + 1);
-  venue.prizes = [...venue.prizes.map((p) => ({ ...p })), { key: prizeKey++, place: String(next), text: "" }];
+  venue.prizes = [...venue.prizes.map((p) => ({ ...p })), { key: prizeKey++, place: String(next), text: "", image: null }];
 }
 
 /** @param {number} key @param {"place" | "text"} field @param {string} value */
@@ -692,15 +693,22 @@ function setPrize(key, field, value) {
 function prizesTab() {
   return html`
   <form @submit="${(/** @type {Event} */ e) => { e.preventDefault(); saveVenue(); }}">
-    <div class="card">
+    <div class="card prize-card">
       <h2>Default prizes for new nights</h2>
-      <p class="hint" style="margin-bottom:12px">These fill in "Prizes tonight" when you open a night, where you can change them for that night only. They show on the display and phones in the lobby, at halftime and at the end.</p>
+      <p class="hint" style="margin-bottom:12px">These fill in "Prizes tonight" when you open a night, where you can change them for that night only. They show on the display and phones in the lobby, at halftime and at the end. A prize can have a picture (JPEG, PNG or WebP, up to 5 MB).</p>
       ${() => (venue.prizes.length === 0 ? html`<p class="hint">No prizes yet.</p>` : "")}
       ${() => venue.prizes.map((p) => html`
         <div class="prize-row">
           <input class="input" type="number" min="1" step="1" aria-label="Place" value="${p.place}" @input="${(/** @type {Event} */ e) => setPrize(p.key, "place", /** @type {HTMLInputElement} */ (e.target).value)}">
           <input class="input" maxlength="80" spellcheck="true" placeholder="For example: R300 bar tab" aria-label="${"Prize for place " + p.place}" value="${p.text}" @input="${(/** @type {Event} */ e) => setPrize(p.key, "text", /** @type {HTMLInputElement} */ (e.target).value)}">
-          <button type="button" class="btn ghost small" @click="${() => { venue.prizes = venue.prizes.filter((x) => x.key !== p.key).map((x) => ({ ...x })); }}">Remove</button>
+          <span class="prize-pic">
+            <img class="prize-thumb" alt="" hidden="${() => !p.image}" src="${() => (p.image ? assetUrl(p.image) : "")}">
+            <label class="btn ghost small file-btn">${() => (ui.uploading === `prize-${p.key}` ? html`${spinner()}Uploading` : p.image ? "Change picture" : "Add a picture")}
+              <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="${"Picture for place " + p.place}" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "prize", `prize-${p.key}`); if (f) p.image = f; }}">
+            </label>
+            <button type="button" class="link" hidden="${() => !p.image}" @click="${() => { p.image = null; }}">Remove picture</button>
+          </span>
+          <button type="button" class="btn ghost small" @click="${() => { venue.prizes = venue.prizes.filter((x) => x.key !== p.key).map((x) => ({ ...x })); }}">Remove prize</button>
         </div>`.key(p.key))}
       <button type="button" class="btn ghost small" @click="${addPrize}">Add a prize</button>
     </div>

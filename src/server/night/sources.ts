@@ -24,6 +24,8 @@ export interface Sources {
   venueInfo(): VenueInfo;
   /** Absolute path of a question image in a quiz's media folder, or null. */
   mediaPath(quizId: string, file: string): string | null;
+  /** Is this "assets/<file>" upload in theme/assets? (prize pictures, UI-47) */
+  themeAssetExists(ref: string): boolean;
 }
 
 const QUIZ_ID = /^[a-z0-9-]{1,60}$/;
@@ -58,6 +60,10 @@ export function fileSources(dataDir: string, venueInfo: () => VenueInfo): Source
       return v.ok ? { ok: true, quiz: v.quiz } : { ok: false, code: "quiz_not_ready", problems: v.problems };
     },
     venueInfo,
+    themeAssetExists(ref) {
+      const file = ref.startsWith("assets/") ? ref.slice("assets/".length) : "";
+      return SAFE_FILE.test(file) && existsSync(join(dataDir, "theme", "assets", file));
+    },
     mediaPath(quizId, file) {
       if (!QUIZ_ID.test(quizId) || !SAFE_FILE.test(file)) return null;
       const p = join(quizDir(quizId), "media", file);

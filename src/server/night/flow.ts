@@ -2,7 +2,7 @@
 // questions, reveal, leaderboard, halftime and Quiz End. Split from the engine (code review
 // LI-016); each function is one host command run inside the engine's unit of work.
 
-import type { Prize } from "../../shared/formats.ts";
+import { PRIZE_IMAGE, type Prize } from "../../shared/formats.ts";
 import { randomCode } from "../auth.ts";
 import type { CommandResult } from "../ws.ts";
 import { halftimeRound, joinNames, timerSecondsOf } from "./quiz.ts";
@@ -13,16 +13,21 @@ import { fail, isInt, isObj, len, OK, type NightReader, type Vars, type Work } f
 
 export const LOBBY_LINE_MS = 45_000;
 
-function parsePrizes(v: unknown): Prize[] | null {
+/** The night's prizes from night.open or night.update. A picture must be an upload that is there (UI-47). */
+function parsePrizes(v: unknown, assetExists: (ref: string) => boolean): Prize[] | null {
   if (!Array.isArray(v) || v.length > 30) return null;
   const out: Prize[] = [];
   for (const p of v) {
     if (!isObj(p) || !isInt(p.place) || p.place < 1 || p.place > 100) return null;
     if (typeof p.text !== "string" || p.text.trim() === "" || len(p.text) > 80) return null;
-    out.push({ place: p.place, text: p.text.trim() });
+    if (p.image === undefined || p.image === null) { out.push({ place: p.place, text: p.text.trim() }); continue; }
+    if (typeof p.image !== "string" || !PRIZE_IMAGE.test(p.image) || !assetExists(p.image)) return null;
+    out.push({ place: p.place, text: p.text.trim(), image: p.image });
   }
   return out;
 }
+
+const PRIZES_BAD = "Each prize needs a place and 1 to 80 characters of text, and a picture must be uploaded first.";
 
 function parsePlannedStart(v: unknown): number | null | undefined {
   if (v === null) return null;
@@ -43,8 +48,8 @@ export function nightOpen(w: Work, a: Record<string, unknown>): CommandResult {
   }
   let prizes = w.venue().venue.prizes;
   if (a.prizes !== undefined) {
-    const p = parsePrizes(a.prizes);
-    if (!p) return fail("bad_args", "Each prize needs a place and 1 to 80 characters of text.");
+    const p = parsePrizes(a.prizes, (ref) => w.sources.themeAssetExists(ref));
+    if (!p) return fail("bad_args", PRIZES_BAD);
     prizes = p;
   }
   const load = w.sources.loadQuiz(a.quizId);
@@ -83,8 +88,8 @@ export function nightUpdate(w: Work, a: Record<string, unknown>): CommandResult 
     n.plannedStart = ps;
   }
   if (a.prizes !== undefined) {
-    const p = parsePrizes(a.prizes);
-    if (!p) return fail("bad_args", "Each prize needs a place and 1 to 80 characters of text.");
+    const p = parsePrizes(a.prizes, (ref) => w.sources.themeAssetExists(ref));
+    if (!p) return fail("bad_args", PRIZES_BAD);
     n.prizes = p;
   }
   w.dirty.night = true;

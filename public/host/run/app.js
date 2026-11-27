@@ -6,7 +6,7 @@ import { loading } from "../loading.js";
 import { lockup } from "/static/shared/mark.mjs";
 import { askingScreen, roundIntroScreen } from "./asking.js";
 import { deadlockScreen } from "./deadlock.js";
-import { displayNow, endAction, phaseSteps, primaryAction, topTitle } from "./logic.js";
+import { displayNow, endAction, phaseSteps, primaryAction, prizeRowsFrom, topTitle } from "./logic.js";
 import { idleEnter, idleScreen, lobbyEnter, lobbyScreen, openDisplay, prizesDialog } from "./lobby.js";
 import { markingScreen, pendingNote } from "./marking.js";
 import { disputeDialog, endedScreen, halftimeScreen, leaderboardScreen, loadDetail, revealScreen } from "./results.js";
@@ -95,7 +95,7 @@ function menuDialog() {
     <div class="menu night-menu" role="menu" aria-label="Night menu">
       <button type="button" role="menuitem" hidden="${() => !page.view?.night}" @click="${() => { closeDialog(); openDisplay(); }}">Open display in a new window</button>
       <button type="button" role="menuitem" hidden="${() => !page.view?.night}" @click="${() => openDialog("teams")}">Teams: rename, move to a new phone, remove</button>
-      <button type="button" role="menuitem" hidden="${() => !(page.view?.night && enabled("night.update"))}" @click="${() => openDialog("prizes", { prizes: (page.view?.night?.prizes || []).map((p) => ({ text: p.text })) })}">Prizes tonight</button>
+      <button type="button" role="menuitem" hidden="${() => !(page.view?.night && enabled("night.update"))}" @click="${() => openDialog("prizes", { prizes: prizeRowsFrom(page.view?.night?.prizes || []) })}">Prizes tonight</button>
       <button type="button" role="menuitemcheckbox" aria-checked="${() => (ui.hideAnswers ? "true" : "false")}" @click="${toggleHideAnswers}">Hide answers on this screen<span class="${() => (ui.hideAnswers ? "mini-switch on" : "mini-switch")}" aria-hidden="true"></span></button>
       <hr>
       <button type="button" role="menuitem" class="${() => (endAction(page.view)?.tone === "danger" ? "danger-text" : "")}" hidden="${() => !endAction(page.view)}"

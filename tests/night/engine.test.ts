@@ -1,6 +1,6 @@
 // Night engine on fake time (TECH-SPEC 7, 8, 11, 13.1).
 import { afterEach, describe, expect, test } from "bun:test";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DisplayView, HostView, TeamView, View } from "../../src/shared/protocol.ts";
 import { hostView, teamView, displayView } from "../../src/server/night/views.ts";
@@ -65,8 +65,23 @@ describe("night.open (7.2)", () => {
     host(r, "night.open", { quizId: "friday" });
     expect(r.engine.m!.night.prizes).toEqual([{ place: 1, text: "A round of drinks" }]);
     host(r, "night.update", { prizes: [{ place: 1, text: "Chips" }], plannedStart: null });
-    expect(displayView(r.engine).night!.prizes).toEqual([{ place: 1, text: "Chips" }]);
+    expect(displayView(r.engine).night!.prizes).toEqual([{ place: 1, text: "Chips", imageUrl: null }]);
     expect(code(r.engine.command(r.host, "night.update", { prizes: [{ place: 0, text: "x" }] }))).toBe("bad_args");
+  });
+
+  test("a prize can have an uploaded picture; the screens get its URL (UI-47)", () => {
+    const { r } = setup();
+    mkdirSync(join(r.dataDir, "theme", "assets"), { recursive: true });
+    writeFileSync(join(r.dataDir, "theme", "assets", "prize-0123456789.png"), "x");
+    host(r, "night.open", { quizId: "friday" });
+    host(r, "night.update", { prizes: [{ place: 1, text: "A cake", image: "assets/prize-0123456789.png" }] });
+    expect(r.engine.m!.night.prizes).toEqual([{ place: 1, text: "A cake", image: "assets/prize-0123456789.png" }]);
+    expect(displayView(r.engine).night!.prizes).toEqual([{ place: 1, text: "A cake", image: "assets/prize-0123456789.png", imageUrl: "/theme/assets/prize-0123456789.png" }]);
+    // Not uploaded, or not a prize picture: refused, and the prizes stay as they were.
+    for (const image of ["assets/prize-ffffffffff.png", "assets/logo-0123456789.png", "../venue.json", 7]) {
+      expect(code(r.engine.command(r.host, "night.update", { prizes: [{ place: 1, text: "A cake", image }] }))).toBe("bad_args");
+    }
+    expect(r.engine.m!.night.prizes[0]!.image).toBe("assets/prize-0123456789.png");
   });
 });
 

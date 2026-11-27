@@ -228,3 +228,6 @@ td.move.up { color: var(--venue); }
   .move { flex-wrap: wrap; }
   .card { padding: 16px; }
 }
+/* Prize pictures (UI-47): a small thumbnail and a picture button on each prize row. */
+.prize-rows .prize-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: var(--radius-xs); background: var(--smoke); flex: none; }
+.prize-rows .file-btn { flex: none; }

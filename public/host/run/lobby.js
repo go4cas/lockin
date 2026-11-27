@@ -1,8 +1,8 @@
 // @ts-check
 // Idle (open a night) and lobby screens (H-05, H-06, H-15, H-17 on the console).
 import { html, reactive } from "/vendor/arrow/index.mjs";
-import { loading } from "../loading.js";
-import { cleanPrizes, hhmm, ordinal, plannedFromInput, plural } from "./logic.js";
+import { loading, spinner } from "../loading.js";
+import { cleanPrizes, hhmm, ordinal, plannedFromInput, plural, prizeRowsFrom } from "./logic.js";
 import { closeDialog, enabled, getJson, openDialog, page, send, serverNow, ui } from "./state.js";
 import { lobbyTeams } from "./teams.js";
 import { dialogFrame, pool } from "./ui.js";
@@ -18,7 +18,7 @@ const open = reactive({
   /** @type {QuizRow[]} */ quizzes: [],
   quizId: "",
   planned: "",
-  /** @type {{ text: string }[]} */ prizes: [],
+  /** @type {{ text: string, image: string | null }[]} */ prizes: [],
 });
 
 let loadedOnce = false;
@@ -38,7 +38,7 @@ async function loadLibrary() {
     const firstReady = open.quizzes.find((q) => q.ready);
     if (!open.quizId) open.quizId = wanted ? wanted.id : firstReady ? firstReady.id : "";
     if (!loadedOnce && venue && Array.isArray(venue.prizes)) {
-      open.prizes = venue.prizes.map((/** @type {{ text: string }} */ p) => ({ text: p.text }));
+      open.prizes = prizeRowsFrom(venue.prizes);
     }
     loadedOnce = true;
   } catch (e) {
@@ -98,18 +98,55 @@ export function idleScreen() {
   </div>`;
 }
 
+/** Which prize row is uploading its picture, and the last upload problem (UI-47). */
+const pics = reactive({ busy: -1, problem: "" });
+
 /**
- * Editable prize rows: one text per place.
- * @param {{ prizes: { text: string }[] }} store
+ * Uploads a prize picture; returns its "assets/<file>" or null (the problem shows under the rows).
+ * @param {Event} e @param {number} row
+ * @returns {Promise<string | null>}
+ */
+async function uploadPrizePicture(e, row) {
+  const input = /** @type {HTMLInputElement} */ (e.target);
+  const file = input.files && input.files[0];
+  input.value = "";
+  if (!file) return null;
+  pics.busy = row;
+  pics.problem = "";
+  try {
+    const form = new FormData();
+    form.append("kind", "prize");
+    form.append("file", file);
+    const res = await fetch("/api/theme/assets", { method: "POST", credentials: "same-origin", body: form });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((body && body.error && body.error.message) || "That picture could not be uploaded. Try again.");
+    return body.file;
+  } catch (err) {
+    pics.problem = err instanceof Error ? err.message : String(err);
+    return null;
+  } finally {
+    pics.busy = -1;
+  }
+}
+
+/**
+ * Editable prize rows: one text per place, each with an optional picture (UI-47).
+ * @param {{ prizes: { text: string, image: string | null }[] }} store
  */
 function prizeRows(store) {
   return html`<ol class="prize-rows">${pool(() => store.prizes, (p, i) => html`<li hidden="${() => !p()}">
       <span class="place">${ordinal(i + 1)}</span>
       <input class="input" maxlength="80" aria-label="${`Prize for ${ordinal(i + 1)} place`}" value="${() => p()?.text ?? ""}"
         @input="${(/** @type {Event} */ e) => { const row = store.prizes[i]; if (row) row.text = /** @type {HTMLInputElement} */ (e.target).value; }}">
+      <img class="prize-thumb" alt="" hidden="${() => !p()?.image}" src="${() => (p()?.image ? `/theme/${p()?.image}` : "")}">
+      <label class="btn ghost file-btn" title="${() => (p()?.image ? "Change the picture" : "Add a picture")}">${() => (pics.busy === i ? spinner() : p()?.image ? "Change" : "Picture")}
+        <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="${`Picture for the ${ordinal(i + 1)} place prize`}"
+          @change="${async (/** @type {Event} */ e) => { const f = await uploadPrizePicture(e, i); const row = store.prizes[i]; if (f && row) row.image = f; }}">
+      </label>
       <button type="button" class="btn ghost" aria-label="${`Remove the ${ordinal(i + 1)} place prize`}" @click="${() => { store.prizes.splice(i, 1); }}">×</button>
     </li>`)}</ol>
-    <button type="button" class="btn ghost" @click="${() => { store.prizes.push({ text: "" }); }}">+ Add a prize</button>`;
+    <p class="form-error" role="alert" hidden="${() => !pics.problem}">${() => pics.problem}</p>
+    <button type="button" class="btn ghost" @click="${() => { store.prizes.push({ text: "", image: null }); }}">+ Add a prize</button>`;
 }
 
 // ---- Lobby -----------------------------------------------------------------
@@ -227,11 +264,11 @@ function prizeLine() {
 
 function openPrizes() {
   const n = page.view && page.view.night;
-  openDialog("prizes", { prizes: n ? n.prizes.map((p) => ({ text: p.text })) : [] });
+  openDialog("prizes", { prizes: n ? prizeRowsFrom(n.prizes) : [] });
 }
 
 export function prizesDialog() {
-  const store = { get prizes() { return /** @type {{ text: string }[]} */ (ui.d.prizes || []); } };
+  const store = { get prizes() { return /** @type {{ text: string, image: string | null }[]} */ (ui.d.prizes || []); } };
   const save = async () => {
     if ((await send("night.update", { prizes: cleanPrizes(store.prizes) })).ok) closeDialog();
   };
