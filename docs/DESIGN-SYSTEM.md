@@ -173,3 +173,7 @@ bun tests/e2e/design-shots.ts dist/design-shots/branded branded   # a made-up ve
 
 It needs Playwright from `tools/browser` (see its README). It is a tool, not a check, and is not
 part of CI.
+
+`tests/e2e/ui-audit.ts` measures 22 screens' buttons, fields, headings, cards, text sizes and colours
+and writes `audit.json` with screenshots, to compare against these tokens (the batch 7 review,
+UI-48 to UI-56). Also a tool, not a check: `bun tests/e2e/ui-audit.ts dist/ui-audit`.

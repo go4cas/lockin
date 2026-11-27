@@ -96,7 +96,7 @@ function standings(id) {
   </div>`;
 }
 
-html`<div class="stage">
+html`<div class="stage wide">
   <div class="row between"><h1>History</h1><button type="button" class="btn ghost" @click="${loadList}">Refresh</button></div>
   <p class="muted">Every night is saved when it ends. Open one to see its final standings.</p>
   ${() => (state.loading ? loading("Loading past nights") : "")}

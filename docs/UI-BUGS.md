@@ -104,3 +104,25 @@ Questions answered, not changed:
 Questions answered, not changed:
 
 - **Is Halfway always after round 3?** No. "Halfway" is after round ceil(rounds ÷ 2): round 3 of 6, round 4 of 8, round 1 of a one-round test quiz. Each quiz can pick a round instead (Settings → Halftime), and Quiz defaults now can too (UI-46).
+
+### Full UI consistency review (batch 7, 2026-11-27)
+
+Method: `tests/e2e/ui-audit.ts` opens 22 screens on a real server (home, Quizzes, the builder's three views, every Venue settings tab, History, sign in, Run night idle, lobby, round intro and asking, the phone's join, lobby and question, the display's pairing, lobby and question) and measures every button, field, heading, card, text size and text colour, which were then compared with the design system's tokens (`tokens.json` in the Design System artifact, `assets/tokens.css`). Buttons, fields, cards, radii, spacing and page edges were already consistent; these were not:
+
+| # | Where | Finding | Status |
+|---|---|---|---|
+| UI-48 | Run night | Section titles on one page came in two styles: "Quiz", "Planned start" were the 12 px overline, "Prizes tonight", "Pair a display", "Teams join at", "Room code" were 15 px (an `h3` rule won over `.label`). | Fixed: every section title is the overline (12 px, Ash, 0.14em). |
+| UI-49 | History | The Refresh button stopped 160 px short of the page's right edge (History used Run night's 1,040 px column). | Fixed: History's head runs to the page column's edge like every other page. |
+| UI-50 | Sign in, first-run setup | The button was 52 px and 16 px text (the phone's size); console primary buttons are 44 px and 15 px. | Fixed. |
+| UI-51 | Quizzes, Open a night | Quiz names were 16 px; the design system's list title (host-title) is 18 px. | Fixed. |
+| UI-52 | Every console dialog | Dialog titles were 18 px Funnel Sans; the design system's dialog title (title-m) is 26 px Funnel Display 500. | Fixed (the delete and leave dialogs and every Run night dialog). |
+| UI-53 | Run night, marking | Answer groups were 20 px Funnel Sans; the design system's marking answer group is title-m. | Fixed. |
+| UI-54 | Console header | Nav links, Sign out and Night menu were 14 px, between the scale's 13 and 15. | Fixed: 15 px (host-body). |
+| UI-55 | Display, Branding preview | A grey that is not in the palette (#8a8a85) on the display's credit, the standings header and the preview's credit. | Fixed: Ash. |
+| UI-56 | Phone | Text between the phone scale's sizes: the team status 14 px, the voice line 17 px, lists, prizes and install steps 16 px, the overline 12 px. | Fixed: 15 (small), 18 (body), 18, 13 (label). |
+
+Kept as they are, on purpose:
+
+- Page titles are 44 px (title-l), not the design system's 64 px title-xl for Library and Marking: one title size for every console page was agreed in UI-36.
+- The builder outline's row numbers are 20 px and 16 px, not number-m's 24 px, so the slim outline stays slim.
+- The phone's screen titles are 34 px, not the scale's 44 px (the canvas's phone screens use 34). Worth a look on the device check if they should grow.

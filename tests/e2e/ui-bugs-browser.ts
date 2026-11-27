@@ -35,6 +35,7 @@
 // UI-45: deleting a question keeps the builder working (no Arrow error).
 // UI-46: Quiz defaults' Halftime names Halfway's round and can be set to a round.
 // UI-47: a prize can have a picture: uploaded in Default prizes or Prizes tonight, shown on the display and phones.
+// UI-48..UI-56: the consistency review: section titles, History's head, dialog titles, nav size.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -554,6 +555,29 @@ async function main() {
     const tvPic = await tv.waitForFunction(() => { const i = document.querySelector<HTMLImageElement>(".prizes.big img.prize-pic"); return !!i && i.complete && i.naturalWidth > 0; }, null, { timeout: 15000 }).then(() => true, () => false);
     await tv.screenshot({ path: join(OUT, "ui-47-display-prizes.png") });
     check(tvPic, "UI-47 the display's Playing for panel shows the prize picture");
+
+    // UI-48..UI-54: consistency with the design system's type (one look per role)
+    const cs = await hostCtx.newPage();
+    watch("consistency", cs);
+    await cs.goto(`${PUBLIC}/host/run`);
+    await cs.waitForSelector('button:has-text("Edit prizes")', { timeout: 5000 });
+    const runType = await cs.evaluate(() => ({
+      labels: [...new Set([...document.querySelectorAll<HTMLElement>(".stage .label")].filter((e) => e.offsetParent && !e.closest(".side-teams")).map((e) => getComputedStyle(e).fontSize))].join("/"),
+      menu: getComputedStyle(document.querySelector(".menu-btn")!).fontSize,
+    }));
+    check(runType.labels === "12px" && runType.menu === "15px", `UI-48/54 Run night section titles ${runType.labels}, Night menu ${runType.menu}`);
+    await cs.click('button:has-text("Edit prizes")');
+    const dlgTitle = await cs.evaluate(() => { const h = document.querySelector(".dialog-head h2")!; const s = getComputedStyle(h); return `${s.fontSize} ${s.fontWeight} ${s.fontFamily.split(",")[0]}`; });
+    check(dlgTitle === '26px 500 "Funnel Display"', `UI-52 dialog title: ${dlgTitle}`);
+    await cs.goto(`${PUBLIC}/host/history`);
+    await cs.waitForSelector('button:has-text("Refresh")', { timeout: 5000 });
+    const hist = await cs.evaluate(() => ({
+      refresh: Math.round(document.querySelector<HTMLElement>('.stage button')!.getBoundingClientRect().right),
+      page: Math.round(document.querySelector<HTMLElement>(".host-main")!.getBoundingClientRect().right - parseFloat(getComputedStyle(document.querySelector(".host-main")!).paddingRight)),
+      nav14: getComputedStyle(document.querySelector("#host-nav a[href='/host/build']")!).fontSize,
+    }));
+    check(hist.refresh === hist.page && hist.nav14 === "15px", `UI-49/54 History's Refresh ends at ${hist.refresh}px, the page column at ${hist.page}px; nav links ${hist.nav14}`);
+    await cs.close();
   } finally {
     await browser.close();
     await night.stop();

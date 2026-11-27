@@ -24,7 +24,7 @@
 .sdot.ok { background: var(--status-success); }
 .sdot.warn { background: var(--status-warning); }
 .lib-name { display: flex; flex-direction: column; min-width: 0; }
-.lib-name a { color: var(--bone); font-size: 16px; font-weight: 600; text-decoration: none; }
+.lib-name a { color: var(--bone); font-size: var(--host-text-title); font-weight: 600; text-decoration: none; }
 .lib-name a:hover { text-decoration: underline; }
 .lib-meta { font-size: var(--host-text-small); color: var(--ash); margin-top: 2px; }
 .lib-edited { color: var(--ash); font-size: var(--host-text-small); white-space: nowrap; }

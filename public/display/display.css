@@ -67,7 +67,7 @@ body.display-body { background: var(--ink); overflow: hidden; cursor: none; }
 }
 .display-credit {
   flex: none; margin-left: 3vh; display: flex; align-items: center;
-  font-size: var(--display-text-credit); color: #8a8a85; white-space: nowrap; line-height: 1;
+  font-size: var(--display-text-credit); color: var(--ash); white-space: nowrap; line-height: 1;
 }
 .credit-by { font-size: 1.8vh; letter-spacing: 0.14em; text-transform: uppercase; margin-right: 1.2vh; }
 .display-credit .lockup { font-size: 2.6vh; }
@@ -267,7 +267,7 @@ img.idle-mark.small { height: 14vh; }
 .lb { display: grid; grid-template-columns: 1fr; grid-auto-rows: min-content; align-content: start; flex: 1 1 auto; min-height: 0; }
 .lb.two { grid-template-columns: 1fr 1fr; grid-column-gap: 4vh; }
 .lb-head, .lb-row { display: grid; grid-template-columns: 12.2vh 10.7vh minmax(0, 1fr) 16.7vh 13.3vh 17.8vh; align-items: center; }
-.lb-head { height: 6vh; font-size: 2.2vh; letter-spacing: 0.14em; text-transform: uppercase; color: #8a8a85; }
+.lb-head { height: 6vh; font-size: 2.2vh; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ash); }
 .lb.two .lb-head { display: none; }
 .lb-head .rnd, .lb-head .tot { text-align: right; }
 .lb-head .tot { padding-right: 2vh; }
