@@ -80,3 +80,11 @@ Questions answered, not changed:
 Questions answered, not changed:
 
 - **A venue picture library for posters and other uploads?** Today each picture has one use (logo, TV picture, poster), uploaded where it is used. Cas (2026-11-27): not now, after 1.0. When built, it is a new venue concept, so the file format, its validator, TECH-SPEC and docs change together.
+
+## Host console review on v0.3.3, batch 6 (Cas, 2026-11-27)
+
+| # | Where | Report | Finding | Status |
+|---|---|---|---|---|
+| UI-38 | Host console | Pages sit too far to the left; bigger side margins. | UI-36 put every page on a 32 px gutter at any width, so a wide screen had a long empty right side. | Fixed: the nav and every page are one centred column of at most 1200 px with at least 48 px each side (`--host-max`, `--host-gutter`); 20 px on a tablet, 16 px on a phone. |
+| UI-39 | Host console | Should the loading indicators be centred? | They sat at the left edge. | Fixed: a loader is centred in what it stands for; a page's loader takes half the screen's height. |
+| UI-40 | Host console, selects | Selects still look like the browser's. | The live build had the styled box (no-cache with ETags, so not a stale file); the open list was still the operating system's, which a page could not style before customizable select. | Fixed where the browser allows it (Chrome and Edge 135 and later): the open list is the design system's Menu (Smoke, radius 12, 44 px rows, a venue-colour tick). Safari and Firefox keep their own list under the styled box. |

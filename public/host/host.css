@@ -6,8 +6,9 @@
  */
 
 /* One page gutter and top for every console page (UI-36): the nav, page heads, the builder and
-   Run night all line up on it. 32 px (--space-6) on a laptop, 20 px on a tablet, 16 px on a phone. */
-body.host { --host-gutter: var(--space-6); --host-top: var(--space-7); }
+   Run night all line up on it. On a laptop the content is a centred column of at most 1200 px with
+   at least 48 px each side (UI-38); 20 px on a tablet, 16 px on a phone. */
+body.host { --host-max: 1200px; --host-gutter: max(48px, calc((100vw - var(--host-max)) / 2)); --host-top: var(--space-7); }
 @media (max-width: 1023px) { body.host { --host-gutter: 20px; --host-top: 28px; } }
 @media (max-width: 599px) { body.host { --host-gutter: 16px; --host-top: 20px; } }
 
@@ -152,6 +153,29 @@ select.input {
 }
 select.input:hover { background-color: var(--raised); }
 select.input option { background: var(--smoke); color: var(--bone); }
+/* The open list (UI-40): where the browser lets a page style it (customizable select, Chrome and
+   Edge 135+), it is the design system's Menu: Smoke, radius 12, 44 px rows, the picked one ticked in
+   the venue colour. Other browsers keep their own list under the styled box. */
+@supports (appearance: base-select) {
+  select.input, select.input::picker(select) { appearance: base-select; }
+  select.input { display: flex; align-items: center; background-image: none; padding-right: 14px; }
+  select.input::picker-icon {
+    content: ""; width: 16px; height: 16px; margin-left: auto; transition: rotate var(--motion-fast) ease;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%2395958f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center / 16px 16px;
+  }
+  select.input:open::picker-icon { rotate: 180deg; }
+  select.input::picker(select) {
+    border: 0; border-radius: var(--radius-l); background: var(--smoke); color: var(--bone);
+    box-shadow: var(--shadow-popover); padding: 6px; margin-block: 6px; min-width: anchor-size(width);
+  }
+  select.input option {
+    display: flex; align-items: center; gap: 10px; min-height: var(--host-tap); padding: 0 12px;
+    border-radius: var(--radius-s); background: transparent; color: var(--bone); font-size: var(--host-text-body); cursor: pointer;
+  }
+  select.input option:hover, select.input option:focus-visible { background: var(--raised); outline: none; }
+  select.input option::checkmark { order: 1; margin-left: auto; color: var(--venue); }
+  select.input option:checked { font-weight: 600; }
+}
 .input.short, .input.tiny { width: 96px; }
 .input.time { width: 140px; }
 .input.narrow { width: 280px; max-width: 100%; }
@@ -333,7 +357,9 @@ button.primary:not(.btn):disabled { background: var(--status-disabled-tint); col
 
 /* ---- Loading (UI-35): the mark's ring with the venue arc turning, in place of "Loading…" text.
    public/host/loading.js draws it; brand/index.html has the same markup for the first paint. ---- */
-.loading { display: flex; align-items: center; justify-content: flex-start; min-height: 120px; padding: 24px 0; }
+/* Centred in the space it stands for (UI-39): a page's loader fills the page, a panel's the panel. */
+.loading { display: flex; align-items: center; justify-content: center; min-height: 160px; padding: 24px 0; }
+#host-main > .loading, .host-main > .loading, .stage > .loading, .b-loading > .loading { min-height: 50vh; }
 .spin { width: 32px; height: 32px; flex: none; animation: spin-turn 900ms linear infinite; }
 .spin.s { width: 16px; height: 16px; }
 .spin-track { fill: none; stroke: var(--line-strong); stroke-width: 12; }
