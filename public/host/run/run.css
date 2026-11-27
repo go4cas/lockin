@@ -12,7 +12,7 @@ body.run .host-credit { display: none; }
 .label-s { display: block; font-size: var(--host-text-small); color: var(--ash); margin-bottom: 4px; }
 
 /* ---- Run header: lockup · title · room · steps · Night menu (64 px, hairline) ---- */
-.topbar { display: none; height: 64px; align-items: center; gap: 24px; padding: 0 28px; border-bottom: 1px solid var(--line); flex: none; }
+.topbar { display: none; height: 64px; align-items: center; gap: 24px; padding: 0 28px; border-bottom: 1px solid var(--line); flex: none; position: sticky; top: 0; z-index: 20; background: var(--ink); }
 body.night-open .topbar { display: flex; }
 .topbar .host-brand { font-size: 22px; }
 .topbar .title { font-size: 15px; color: var(--fog); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 280px; }

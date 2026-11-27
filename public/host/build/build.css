@@ -47,7 +47,7 @@ body.builder-open .host-main { padding: 0; max-width: none; }
 .b-back:hover { color: var(--bone); }
 .builder { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: calc(100vh - 64px); border-top: 1px solid var(--line); }
 .builder.no-side { grid-template-columns: minmax(0, 1fr); }
-.b-side { border-right: 1px solid var(--line); padding: 20px 20px 24px 28px; overflow-y: auto; max-height: calc(100vh - 64px); position: sticky; top: 0; }
+.b-side { border-right: 1px solid var(--line); padding: 20px 20px 24px 28px; overflow-y: auto; max-height: calc(100vh - 64px); position: sticky; top: 64px; }
 .b-side-label { margin-bottom: 8px; }
 
 /* Outline rows: number (display face), title on one line, count; the current row in Bone on Smoke */

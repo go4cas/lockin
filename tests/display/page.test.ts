@@ -25,6 +25,7 @@ describe("public/display/index.html", () => {
       'src="/static/shared/clock.js"',
       'src="/static/shared/ws-client.js"',
       'src="/static/shared/view.js"',
+      'src="/static/shared/source.js"',
       'type="module" src="/static/display/display.mjs"',
     ]);
   });

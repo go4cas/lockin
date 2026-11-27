@@ -25,7 +25,9 @@ body.host-auth {
   padding: 0 28px;
   border-bottom: 1px solid var(--line);
   background: var(--ink);
-  position: relative;
+  /* Stays at the top while the page scrolls (UI-30). */
+  position: sticky;
+  top: 0;
   z-index: 20;
 }
 .host-brand { display: flex; align-items: center; color: var(--bone); text-decoration: none; font-size: 22px; min-height: var(--host-tap); }
@@ -142,7 +144,7 @@ select.input { padding-right: 10px; }
 .input.time { width: 140px; }
 .input.narrow { width: 280px; max-width: 100%; }
 .field { display: flex; flex-direction: column; align-items: stretch; min-width: 0; }
-label.l, span.l, .field > label { display: block; font-size: var(--host-text-small); font-weight: 500; color: var(--fog); margin-bottom: 7px; }
+label.l, span.l, .field > label:not(.btn) { display: block; font-size: var(--host-text-small); font-weight: 500; color: var(--fog); margin-bottom: 7px; }
 label.label { display: block; margin-bottom: 7px; }
 .field .hint, .field > .muted.s { margin-top: 7px; }
 .form-error { color: var(--status-error); margin: 8px 0 0; font-size: var(--host-text-small); }
@@ -271,7 +273,7 @@ button.primary:not(.btn) {
 button.primary:not(.btn):disabled { background: var(--status-disabled-tint); color: var(--status-disabled); cursor: default; }
 
 /* "Powered by Lock-In", linked to the source (AGPL-3.0 section 13), added by nav.js. */
-.host-credit { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: var(--ash); padding: 28px 16px 20px; }
+.host-credit { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; font-size: 12px; color: var(--ash); padding: 28px 16px 20px; }
 .host-credit a { color: var(--ash); text-decoration: none; display: inline-flex; align-items: center; }
 .host-credit a:hover { color: var(--bone); }
 .host-credit .lockup { font-size: 14px; }
@@ -292,3 +294,27 @@ button.primary:not(.btn):disabled { background: var(--status-disabled-tint); col
 .card.form-card h2 { margin: 0 0 12px; font-size: var(--host-text-overline); color: var(--ash); text-transform: uppercase; letter-spacing: 0.14em; font-weight: 500; }
 .form-card .field + .field, .form-card .field + .readiness { margin-top: 20px; }
 .field > .seg { align-self: flex-start; }
+/* Inside a card the segmented control gets a hairline, so its unpicked options read as one control. */
+.form-card .seg { box-shadow: inset 0 0 0 1px var(--line); }
+
+/* Two-column settings cards (UI-31, the design canvas's builder fields): the label on the left in a
+   200 px column, the control and its hint on the right, a hairline between rows. */
+.form-card.cols { max-width: 880px; }
+.form-card.cols .field { display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: 24px; align-items: start; }
+.form-card.cols .field + .field { margin-top: 0; border-top: 1px solid var(--line); }
+.form-card.cols .field { padding: 16px 0; }
+.form-card.cols .field:last-child { padding-bottom: 4px; }
+.form-card.cols h2 + .field { padding-top: 4px; }
+.form-card.cols .field > .l { margin: 0; padding-top: 13px; color: var(--ash); }
+.form-card.cols .ctl { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.form-card.cols .ctl > .input:not(.short):not(.narrow) { align-self: stretch; }
+.form-card.cols .unit { display: flex; align-items: center; gap: 10px; }
+.form-card.cols .unit > span { font-size: var(--host-text-small); color: var(--ash); }
+.form-card.cols .ctl > .hint { margin-top: 7px; }
+.form-card.cols .readiness { padding-top: 8px; }
+.form-card.cols .readiness .problem-list { margin: 8px 0 0; }
+@media (max-width: 599px) {
+  .form-card.cols .field { grid-template-columns: minmax(0, 1fr); }
+  .form-card.cols .field > .l { padding-top: 0; margin-bottom: 7px; }
+}
+.host-credit .app-version { font-variant-numeric: tabular-nums; }

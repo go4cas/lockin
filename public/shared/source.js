@@ -7,4 +7,20 @@
   "use strict";
   var LockIn = root.LockIn || (root.LockIn = {});
   LockIn.SOURCE_URL = "https://github.com/go4cas/lockin";
+
+  // The running server's version (from /api/ping), shown small beside the credit on the host
+  // console, the display and the phone. Asked once per page; on a failure the next call asks again.
+  /** @type {Promise<string | null> | null} */
+  var asked = null;
+  LockIn.version = function (/** @type {(v: string) => void} */ done) {
+    if (!asked) {
+      if (typeof fetch !== "function") return;
+      asked = fetch("/api/ping", { cache: "no-store" })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (body) { return body && typeof body.version === "string" ? body.version : null; })
+        .then(null, function () { return null; });
+      asked.then(function (/** @type {string | null} */ v) { if (!v) asked = null; });
+    }
+    asked.then(function (/** @type {string | null} */ v) { if (v) done(v); });
+  };
 })(typeof window !== "undefined" ? window : globalThis);

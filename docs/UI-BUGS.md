@@ -50,3 +50,19 @@ Questions answered, not changed:
 
 - **Is the host console meant to work on a phone?** It was designed for a laptop and a tablet; Cas chose a phone layout for Run night only (UI-24). The other pages stay laptop and tablet.
 - **Holding page panels, why 12 seconds?** Now a venue setting (UI-23).
+
+## Host console review on v0.3.1, batch 4 (Cas, 2026-11-27)
+
+| # | Where | Report | Finding | Status |
+|---|---|---|---|---|
+| UI-28 | Host console, display, phone | Show the version on the host, the TV and the phones. | Only the server log and `lockin --version` showed it. | Fixed: the "Powered by Lock-In" credit ends with the running server's version (v0.3.1), read once from `/api/ping` by `LockIn.version` in shared/source.js (now loaded by the display too). |
+| UI-29 | Quiz builder, question | "Add a picture" is not vertically centred. | The shared `.field > label` rule made the button label a block, so its text sat at the top. | Fixed: that rule skips `label.btn`. |
+| UI-30 | Host console | The header should be sticky. | The nav scrolled away with the page. | Fixed: the top nav, and Run night's header while a night is open, stay at the top; the builder outline and the Venue settings preview stick under it. |
+| UI-31 | Quiz builder, Settings | The Settings tab is messy; arrange it by the design system. | Labels sat above controls of mixed widths, unpicked segment options floated with no outline, units were body size. | Fixed: the design canvas's field grid: the label in a 200 px left column, the control and its hint on the right, a hairline between rows, units small and grey, segments outlined in cards. Readiness is a row, "Ready to run". Shared as `.form-card.cols`. |
+| UI-32 | Host home page | Add the artwork to the landing page, with the app name and logo in the right branding. | The home page was a heading and one line. | Done: Cas's animated "Last orders" artwork (inline SVG and CSS, no JavaScript or outside files) beside the Lock-In lockup, a tagline and buttons to Run night, Quizzes and Venue settings. Its mint and coral are the venue colour and the ember token, so a pub's colour shows in it; the beer mat says "LOCK-IN". With reduced motion it is a still frame. CSS in public/host/home.css. |
+
+Questions answered, not changed:
+
+- **Quizzes list: limited or filtered?** No. It lists every quiz in the data folder, most recently edited first. A quiz has no date (a night does, and past nights are in History), so active, past and future sections do not fit quizzes as they are. Search and filters are a choice for Cas.
+- **Builder: do questions crowd the left list?** Only the open round's questions show under it; the other rounds are one line each. Ten rounds of twelve shows ten round lines plus twelve question lines at most.
+- **"Saved" when changes save themselves?** It is the auto-save status: "Opening…", "Saving…" (about a second after typing), "Saved", or "Not saved" in red when a save failed or a problem stops it. A banner says what to do when the quiz was changed elsewhere.
