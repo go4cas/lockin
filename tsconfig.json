@@ -21,5 +21,5 @@
   },
   "include": ["src", "tests", "scripts", "public"],
   // Browser checks need Playwright from tools/browser; typechecked by tools/browser/tsconfig.json (LI-018).
-  "exclude": ["tests/e2e/browser-night.ts", "tests/e2e/review-fixes-browser.ts", "tests/e2e/browser-smoke.ts", "tests/e2e/audit-batch2-browser.ts", "tests/e2e/design-shots.ts", "tests/e2e/ui-bugs-browser.ts"]
+  "exclude": ["tests/e2e/browser-night.ts", "tests/e2e/review-fixes-browser.ts", "tests/e2e/browser-smoke.ts", "tests/e2e/audit-batch2-browser.ts", "tests/e2e/design-shots.ts", "tests/e2e/ui-bugs-browser.ts", "tests/e2e/ui-audit.ts"]
 }
