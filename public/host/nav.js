@@ -123,39 +123,56 @@
   let leaving = false;
   const isDirty = () => !leaving && dirtyChecks.some((f) => { try { return f(); } catch { return false; } });
 
+  /**
+   * Asks in the design system's dialog (UI-41): never the browser's own confirm(). Resolves true
+   * when the person picks `ok`, false on `cancel` or Escape. The safe choice has the focus.
+   * @param {{ title: string, text: string, ok: string, cancel: string, danger?: boolean, className?: string }} o
+   * @returns {Promise<boolean>}
+   */
+  function ask(o) {
+    return new Promise((resolve) => {
+      const dlg = document.createElement("dialog");
+      dlg.className = "dlg" + (o.className ? " " + o.className : "");
+      const id = "dlg-title-" + Math.random().toString(36).slice(2, 8);
+      dlg.setAttribute("aria-labelledby", id);
+      const h = document.createElement("h2");
+      h.id = id;
+      h.textContent = o.title;
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = o.text;
+      const row = document.createElement("div");
+      row.className = "row end";
+      const yes = document.createElement("button");
+      yes.type = "button";
+      yes.className = o.danger ? "btn danger" : "btn primary";
+      yes.textContent = o.ok;
+      const no = document.createElement("button");
+      no.type = "button";
+      no.className = o.danger ? "btn primary" : "btn ghost";
+      no.textContent = o.cancel;
+      if (o.danger) { row.appendChild(yes); row.appendChild(no); } else { row.appendChild(no); row.appendChild(yes); }
+      dlg.appendChild(h);
+      dlg.appendChild(p);
+      dlg.appendChild(row);
+      document.body.appendChild(dlg);
+      /** @param {boolean} v */
+      const done = (v) => { dlg.close(); dlg.remove(); resolve(v); };
+      no.addEventListener("click", () => done(false));
+      dlg.addEventListener("cancel", (e) => { e.preventDefault(); done(false); });
+      yes.addEventListener("click", () => done(true));
+      dlg.showModal();
+      (o.danger ? no : yes).focus();
+    });
+  }
+
   /** @param {() => void} go what leaving does */
   function askToLeave(go) {
-    const dlg = document.createElement("dialog");
-    dlg.className = "dlg leave-dlg";
-    dlg.setAttribute("aria-labelledby", "leave-title");
-    const h = document.createElement("h2");
-    h.id = "leave-title";
-    h.textContent = "Leave without saving?";
-    const p = document.createElement("p");
-    p.className = "muted";
-    p.textContent = "You have changes on this page that are not saved yet. If you leave now, they are lost.";
-    const row = document.createElement("div");
-    row.className = "row end";
-    const leave = document.createElement("button");
-    leave.type = "button";
-    leave.className = "btn danger";
-    leave.textContent = "Leave without saving";
-    const stay = document.createElement("button");
-    stay.type = "button";
-    stay.className = "btn primary";
-    stay.textContent = "Stay on this page";
-    row.appendChild(leave);
-    row.appendChild(stay);
-    dlg.appendChild(h);
-    dlg.appendChild(p);
-    dlg.appendChild(row);
-    document.body.appendChild(dlg);
-    const close = () => { dlg.close(); dlg.remove(); };
-    stay.addEventListener("click", close);
-    dlg.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
-    leave.addEventListener("click", () => { leaving = true; close(); go(); });
-    dlg.showModal();
-    stay.focus();
+    ask({
+      title: "Leave without saving?",
+      text: "You have changes on this page that are not saved yet. If you leave now, they are lost.",
+      ok: "Leave without saving", cancel: "Stay on this page", danger: true, className: "leave-dlg",
+    }).then((yes) => { if (yes) { leaving = true; go(); } });
   }
 
   document.addEventListener("click", (e) => {
@@ -184,7 +201,7 @@
     });
   }
 
-  w.LockIn.nav = { setNight, guardUnsaved };
+  w.LockIn.nav = { setNight, guardUnsaved, ask };
 
   // "Powered by Lock-In", linked to the source (AGPL-3.0 section 13; the address is in shared/source.js).
   const source = w.LockIn.SOURCE_URL;

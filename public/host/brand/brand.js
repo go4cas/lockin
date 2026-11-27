@@ -617,6 +617,9 @@ const seg = (label, options, get, set) => html`
       @click="${() => set(v)}">${text}</button>`)}
   </div>`;
 
+/** The default round count as a number (6 while the box is mid-edit). */
+const qdRoundCount = () => { const n = Math.round(Number(venue.qdRounds)); return n >= 1 && n <= 20 ? n : 6; };
+
 /**
  * A short number input with its unit, in the two-column card layout.
  * @param {string} id @param {string} label @param {"qdRounds" | "qdQuestions" | "qdTimer" | "qdTeams" | "qdSdMax"} key
@@ -647,10 +650,11 @@ function quizDefaultsTab() {
       <h2>Rounds and teams</h2>
       <div class="field"><label class="l" for="qd-half">Halftime</label>
         <div class="ctl"><select id="qd-half" class="input narrow" @change="${(/** @type {Event} */ e) => { venue.qdHalf = /** @type {HTMLSelectElement} */ (e.target).value; }}">
-          <option value="auto" selected="${() => venue.qdHalf === "auto"}">Halfway</option>
+          <option value="auto" selected="${() => venue.qdHalf === "auto"}">${() => `Halfway (after round ${Math.ceil(qdRoundCount() / 2)})`}</option>
           <option value="none" selected="${() => venue.qdHalf === "none"}">No halftime</option>
-          ${() => (venue.qdHalf !== "auto" && venue.qdHalf !== "none" ? html`<option value="${venue.qdHalf}" selected>After round ${venue.qdHalf}</option>` : "")}
-        </select></div></div>
+          ${Array.from({ length: 19 }, (_, i) => String(i + 1)).map((n) => html`<option value="${n}" hidden="${() => Number(n) >= qdRoundCount()}" selected="${() => venue.qdHalf === n}">After round ${n}</option>`)}
+        </select>
+        <p class="hint">Halfway follows each quiz's own round count. A quiz can change it in its Settings.</p></div></div>
       <div class="field"><span class="l">Joker</span>
         <div class="ctl">${seg("Joker", [["false", "Off"], ["true", "On"]], () => String(venue.qdJoker), (v) => { venue.qdJoker = v === "true"; })}
         <p class="hint">Each team picks one round to score double.</p></div></div>

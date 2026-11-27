@@ -27,6 +27,13 @@
 // UI-38: console pages are a centred column (at most 1200 px, at least 48 px each side on a laptop).
 // UI-39: page loaders are centred.
 // UI-40: the open select list is styled where the browser allows it (customizable select).
+// UI-41: the builder's delete buttons ask with the console's own dialog, not the browser's confirm().
+// UI-42: Quiz Settings sits in two columns of cards on a laptop, so it needs little scrolling.
+// UI-43: a quiz that isn't ready lists what needs fixing in a popover under the header's pill
+//        (each line goes to the problem); the Settings tab no longer carries the whole list.
+// UI-44: the home page's text and artwork sit together in the middle, without a wide gap.
+// UI-45: deleting a question keeps the builder working (no Arrow error).
+// UI-46: Quiz defaults' Halftime names Halfway's round and can be set to a round.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -77,7 +84,7 @@ async function main() {
   await night.start();
   const browser = await chromium.launch();
   const watch = (name: string, page: Page) => {
-    page.on("pageerror", (e) => problems.push(`${name}: page error: ${e.message}`));
+    page.on("pageerror", (e) => problems.push(`${name}: page error: ${e.message} (after ${results.length} checks)`));
     page.on("console", (m) => { if (m.type() === "error" && !/WebSocket/.test(m.text())) problems.push(`${name}: console error: ${m.text()}`); });
   };
   try {
@@ -253,7 +260,8 @@ async function main() {
       }));
       return { rows: rows.length, lefts: [...lefts], controls: [...controls] };
     });
-    check(columns.rows >= 8 && columns.lefts.length === 1 && columns.controls.length === 1, `UI-31 settings: ${columns.rows} fields, label columns ${columns.lefts.join("/")}, control columns ${columns.controls.join("/")}`);
+    // Two columns of cards on a laptop (UI-42): one label column and one control column per card column.
+    check(columns.rows >= 8 && columns.lefts.length <= 2 && columns.controls.length === columns.lefts.length, `UI-31 settings: ${columns.rows} fields, label columns ${columns.lefts.join("/")}, control columns ${columns.controls.join("/")}`);
 
     // UI-29: "Add a picture" text sits in the middle of its button
     await build.click('[role=tab]:has-text("Rounds")');
@@ -281,6 +289,58 @@ async function main() {
     check(hostVersion === `· v${want}`, `UI-28 host console shows "${hostVersion}" (server ${want})`);
     await build.close();
 
+    // UI-41, UI-43: a quiz that isn't ready
+    const fix = await hostCtx.newPage();
+    watch("builder-not-ready", fix);
+    let browserDialog = false;
+    fix.on("dialog", (d) => { browserDialog = true; void d.dismiss(); });
+    await fix.goto(`${PUBLIC}/host/build?quiz=${notReady.id}`);
+    await fix.waitForSelector(".fix-pop summary", { timeout: 5000 });
+    await fix.click(".fix-pop summary");
+    const pop = await fix.evaluate(() => [...document.querySelectorAll(".fix-pop[open] li a")].map((a) => a.textContent?.trim()));
+    await fix.screenshot({ path: join(OUT, "ui-43-what-needs-fixing.png") });
+    await fix.click(".fix-pop li a >> nth=0");
+    const went = await fix.waitForSelector("#q-text", { timeout: 5000 }).then(() => true, () => false);
+    const closed = await fix.evaluate(() => !document.querySelector(".fix-pop[open]"));
+    check(pop.length >= 1 && went && closed, `UI-43 "What needs fixing": ${pop.length} line(s) "${pop[0]}", goes to the question ${went}, closes ${closed}`);
+    await fix.click('[role=tab]:has-text("Settings")');
+    await fix.waitForSelector("#quiz-title", { timeout: 5000 });
+    const settingsList = await fix.evaluate(() => document.querySelectorAll(".b-settings .problem-list, .b-settings li").length);
+    await fix.click('.readiness button:has-text("See what needs fixing")');
+    const reopened = await fix.evaluate(() => !!document.querySelector(".fix-pop[open]"));
+    check(settingsList === 0 && reopened, `UI-43 Settings tab: ${settingsList} list lines, "See what needs fixing" opens the popover ${reopened}`);
+    await fix.keyboard.press("Escape");
+    await fix.evaluate(() => document.querySelector(".fix-pop")?.removeAttribute("open"));
+    await fix.click('[role=tab]:has-text("Rounds")');
+    await fix.click(".b-qs a.b-q >> nth=0");
+    await fix.waitForSelector("#q-text", { timeout: 5000 });
+    await fix.click('button.btn.danger:has-text("Delete")');
+    const own = await fix.waitForSelector("dialog.dlg[open]", { timeout: 3000 }).then(() => true, () => false);
+    await fix.screenshot({ path: join(OUT, "ui-41-delete-dialog.png") });
+    const qsBefore = await fix.evaluate(() => document.querySelectorAll(".b-qs a.b-q:not(.add)").length);
+    await fix.click('dialog.dlg[open] button:has-text("Keep it")');
+    const kept = await fix.evaluate(() => document.querySelectorAll(".b-qs a.b-q:not(.add)").length);
+    await fix.click('button.btn.danger:has-text("Delete")');
+    await fix.click('dialog.dlg[open] button:has-text("Delete question")');
+    await fix.waitForFunction((n) => document.querySelectorAll(".b-qs a.b-q:not(.add)").length === n - 1, qsBefore, { timeout: 5000 });
+    check(own && !browserDialog && kept === qsBefore, `UI-41 delete asks in the console's dialog ${own}, browser dialog ${browserDialog}, "Keep it" keeps ${kept}/${qsBefore}, "Delete question" deletes`);
+    await fix.close();
+
+    // UI-42: Quiz Settings on a laptop: cards two by two, page about a screen and a half
+    const set = await hostCtx.newPage();
+    await set.setViewportSize({ width: 1440, height: 900 });
+    await set.goto(`${PUBLIC}/host/build?quiz=${ready.id}`);
+    await set.waitForSelector("#round-title", { timeout: 5000 });
+    await set.click('[role=tab]:has-text("Settings")');
+    await set.waitForSelector("#quiz-title", { timeout: 5000 });
+    const lay = await set.evaluate(() => ({
+      tops: new Set([...document.querySelectorAll<HTMLElement>(".b-settings .form-card")].map((c) => Math.round(c.getBoundingClientRect().top))).size,
+      height: document.documentElement.scrollHeight,
+    }));
+    await set.screenshot({ path: join(OUT, "ui-42-quiz-settings.png"), fullPage: true });
+    check(lay.tops <= 2 && lay.height <= 1500, `UI-42 Quiz Settings at 1440x900: cards in ${lay.tops} rows, page ${lay.height}px tall`);
+    await set.close();
+
     // UI-32: the home page shows the lockup and the "Last orders" artwork, in the venue's colour,
     // still with reduced motion
     for (const motion of ["no-preference", "reduce"] as const) {
@@ -300,6 +360,13 @@ async function main() {
         };
       });
       if (motion === "no-preference") await home.screenshot({ path: join(OUT, "ui-32-home.png") });
+      if (motion === "no-preference") {
+        const gap = await home.evaluate(() => {
+          const copy = document.querySelector(".home-copy")!.getBoundingClientRect(), artBox = document.querySelector(".home-art")!.getBoundingClientRect();
+          return { gap: Math.round(artBox.left - copy.right), left: Math.round(copy.left), right: Math.round(window.innerWidth - artBox.right) };
+        });
+        check(gap.gap <= 40 && Math.abs(gap.left - gap.right) <= 80, `UI-44 home: ${gap.gap}px between text and artwork, margins ${gap.left}/${gap.right}px`);
+      }
       check(art.shown && art.lockup === "Lock-In" && art.inlineStyles === 0 && art.venue !== "" && art.moving === (motion === "no-preference"),
         `UI-32 home (${motion}): artwork shown ${art.shown}, lockup "${art.lockup}", ${art.inlineStyles} style attributes, venue colour "${art.venue}", animated ${art.moving}`);
       await homeCtx.close();
@@ -411,6 +478,9 @@ async function main() {
     await brand.click('[role=tab]:has-text("Quiz defaults")');
     await brand.fill("#qd-rounds", "3");
     await brand.fill("#qd-questions", "2");
+    // UI-46: Halftime in Quiz defaults says which round Halfway is and offers the rounds before the last
+    const half = await brand.evaluate(() => [...document.querySelectorAll<HTMLOptionElement>("#qd-half option")].filter((o) => !o.hidden).map((o) => o.textContent?.trim()).join(" | "));
+    check(half === "Halfway (after round 2) | No halftime | After round 1 | After round 2", `UI-46 Quiz defaults halftime for 3 rounds: ${half}`);
     await brand.fill("#qd-timer", "45");
     await brand.click('[aria-label="Joker"] [role=radio]:has-text("On")');
     await brand.click('form:visible button[type=submit]');

@@ -348,7 +348,6 @@ button.primary:not(.btn):disabled { background: var(--status-disabled-tint); col
 .form-card.cols .unit > span { font-size: var(--host-text-small); color: var(--ash); }
 .form-card.cols .ctl > .hint { margin-top: 7px; }
 .form-card.cols .readiness { padding-top: 8px; }
-.form-card.cols .readiness .problem-list { margin: 8px 0 0; }
 @media (max-width: 599px) {
   .form-card.cols .field { grid-template-columns: minmax(0, 1fr); }
   .form-card.cols .field > .l { padding-top: 0; margin-bottom: 7px; }
