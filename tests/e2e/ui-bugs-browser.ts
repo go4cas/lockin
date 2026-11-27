@@ -19,6 +19,8 @@
 // UI-30: the host console's header stays at the top when the page scrolls.
 // UI-31: the builder's Settings tab lines its labels and controls up in two columns.
 // UI-32: the host home page shows the Lock-In lockup and Cas's animated "Last orders" artwork.
+// UI-33: Venue settings has Quiz defaults; a new quiz starts with them.
+// UI-34: the Quizzes list has a title search and an All / Ready / Needs work filter.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -296,6 +298,42 @@ async function main() {
         `UI-32 home (${motion}): artwork shown ${art.shown}, lockup "${art.lockup}", ${art.inlineStyles} style attributes, venue colour "${art.venue}", animated ${art.moving}`);
       await homeCtx.close();
     }
+
+    // UI-34: the Quizzes list has a title search and an All / Ready / Needs work filter
+    const lib = await hostCtx.newPage();
+    watch("library", lib);
+    await lib.goto(`${PUBLIC}/host/build`);
+    await lib.waitForSelector("#lib-search", { timeout: 5000 });
+    const visibleTitles = () => lib.evaluate(() => [...document.querySelectorAll<HTMLElement>(".lib tbody tr")].filter((r) => !r.hidden).map((r) => r.querySelector(".lib-name a")?.textContent?.trim()).join(", "));
+    const all = await visibleTitles();
+    await lib.click('.lib-tools [role=radio]:has-text("Needs work")');
+    const work = await visibleTitles();
+    await lib.click('.lib-tools [role=radio]:has-text("All")');
+    await lib.fill("#lib-search", "ready q");
+    const searched = await visibleTitles();
+    await lib.fill("#lib-search", "nothing like this");
+    const none = await lib.evaluate(() => !(document.querySelector(".lib-none") as HTMLElement).hidden);
+    await lib.fill("#lib-search", "");
+    await lib.screenshot({ path: join(OUT, "ui-34-quizzes-search.png") });
+    check(all === "Test Quiz, Ready Quiz" || all === "Ready Quiz, Test Quiz", `UI-34 all quizzes: ${all}`);
+    check(work === "Test Quiz" && searched === "Ready Quiz" && none, `UI-34 Needs work: "${work}", search "ready q": "${searched}", no match says so: ${none}`);
+    await lib.close();
+
+    // UI-33: Venue settings, Quiz defaults: a new quiz starts with the venue's rounds, questions and settings
+    await brand.click('[role=tab]:has-text("Quiz defaults")');
+    await brand.fill("#qd-rounds", "3");
+    await brand.fill("#qd-questions", "2");
+    await brand.fill("#qd-timer", "45");
+    await brand.click('[aria-label="Joker"] [role=radio]:has-text("On")');
+    await brand.click('form:visible button[type=submit]');
+    await brand.waitForFunction(() => /saved/i.test(document.querySelector(".ok-box:not([hidden])")?.textContent ?? ""), null, { timeout: 5000 });
+    await brand.screenshot({ path: join(OUT, "ui-33-quiz-defaults.png"), fullPage: true });
+    const made = await brand.evaluate(async () => {
+      const res = await fetch("/api/quizzes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "Defaults Quiz" }) });
+      const body = await res.json() as { quiz: { rounds: { questions: unknown[] }[]; settings: { timerSeconds: number; joker: boolean } } };
+      return { rounds: body.quiz.rounds.length, questions: body.quiz.rounds.map((r) => r.questions.length).join("/"), timer: body.quiz.settings.timerSeconds, joker: body.quiz.settings.joker };
+    });
+    check(made.rounds === 3 && made.questions === "2/2/2" && made.timer === 45 && made.joker, `UI-33 a new quiz: ${made.rounds} rounds of ${made.questions} questions, timer ${made.timer} s, joker ${made.joker}`);
 
     // UI-16: unsaved changes, then a nav link
     await brand.click('[role=tab]:has-text("Branding")');

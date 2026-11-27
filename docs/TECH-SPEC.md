@@ -369,12 +369,18 @@ export interface VenueFile {
     mode: "timer" | "host";                    // timer: standings after `seconds`; host: on the host's Next (final.show). Default "timer"
     seconds: number;                           // 5..120, default 15; used in timer mode
   };
+  quizDefaults: QuizDefaults;                  // what a new quiz starts with (UI-33, Cas 2026-11-27)
+}
+export interface QuizDefaults {
+  rounds: number;                              // 1..20, default 6 empty rounds
+  questionsPerRound: number;                   // 1..30, default 5 empty questions in each
+  settings: QuizSettings;                      // default as 5.2; checked like a quiz's settings
 }
 export interface Prize { place: number; text: string }   // place 1.., text 1..80 chars
 export type HoldingPanel = "countdown" | "teams" | "join" | "install" | "poster" | "prizes";
 ```
 
-Unknown panel names are ignored, so more panels can be added later (H-17). "animation", the poster panel's old name, is read as "poster". The poster file lives in `theme/assets/` with the other uploads; saving a venue file that names a missing poster is refused.
+Unknown panel names are ignored, so more panels can be added later (H-17). A venue file without `quizDefaults` (or with only some of it) takes the built-in defaults for what is missing; existing quizzes never change when the defaults do. A halftime round number must be lower than the default number of rounds. "animation", the poster panel's old name, is read as "poster". The poster file lives in `theme/assets/` with the other uploads; saving a venue file that names a missing poster is refused.
 
 ### 5.5 Copy pools
 
@@ -750,7 +756,7 @@ All JSON. Host routes need the host session cookie (12.2) and return `401` witho
 | `POST /api/auth/logout` | B0 | → `{ ok: true }` |
 | `GET /api/server` | B8 | → `{ version, dataDir, publicUrl, displayUrl, joinUrl }` |
 | `GET /api/quizzes` | B3 | → `{ quizzes: { id, title, rounds, questions, updatedAt, ready, problems }[] }` |
-| `POST /api/quizzes` | B3 | `{ title }` → `{ quiz: QuizFile }` (default shape: 6 rounds of 5 empty questions, default settings) |
+| `POST /api/quizzes` | B3 | `{ title }` → `{ quiz: QuizFile }` (shape and settings from the venue's `quizDefaults`, 5.4; built in: 6 rounds of 5 empty questions, default settings) |
 | `GET /api/quizzes/:id` | B3 | → `{ quiz: QuizFile, ready, problems }` |
 | `PUT /api/quizzes/:id` | B3 | `{ quiz: QuizFile, baseUpdatedAt }` → `{ quiz, ready, problems }`; `409 edited_elsewhere` if `baseUpdatedAt` is stale; `423 quiz_in_use` while a night uses it (H-02) |
 | `POST /api/quizzes/:id/duplicate` | B3 | `{ title }` → `{ quiz }` |

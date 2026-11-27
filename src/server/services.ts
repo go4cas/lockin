@@ -73,6 +73,7 @@ export function createServices(deps: ServiceDeps, overrides: ServiceOverrides = 
     now: () => deps.clock.now(),
     inUse: (id) => inUse.get(id) !== null,
     log: deps.log,
+    quizDefaults: () => branding.venue().quizDefaults,
   });
 
   const services: Services = {

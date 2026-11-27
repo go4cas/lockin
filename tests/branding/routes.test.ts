@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { startTestServer, type TestServer } from "../helpers/server.ts";
+import { DEFAULT_QUIZ_SETTINGS } from "../../src/shared/formats.ts";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82]);
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70]);
@@ -212,6 +213,7 @@ describe("venue settings (5.4)", () => {
       const c = await t.signIn();
       expect(await (await t.fetch("/api/venue", { cookie: c })).json()).toEqual({
         format: "lockin.venue/1", prizes: [], holding: { minutesBefore: 30, panels: ["countdown", "teams", "join", "install", "poster", "prizes"], panelSeconds: 12, poster: null }, afterWinner: { mode: "timer", seconds: 15 },
+        quizDefaults: { rounds: 6, questionsPerRound: 5, settings: DEFAULT_QUIZ_SETTINGS },
       });
     } finally { await t.stop(); }
   });
@@ -222,7 +224,7 @@ describe("venue settings (5.4)", () => {
       body: JSON.stringify({ format: "lockin.venue/1", prizes: [{ place: 2, text: "A round of shots" }, { place: 1, text: "R300 bar tab" }], holding: { minutesBefore: 45, panels: ["join", "prizes", "fireworks"] } }),
     });
     expect(res.status).toBe(200);
-    const saved = { format: "lockin.venue/1", prizes: [{ place: 1, text: "R300 bar tab" }, { place: 2, text: "A round of shots" }], holding: { minutesBefore: 45, panels: ["join", "prizes"], panelSeconds: 12, poster: null }, afterWinner: { mode: "timer", seconds: 15 } };
+    const saved = { format: "lockin.venue/1", prizes: [{ place: 1, text: "R300 bar tab" }, { place: 2, text: "A round of shots" }], holding: { minutesBefore: 45, panels: ["join", "prizes"], panelSeconds: 12, poster: null }, afterWinner: { mode: "timer", seconds: 15 }, quizDefaults: { rounds: 6, questionsPerRound: 5, settings: DEFAULT_QUIZ_SETTINGS } };
     expect(await res.json()).toEqual(saved);
     expect(JSON.parse(readFileSync(join(s.dataDir, "venue.json"), "utf8"))).toEqual(saved);
     expect(await (await s.fetch("/api/venue", { cookie })).json()).toEqual(saved);

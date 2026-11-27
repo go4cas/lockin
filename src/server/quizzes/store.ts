@@ -7,7 +7,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { QUIZ_LIMITS, validateQuiz, type Problem, type QuizDraft } from "../../shared/formats.ts";
+import { QUIZ_LIMITS, validateQuiz, type Problem, type QuizDefaults, type QuizDraft } from "../../shared/formats.ts";
 import { writeJsonAtomic } from "../files.ts";
 import { MEDIA_FILE, QUESTION_ID, QUIZ_ID, checkDraft, newQuiz } from "./draft.ts";
 
@@ -53,6 +53,8 @@ export interface QuizStoreOptions {
   /** True while an open night uses the quiz (H-02: no edits while it runs). */
   inUse: (quizId: string) => boolean;
   log?: (message: string) => void;
+  /** What a new quiz starts with: the venue's quiz defaults (UI-33). Missing = the built-in ones. */
+  quizDefaults?: () => QuizDefaults;
 }
 
 /** Makes a folder id from a title (TECH-SPEC 5.2): "Friday Classics!" -> "friday-classics". */
@@ -180,7 +182,7 @@ export class QuizStore {
 
   create(title: unknown): QuizDraft {
     const t = this.checkTitle(title);
-    const quiz = newQuiz(this.freeId(t), t, this.stamp());
+    const quiz = newQuiz(this.freeId(t), t, this.stamp(), this.opts.quizDefaults?.());
     mkdirSync(join(this.folder(quiz.id), "media"), { recursive: true });
     this.write(quiz.id, quiz);
     return quiz;

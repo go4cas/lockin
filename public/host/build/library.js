@@ -19,7 +19,21 @@ export function mountLibrary(root) {
     menu: /** @type {string | null} */ (null),
   });
   // Local UI state, apart from the server's list (TECH-SPEC 3.4).
-  const ui = reactive({ dialog: /** @type {Dialog | null} */ (null) });
+  const ui = reactive({
+    dialog: /** @type {Dialog | null} */ (null),
+    /** search text and the ready filter (UI-34) */
+    search: "",
+    /** @type {"all" | "ready" | "work"} */ filter: "all",
+  });
+
+  /** Lower case without accents, so "quizerables" finds "Les Quizérables". @param {string} t */
+  const fold = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  /** Whether a quiz passes the search and the filter. @param {QuizSummary} q */
+  const shown = (q) => (ui.filter === "all" || (ui.filter === "ready") === q.ready)
+    && (ui.search.trim() === "" || fold(q.title).includes(fold(ui.search.trim())));
+  const shownCount = () => (page.quizzes || []).filter(shown).length;
+  /** @param {"all" | "ready" | "work"} f */
+  const countOf = (f) => (page.quizzes || []).filter((q) => f === "all" || (f === "ready") === q.ready).length;
 
   async function load() {
     try {
@@ -92,7 +106,7 @@ export function mountLibrary(root) {
 
   /** @param {QuizSummary} q */
   const row = (q) => html`
-    <tr class="${q.ready ? "ready" : "not-ready"}">
+    <tr class="${q.ready ? "ready" : "not-ready"}" hidden="${() => !shown(q)}">
       <td class="lib-title">
         <span class="${q.ready ? "sdot ok" : "sdot warn"}" aria-hidden="true"></span>
         <span class="lib-name"><a href="${`/host/build?quiz=${encodeURIComponent(q.id)}`}">${q.title}</a>
@@ -140,7 +154,7 @@ export function mountLibrary(root) {
               <input id="dlg-title" class="input" maxlength="80" spellcheck="true" autocomplete="off"
                 value="${() => (ui.dialog ? ui.dialog.title : "")}"
                 @input="${(/** @type {Event} */ e) => { if (ui.dialog) ui.dialog.title = /** @type {HTMLInputElement} */ (e.target).value; }}">
-              ${d.kind === "new" ? html`<p class="muted s">It starts with 6 rounds of 5 questions and the usual settings. You can change both.</p>` : ""}`}
+              ${d.kind === "new" ? html`<p class="muted s">It starts with the rounds, questions and settings in Venue settings, Quiz defaults. You can change them in the quiz.</p>` : ""}`}
         <p class="form-error" role="alert" hidden="${() => !(ui.dialog && ui.dialog.error)}">${() => (ui.dialog ? ui.dialog.error : "")}</p>
         <div class="row end">
           <button type="button" class="btn ghost" @click="${closeDialog}">Cancel</button>
@@ -157,10 +171,20 @@ export function mountLibrary(root) {
     <p class="form-error" role="alert" hidden="${() => !page.error}">${() => page.error}</p>
     ${() => (page.quizzes === null ? html`<p class="muted">Loading quizzes…</p>`
       : page.quizzes.length === 0 ? html`<div class="empty"><p>No quizzes yet.</p><p class="muted">Make one with “New quiz”, or copy a quiz folder into the data folder's <code>quizzes/</code> folder.</p></div>`
-      : html`<table class="lib">
+      : html`<div class="lib-tools">
+          <input id="lib-search" class="input" type="search" placeholder="Search by title" aria-label="Search quizzes by title" autocomplete="off" spellcheck="false"
+            value="${() => ui.search}" @input="${(/** @type {Event} */ e) => { ui.search = /** @type {HTMLInputElement} */ (e.target).value; }}">
+          <div class="seg" role="radiogroup" aria-label="Show">
+            ${/** @type {["all" | "ready" | "work", string][]} */ ([["all", "All"], ["ready", "Ready"], ["work", "Needs work"]]).map(([f, label]) => html`
+              <button type="button" role="radio" aria-checked="${() => String(ui.filter === f)}" @click="${() => { ui.filter = f; }}">${label} <span class="seg-n">${() => String(countOf(f))}</span></button>`)}
+          </div>
+        </div>
+        <table class="lib">
           <thead><tr><th>Quiz</th><th>Edited</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
           <tbody>${() => (page.quizzes || []).map(row)}</tbody>
-        </table>`)}
+        </table>
+        <p class="muted lib-none" hidden="${() => shownCount() > 0}">No quizzes match.
+          <button type="button" class="link" @click="${() => { ui.search = ""; ui.filter = "all"; }}">Show all</button></p>`)}
     <p class="muted s">A quiz that is not ready can't open a night. Duplicate, rename and delete are under ⋯. Delete asks first.</p>
     <dialog class="dlg" @close="${() => { ui.dialog = null; }}">${() => dialogBody()}</dialog>
   `(root);
