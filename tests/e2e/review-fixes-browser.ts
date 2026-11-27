@@ -192,10 +192,10 @@ async function main() {
     });
     await brand.fill("#venue-name", "The Hanks Arms");
     await brand.locator("#venue-name").locator("xpath=ancestor::form").locator("button[type=submit]").click();
-    await brand.waitForFunction(() => document.body.innerText.includes("Saving…"), null, { timeout: 3000 });
+    await brand.waitForFunction(() => !!document.querySelector("button[type=submit] .spin"), null, { timeout: 3000 });   // the Save button's spinner (UI-35)
     await brand.fill("#venue-name", "The Hanks Arms & Kitchen");   // typed while the save is on its way
     release();
-    await brand.waitForFunction(() => !document.body.innerText.includes("Saving…"), null, { timeout: 5000 });
+    await brand.waitForFunction(() => !document.querySelector("button[type=submit] .spin"), null, { timeout: 5000 });
     await Bun.sleep(200);
     const kept = await brand.inputValue("#venue-name");
     const notSaved = await brand.evaluate(() => document.body.innerText.includes("Not saved yet"));

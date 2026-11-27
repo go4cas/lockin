@@ -8,6 +8,7 @@
 // so they change as the QM types, and nothing is written until Save.
 
 import { html, reactive } from "/vendor/arrow/index.mjs";
+import { loading, spinner } from "../loading.js";
 import { saveDraft } from "./save.js";
 import { DEFAULT_INPUTS, checkReadability, deriveBrandTokens, assetUrl } from "./derive.js";
 import { countdown } from "/static/shared/countdown.mjs";
@@ -440,7 +441,7 @@ function brandingTab() {
             <span class="${() => (draft.logo ? "off" : "logo-mark")}">${mark(html)}</span>
           </div>
           <div class="row">
-            <label class="btn small file-btn">${() => (ui.uploading === "logo" ? "Uploading…" : draft.logo ? "Change logo" : "Upload a logo")}
+            <label class="btn small file-btn">${() => (ui.uploading === "logo" ? html`${spinner()}Uploading` : draft.logo ? "Change logo" : "Upload a logo")}
               <input type="file" accept="image/png,image/svg+xml,image/jpeg" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "logo"); if (f) draft.logo = f; }}">
             </label>
             <button type="button" class="btn quiet small" hidden="${() => !draft.logo}" @click="${() => { draft.logo = null; }}">Use the Lock-In mark</button>
@@ -483,7 +484,7 @@ function brandingTab() {
           <button type="button" aria-pressed="${() => String(draft.bgMode === "picture")}" @click="${() => { draft.bgMode = "picture"; }}">Picture</button>
         </div>
         <div class="row pic-row" hidden="${() => draft.bgMode !== "picture"}">
-          <label class="btn small file-btn">${() => (ui.uploading === "displayBackground" ? "Uploading…" : draft.bgImage ? "Change picture" : "Upload a picture")}
+          <label class="btn small file-btn">${() => (ui.uploading === "displayBackground" ? html`${spinner()}Uploading` : draft.bgImage ? "Change picture" : "Upload a picture")}
             <input type="file" accept="image/jpeg,image/png,image/webp" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "displayBackground"); if (f) draft.bgImage = f; }}">
           </label>
           <span class="hint">${() => (draft.bgImage ? "It sits under a dark layer so the words stay easy to read." : "JPEG, PNG or WebP, up to 5 MB. Calm pictures work best.")}</span>
@@ -493,7 +494,7 @@ function brandingTab() {
       ${message()}
 
       <div class="actions">
-        <button type="submit" class="btn primary" disabled="${() => ui.saving || !themeDirty()}">${() => (ui.saving ? "Saving…" : "Save")}</button>
+        <button type="submit" class="btn primary" disabled="${() => ui.saving || !themeDirty()}">${() => (ui.saving ? html`${spinner()}Saving` : "Save")}</button>
         <button type="button" class="btn" disabled="${() => !themeDirty()}" @click="${() => { draftFromTheme(JSON.parse(page.savedTheme)); ui.message = null; }}">Cancel</button>
         <span class="status">${() => (themeDirty() ? "Not saved yet" : "")}</span>
       </div>
@@ -567,7 +568,7 @@ function holdingTab() {
       <h2>Poster</h2>
       <div class="row poster-row">
         ${() => (venue.poster ? html`<img class="poster-thumb" src="${assetUrl(venue.poster)}" alt="Your poster">` : html`<span class="poster-thumb none">No poster</span>`)}
-        <label class="btn small file-btn">${() => (ui.uploading === "poster" ? "Uploading…" : venue.poster ? "Change poster" : "Upload a poster")}
+        <label class="btn small file-btn">${() => (ui.uploading === "poster" ? html`${spinner()}Uploading` : venue.poster ? "Change poster" : "Upload a poster")}
           <input type="file" id="poster-file" accept="image/jpeg,image/png,image/webp" @change="${async (/** @type {Event} */ e) => { const f = await upload(e, "poster"); if (f) venue.poster = f; }}">
         </label>
         <button type="button" class="btn ghost small" hidden="${() => !venue.poster}" @click="${() => { venue.poster = null; }}">Remove</button>
@@ -595,7 +596,7 @@ function holdingTab() {
 
 function venueActions() {
   return html`<div class="actions">
-    <button type="submit" class="btn primary" disabled="${() => ui.saving || !venueDirty()}">${() => (ui.saving ? "Saving…" : "Save")}</button>
+    <button type="submit" class="btn primary" disabled="${() => ui.saving || !venueDirty()}">${() => (ui.saving ? html`${spinner()}Saving` : "Save")}</button>
     <button type="button" class="btn ghost" disabled="${() => !venueDirty()}" @click="${() => { draftFromVenue(JSON.parse(page.savedVenue)); ui.message = null; }}">Cancel</button>
     <span class="status">${() => (venueDirty() ? "Not saved yet" : "")}</span>
   </div>`;
@@ -735,7 +736,8 @@ function displaysTab() {
   return html`<div>
     <p class="hint tab-intro">A paired display stays paired across nights and restarts, until you unpair it. You can also pair one from Run night.</p>
     <div class="error-box" role="alert" hidden="${() => !hostUi.error}">${() => hostUi.error}</div>
-    <p class="hint" hidden="${() => hostPage.status === "online"}">${() => (hostPage.status === "offline" ? "Not connected to Lock-In. Trying again…" : "Connecting…")}</p>
+    <div hidden="${() => hostPage.status !== "connecting"}">${loading("Connecting to Lock-In")}</div>
+    <p class="hint busy-line" hidden="${() => hostPage.status !== "offline"}">${spinner()}Not connected to Lock-In. Trying again.</p>
     ${pairCard()}
   </div>`;
 }
@@ -767,7 +769,7 @@ const view = html`
     </div>
   </div>
   ${() => page.loading
-    ? html`<p class="placeholder">Loading the venue settings…</p>`
+    ? loading("Loading the venue settings")
     : page.loadError
       ? html`<div class="error-box">${page.loadError}</div>`
       : html`<div class="tabs">${allTabs()}</div>`}

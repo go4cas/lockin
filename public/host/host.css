@@ -5,6 +5,12 @@
  * This file holds the shell (top nav) and the shared components; page files only lay out.
  */
 
+/* One page gutter and top for every console page (UI-36): the nav, page heads, the builder and
+   Run night all line up on it. 32 px (--space-6) on a laptop, 20 px on a tablet, 16 px on a phone. */
+body.host { --host-gutter: var(--space-6); --host-top: var(--space-7); }
+@media (max-width: 1023px) { body.host { --host-gutter: 20px; --host-top: 28px; } }
+@media (max-width: 599px) { body.host { --host-gutter: 16px; --host-top: 20px; } }
+
 body.host,
 body.host-auth {
   font-size: var(--host-text-body);
@@ -22,7 +28,7 @@ body.host-auth {
   display: flex;
   align-items: center;
   gap: 28px;
-  padding: 0 28px;
+  padding: 0 var(--host-gutter);
   border-bottom: 1px solid var(--line);
   background: var(--ink);
   /* Stays at the top while the page scrolls (UI-30). */
@@ -48,13 +54,12 @@ body.host-auth {
 }
 .host-nav .nav-room:not([hidden]) + .host-signout { margin-left: 0; }
 .host-signout:hover { background: var(--raised); color: var(--bone); }
-.host-main { flex: 1 1 auto; padding: 40px 28px 40px; min-width: 0; width: 100%; max-width: 1280px; margin: 0 auto; }
+.host-main { flex: 1 1 auto; padding: var(--host-top) var(--host-gutter); min-width: 0; width: 100%; }
 .placeholder { color: var(--ash); }
 
 @media (max-width: 1023px) {
-  .host-nav { gap: 18px; padding: 0 20px; }
+  .host-nav { gap: 18px; }
   .host-nav ul { gap: 16px; }
-  .host-main { padding: 28px 20px; }
 }
 
 /* ---- Type ---- */
@@ -139,7 +144,14 @@ code { font-size: 0.92em; color: var(--fog); }
 .input::placeholder { color: var(--dim); }
 .input:disabled { color: var(--dim); background: transparent; }
 textarea.input { padding: 11px 14px; min-height: 88px; resize: vertical; line-height: 1.45; }
-select.input { padding-right: 10px; }
+/* Selects look like the other fields (UI-37): no browser arrow, our chevron in Ash, a dark list. */
+select.input {
+  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 40px; color-scheme: dark;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%2395958f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; background-size: 16px 16px;
+}
+select.input:hover { background-color: var(--raised); }
+select.input option { background: var(--smoke); color: var(--bone); }
 .input.short, .input.tiny { width: 96px; }
 .input.time { width: 140px; }
 .input.narrow { width: 280px; max-width: 100%; }
@@ -280,7 +292,7 @@ button.primary:not(.btn):disabled { background: var(--status-disabled-tint); col
 
 /* Phone: the top nav scrolls sideways so every section and Sign out stay reachable (Run night phone layout). */
 @media (max-width: 599px) {
-  .host-nav { gap: 16px; padding: 0 16px; overflow-x: auto; overflow-y: hidden; }
+  .host-nav { gap: 16px; overflow-x: auto; overflow-y: hidden; }
   .host-nav ul { gap: 14px; }
   .host-brand { flex: none; font-size: 18px; }
   .host-signout { flex: none; }
@@ -318,3 +330,22 @@ button.primary:not(.btn):disabled { background: var(--status-disabled-tint); col
   .form-card.cols .field > .l { padding-top: 0; margin-bottom: 7px; }
 }
 .host-credit .app-version { font-variant-numeric: tabular-nums; }
+
+/* ---- Loading (UI-35): the mark's ring with the venue arc turning, in place of "Loading…" text.
+   public/host/loading.js draws it; brand/index.html has the same markup for the first paint. ---- */
+.loading { display: flex; align-items: center; justify-content: flex-start; min-height: 120px; padding: 24px 0; }
+.spin { width: 32px; height: 32px; flex: none; animation: spin-turn 900ms linear infinite; }
+.spin.s { width: 16px; height: 16px; }
+.spin-track { fill: none; stroke: var(--line-strong); stroke-width: 12; }
+.spin-arc { fill: none; stroke: var(--venue); stroke-width: 12; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50px 50px; }
+.btn .spin-track, .pill .spin-track { stroke: currentColor; opacity: 0.25; }
+.btn.primary .spin-arc { stroke: currentColor; }
+.btn .spin.s { margin-right: 2px; }
+.pill.active { background: var(--status-active-tint); }
+.pill .spin.s { margin-right: 7px; }
+.busy-line { display: flex; align-items: center; gap: 8px; }
+@keyframes spin-turn { to { transform: rotate(360deg); } }
+@keyframes spin-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: spin-pulse 1.6s ease-in-out infinite; }
+}

@@ -2,6 +2,7 @@
 // Quiz builder (H-02, H-03, H-04). The open quiz is a local reactive() draft;
 // a watch() on it drives the debounced autosave (TECH-SPEC 3.4, B3).
 import { html, nextTick, reactive, watch } from "/vendor/arrow/index.mjs";
+import { loading, spinner } from "../loading.js";
 import { ApiError, getQuiz, isOffline, groupProblems, readinessLabel, saveQuiz, uploadImage } from "./api.js";
 import { prepareImage } from "./image.js";
 
@@ -275,8 +276,8 @@ export function mountBuilder(root, quizId) {
   const statusPill = () => {
     switch (ui.status) {
       case "saved": return html`<span class="pill ok" role="status"><i></i>Saved</span>`;
-      case "pending": case "saving": return html`<span class="pill" role="status"><i></i>Saving…</span>`;
-      case "loading": return html`<span class="pill" role="status">Opening…</span>`;
+      case "pending": case "saving": return html`<span class="pill active" role="status">${spinner()}Saving</span>`;
+      case "loading": return html`<span class="pill active" role="status">${spinner()}Opening</span>`;
       default: return html`<span class="pill bad" role="status"><i></i>Not saved</span>`;
     }
   };
@@ -599,7 +600,7 @@ export function mountBuilder(root, quizId) {
         : q.media
           ? html`<p class="muted s">This question has ${q.media.kind} media, which this version of Lock-In can't show. <button type="button" class="btn ghost" @click="${() => { q.media = undefined; }}">Remove it</button></p>`
           : html`<label class="btn ghost file-btn">Add a picture<input type="file" accept="image/jpeg,image/png,image/webp" @change="${(/** @type {Event} */ e) => pickImage(q, e)}"></label>`)}
-      <p class="muted s" hidden="${() => !ui.uploading}">Resizing and uploading…</p>
+      <p class="muted s busy-line" hidden="${() => !ui.uploading}">${spinner()}Resizing and uploading the picture</p>
       <p class="form-error" role="alert" hidden="${() => !ui.uploadError}">${() => ui.uploadError}</p>
     </div>`;
 
@@ -663,7 +664,7 @@ export function mountBuilder(root, quizId) {
 
   // ---- Page -------------------------------------------------------------------
   html`${() => {
-    if (ui.phase === "loading") return html`<p class="muted b-loading">Opening the quiz…</p>`;
+    if (ui.phase === "loading") return html`<div class="b-loading">${loading("Opening the quiz")}</div>`;
     if (ui.phase === "missing") {
       return html`<div class="b-missing"><a class="b-back" href="/host/build">← Quizzes</a><h1>Can't open this quiz</h1><p>${() => ui.message}</p></div>`;
     }

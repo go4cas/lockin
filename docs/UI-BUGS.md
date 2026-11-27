@@ -68,3 +68,15 @@ Questions answered, not changed:
 - **Quizzes list: limited or filtered?** No. It lists every quiz in the data folder, most recently edited first. A quiz has no date (a night does, and past nights are in History), so active, past and future sections do not fit quizzes as they are. Cas chose search and a ready filter instead (UI-34).
 - **Builder: do questions crowd the left list?** Only the open round's questions show under it; the other rounds are one line each. Ten rounds of twelve shows ten round lines plus twelve question lines at most.
 - **"Saved" when changes save themselves?** It is the auto-save status: "Opening…", "Saving…" (about a second after typing), "Saved", or "Not saved" in red when a save failed or a problem stops it. A banner says what to do when the quiz was changed elsewhere.
+
+## Host console review on v0.3.1, batch 5 (Cas, 2026-11-27)
+
+| # | Where | Report | Finding | Status |
+|---|---|---|---|---|
+| UI-35 | Host console | Add loading indicators in place of text, in line with the design. | Pages said "Loading quizzes…", "Connecting to Lock-In…", "Opening the quiz…"; buttons said "Saving…" and "Uploading…". The design system has no loader, so it follows the mark and the Status component (Active). | Fixed: a loader drawn from the Lock-In mark (its ring with the venue arc turning; it pulses with reduced motion) replaces the page and panel loading text, which is still read out to screen readers. Save and upload buttons show a small one with "Saving" or "Uploading"; the builder's status pill shows it in the Active colour. `public/host/loading.js`, `.loading`/`.spin` in host.css. |
+| UI-36 | Host console | Pages have different margins: some left aligned, some with bigger margins. | Most pages were capped at 1280 px and centred, so on a wide screen they started further in than the nav; the builder and Run night ran full width with their own 28 px gutter; Quizzes had a bigger title. | Fixed: one gutter for the nav and every page (32 px laptop, 20 px tablet, 16 px phone, `--host-gutter`) and one top (`--host-top`); pages are left aligned to the nav; every page title is the 44 px console title. |
+| UI-37 | Host console | Selects use the browser's look. | `select.input` kept the native arrow and light list. | Fixed: no native arrow, an Ash chevron, the field's box and radius, a dark option list. |
+
+Questions answered, not changed:
+
+- **A venue picture library for posters and other uploads?** Today each picture has one use (logo, TV picture, poster), uploaded where it is used. Cas (2026-11-27): not now, after 1.0. When built, it is a new venue concept, so the file format, its validator, TECH-SPEC and docs change together.

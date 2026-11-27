@@ -21,6 +21,9 @@
 // UI-32: the host home page shows the Lock-In lockup and Cas's animated "Last orders" artwork.
 // UI-33: Venue settings has Quiz defaults; a new quiz starts with them.
 // UI-34: the Quizzes list has a title search and an All / Ready / Needs work filter.
+// UI-35: the console shows a loader (the mark's ring turning) instead of "Loading…" text.
+// UI-36: every console page lines up with the nav's left edge.
+// UI-37: selects are styled like the other fields, not the browser's own.
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -318,6 +321,49 @@ async function main() {
     check(all === "Test Quiz, Ready Quiz" || all === "Ready Quiz, Test Quiz", `UI-34 all quizzes: ${all}`);
     check(work === "Test Quiz" && searched === "Ready Quiz" && none, `UI-34 Needs work: "${work}", search "ready q": "${searched}", no match says so: ${none}`);
     await lib.close();
+
+    // UI-35: a loader, not "Loading…" text, while the quiz list loads
+    const slow = await hostCtx.newPage();
+    watch("slow library", slow);
+    let letGo!: () => void;
+    const gate = new Promise<void>((r) => { letGo = r; });
+    await slow.route("**/api/quizzes", async (route) => { await gate; await route.continue(); });
+    await slow.goto(`${PUBLIC}/host/build`);
+    const loader = await slow.waitForSelector("#host-main .loading[role=status] .spin", { timeout: 5000 }).then(() => true, () => false);
+    const loadingText = await slow.evaluate(() => {
+      const main = document.getElementById("host-main")!.cloneNode(true) as HTMLElement;
+      main.querySelectorAll(".visually-hidden").forEach((e) => e.remove());   // read out, not shown
+      return /Loading/.test(main.textContent ?? "");
+    });
+    const label = await slow.evaluate(() => document.querySelector("#host-main .loading .visually-hidden")?.textContent ?? "");
+    await slow.screenshot({ path: join(OUT, "ui-35-loading.png") });
+    letGo();
+    await slow.waitForSelector("#lib-search", { timeout: 5000 });
+    check(loader && !loadingText && label === "Loading quizzes", `UI-35 the quiz list shows a loader (${loader}), no visible loading text (${!loadingText}), read out as "${label}"`);
+
+    // UI-36: every console page starts at the nav's left edge, with the same top
+    const edges: string[] = [];
+    for (const path of ["/host/build", `/host/build?quiz=${ready.id}`, "/host/brand", "/host/history"]) {
+      await slow.goto(`${PUBLIC}${path}`);
+      await slow.waitForFunction(() => !!document.querySelector("#host-main h1"), null, { timeout: 5000 });
+      edges.push(await slow.evaluate(() => {
+        const nav = Math.round(document.querySelector(".host-brand")!.getBoundingClientRect().left);
+        const h1 = Math.round(document.querySelector("#host-main h1")!.getBoundingClientRect().left);
+        return `${location.pathname}${location.search} nav ${nav} title ${h1}`;
+      }));
+    }
+    check(edges.every((e) => / nav (\d+) title \1$/.test(e)), `UI-36 ${edges.join("; ")}`);
+
+    // UI-37: selects are styled like the other fields
+    await slow.goto(`${PUBLIC}/host/build?quiz=${ready.id}`);
+    await slow.click('[role=tab]:has-text("Settings")');
+    const sel = await slow.waitForSelector("#set-half", { timeout: 5000 }).then(() => slow.evaluate(() => {
+      const cs = getComputedStyle(document.getElementById("set-half")!);
+      return { appearance: cs.appearance, chevron: cs.backgroundImage.includes("svg"), radius: cs.borderRadius };
+    }));
+    await slow.locator("#set-half").screenshot({ path: join(OUT, "ui-37-select.png") });
+    check(sel.appearance === "none" && sel.chevron && sel.radius === "10px", `UI-37 select: appearance ${sel.appearance}, chevron ${sel.chevron}, radius ${sel.radius}`);
+    await slow.close();
 
     // UI-33: Venue settings, Quiz defaults: a new quiz starts with the venue's rounds, questions and settings
     await brand.click('[role=tab]:has-text("Quiz defaults")');

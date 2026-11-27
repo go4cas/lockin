@@ -2,6 +2,7 @@
 // Team tools (H-06): the lobby table, the side list during the night, and the rename,
 // move-to-a-new-phone and remove dialogs.
 import { html } from "/vendor/arrow/index.mjs";
+import { spinner } from "../loading.js";
 import { closeDialog, enabled, openDialog, page, send, ui } from "./state.js";
 import { dialogFrame, dot, phonePill, pool } from "./ui.js";
 
@@ -147,7 +148,7 @@ async function moveTeam(id) {
 
 export function moveDialog() {
   return dialogFrame(() => `Move ${ui.d.name || ""} to a new phone`, html`
-    <p class="muted" hidden="${() => !ui.d.loading}">Making a move code…</p>
+    <p class="muted busy-line" hidden="${() => !ui.d.loading}">${spinner()}Making a move code</p>
     <div class="move" hidden="${() => !!ui.d.loading}">
           <img class="qr" alt="${() => `QR code for ${ui.d.url}`}" src="${() => (ui.d.code ? `/qr/move/${encodeURIComponent(ui.d.code)}.svg` : "")}" width="180" height="180">
           <div>

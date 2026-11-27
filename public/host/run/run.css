@@ -12,7 +12,7 @@ body.run .host-credit { display: none; }
 .label-s { display: block; font-size: var(--host-text-small); color: var(--ash); margin-bottom: 4px; }
 
 /* ---- Run header: lockup · title · room · steps · Night menu (64 px, hairline) ---- */
-.topbar { display: none; height: 64px; align-items: center; gap: 24px; padding: 0 28px; border-bottom: 1px solid var(--line); flex: none; position: sticky; top: 0; z-index: 20; background: var(--ink); }
+.topbar { display: none; height: 64px; align-items: center; gap: 24px; padding: 0 var(--host-gutter); border-bottom: 1px solid var(--line); flex: none; position: sticky; top: 0; z-index: 20; background: var(--ink); }
 body.night-open .topbar { display: flex; }
 .topbar .host-brand { font-size: 22px; }
 .topbar .title { font-size: 15px; color: var(--fog); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 280px; }
@@ -28,7 +28,7 @@ body.night-open .topbar { display: flex; }
 
 /* Night menu: a dropdown under the button */
 .menu-layer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 40; }
-.night-menu { position: absolute; top: 58px; right: 28px; width: 320px; }
+.night-menu { position: absolute; top: 58px; right: var(--host-gutter); width: 320px; }
 .night-menu .muted { color: var(--ash); }
 .mini-switch { margin-left: auto; width: 32px; height: 18px; border-radius: 9px; box-shadow: inset 0 0 0 1px var(--line-strong); position: relative; flex: none; }
 .mini-switch::after { content: ""; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--dim); }
@@ -36,12 +36,12 @@ body.night-open .topbar { display: flex; }
 .mini-switch.on::after { left: 17px; background: var(--ink); }
 
 /* ---- Body: main column (stage + foot with the next step), teams sidebar 300 px ---- */
-.runbody { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) var(--host-sidebar-w); column-gap: 40px; padding: 0 28px; min-height: 0; }
+.runbody { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) var(--host-sidebar-w); column-gap: 40px; padding: 0 var(--host-gutter); min-height: 0; }
 .runbody.no-side { grid-template-columns: minmax(0, 1fr); }
 .runbody.is-offline .btn:not(.close) { pointer-events: none; }
 .main-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .main { min-width: 0; flex: 1 1 auto; }
-.stage { padding: 28px 0; display: flex; flex-direction: column; gap: 20px; max-width: 1040px; }
+.stage { padding: var(--host-top) 0 28px; display: flex; flex-direction: column; gap: 20px; max-width: 1040px; }
 .host-main > .stage { padding: 0; }
 .run-foot { display: flex; gap: 24px; align-items: flex-end; padding: 0 0 28px; position: sticky; bottom: 0; background: var(--ink); }
 .run-foot .display-now { flex: none; }
@@ -55,7 +55,7 @@ body.night-open .topbar { display: flex; }
 .secondary { margin-top: auto; }
 
 .banner { position: sticky; top: 0; z-index: 30; text-align: center; border-radius: 0; display: flex; justify-content: center; }
-.error-bar { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 8px 28px; background: var(--status-error-tint); color: var(--bone); font-weight: 600; }
+.error-bar { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 8px var(--host-gutter); background: var(--status-error-tint); color: var(--bone); font-weight: 600; }
 
 /* ---- Teams sidebar: bubble, name, In / Waiting / Offline, ⋯ ---- */
 .side-teams { flex: 1 1 auto; overflow: auto; min-height: 96px; }
@@ -185,10 +185,10 @@ td.move.up { color: var(--venue); }
 
 /* Tablet: 768 to 1023 px. The sidebar moves under the stage; the next step stays in reach. */
 @media (max-width: 1023px) {
-  .topbar { gap: 14px; padding: 0 20px; }
+  .topbar { gap: 14px; }
   .topbar .title { display: none; }
   .phase-steps { gap: 12px; }
-  .runbody { grid-template-columns: minmax(0, 1fr); padding: 0 20px; }
+  .runbody { grid-template-columns: minmax(0, 1fr); }
   .side { border-left: 0; border-top: 1px solid var(--line); padding: 20px 0; }
   .run-foot .display-now { display: none; }
   .two { grid-template-columns: 1fr; }
@@ -204,14 +204,12 @@ td.move.up { color: var(--venue); }
 /* Phone: under 600 px (UI-24; Cas, 2026-11-26: a phone layout for Run night only). One column, the
    Night menu always in reach, wide tables scroll sideways instead of cutting off. */
 @media (max-width: 599px) {
-  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; gap: 6px 12px; padding: 8px 16px; }
+  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; gap: 6px 12px; padding: 8px var(--host-gutter); }
   .topbar .host-brand { font-size: 18px; }
   .phase-steps { display: none; }
   .menu-btn { margin-left: auto; }
-  .night-menu { top: 52px; left: 16px; right: 16px; width: auto; }
-  .runbody { padding: 0 16px; }
-  .stage { padding: 20px 0; gap: 16px; }
-  .host-main { padding: 20px 16px; }
+  .night-menu { top: 52px; left: var(--host-gutter); right: var(--host-gutter); width: auto; }
+  .stage { padding: var(--host-top) 0 20px; gap: 16px; }
   .host-main h1, .host h1 { font-size: 34px; }
   .qbig { font-size: 23px; }
   .q-meta { flex-wrap: wrap; gap: 8px; }
