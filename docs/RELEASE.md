@@ -40,19 +40,13 @@ Contents:
 
 ## 1. Cut a release
 
-Releases are built by GitHub, not on a laptop, so every binary can be tied to a commit (SA-16). A tag such as `v1.0.0` runs `.github/workflows/release.yml`, which tests, builds two binaries, writes their SHA-256 files, attests them and publishes a GitHub release.
+Releases are built by GitHub, not on a laptop, so every binary can be tied to a commit (SA-16). Merging a change to `"version"` in `package.json` into `main` runs `.github/workflows/release.yml`: it tags that commit (`v` + the version), then tests, builds two binaries, writes their SHA-256 files, attests them and publishes a GitHub release. Nobody tags by hand.
 
 1. **Real-hardware checks first** (REVIEW finding 2). Before `v1.0.0`: the pilot pub's smart TV (or casting device) shows `/display`; current and previous iOS Safari and Android Chrome can join and play; a phone can add the quiz to its home screen and open it full screen. See [section 10](#10-before-the-first-night).
 2. **Set the version.** In a pull request, change `"version"` in `package.json` to the new number (for example `1.0.0`). Merge it.
-3. **Tag the merged commit** on `main`:
+3. **Wait for the release.** The merge starts the Release workflow (Actions tab). After about two minutes it has tagged the merge commit `v1.0.0` and published the release. If that tag already exists, it does nothing.
 
-   ```sh
-   git switch main && git pull
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-
-   The workflow refuses a tag that does not match `package.json`.
+   A tag pushed by hand (`git tag v1.0.0 && git push origin v1.0.0`) still releases, but only tag a commit whose `package.json` already has that version: the workflow refuses a tag that does not match.
 4. **Check the release.** The release page should have six files:
 
    | File | For |
@@ -72,7 +66,7 @@ Releases are built by GitHub, not on a laptop, so every binary can be tied to a 
    gh attestation verify lockin-linux-x64 -R go4cas/lockin
    ```
 
-   If the workflow fails, fix it on a branch, then delete the tag (`git push --delete origin v1.0.0`, `git tag -d v1.0.0`) and tag again. Only do that before any server has installed the release.
+   If the workflow fails, fix it on a branch, delete the tag if it was made (`git push --delete origin v1.0.0`, and `git tag -d v1.0.0` if you have it locally), then merge the fix and tag that commit by hand, or bump the version again. Only do that before any server has installed the release.
 
 ## 2. Set up the server
 
@@ -312,7 +306,7 @@ A newer version may have changed the database; if the old one will not start, re
 
 1. Read that Bun release's notes.
 2. If it has security fixes: in a pull request, raise `MIN_BUN` in `src/server/runtime.ts`, `engines.bun` in `package.json`, and `bun-version` in `.github/workflows/ci.yml` and `release.yml` to the new version, and bump Lock-In's patch version (for example `1.0.1`). Lock-In refuses to start on a Bun older than `MIN_BUN` (currently 1.4.5).
-3. Merge, tag, check the release ([section 1](#1-cut-a-release)), and update the server as above.
+3. Merge, check the release ([section 1](#1-cut-a-release)), and update the server as above.
 4. If it has no security fixes, update the pins with the next normal release.
 
 **The rest of the server:** let Ubuntu or Debian install security updates by themselves (`sudo apt install unattended-upgrades`, on by default on Ubuntu), and reboot when they ask, on a day without a quiz.

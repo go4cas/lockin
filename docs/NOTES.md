@@ -482,3 +482,14 @@ Chalkboard look on all three clients. Decisions and evidence:
   `tests/phone/screens/` are no longer committed. Earlier entries above that point at
   `docs/design/` describe the history and are left as they were.
 - **Deviations** are listed in docs/DESIGN-SYSTEM.md section 6.
+
+## Release: tag on version bump (2026-11-28)
+
+- **Decision (Cas, 2026-11-28):** releases tag themselves. `release.yml` also runs on a push to
+  `main` that changes `package.json`; if `v<version>` is not a tag yet, its `tag` job tags that
+  commit with the workflow token and the `release` job builds and publishes it. A tag made with
+  the workflow token starts no second run, which is why both steps are in one workflow.
+- **Why:** a hand tag pushed before the version PR merged (v0.3.4, 2026-11-28) pointed at a
+  commit still saying 0.3.3; the version check refused it, but it took a delete and retag.
+- Hand tags (`v*.*.*`) still release, and the version check still refuses a mismatch. A
+  `package.json` change that keeps the version (a dependency bump) finds the tag and does nothing.
