@@ -397,7 +397,7 @@ As a host, I want a tie settled by sudden death, so that there is one winner whe
 
 Done when:
 - After the last round, if teams are still tied after the tie breaker (S-07) for a position that sudden death applies to (first place by default), the console offers sudden death for those teams.
-- Sudden-death questions are written in the builder in a separate sudden-death list per quiz, as typed-answer, multiple-choice or closest-number questions.
+- Sudden-death questions are written in the builder in a separate sudden-death list per quiz, as typed-answer, multiple-choice or closest-number questions, each with an optional picture (shown on the display and the tied teams' phones).
 - Each sudden-death question goes only to the tied teams; other phones and the display show that sudden death is on. If exactly one tied team is right, it takes the position; otherwise the next question is asked.
 - After the maximum number of sudden-death questions (default 3), or if the sudden-death list runs out, the teams share the position.
 - With more than two teams tied, a right answer from more than one team removes only the teams that were wrong, and sudden death goes on among the rest.

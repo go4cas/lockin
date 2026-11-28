@@ -138,8 +138,9 @@ Before the timer starts it shows the full time, dimmed. The last ten seconds tur
   now" and the next-step button. Library rows show a status dot, edited date and "Open night →" or
   "N problems ▾". The builder and Venue settings share one page head: the title on the left, a
   `.seg` tab bar on the right (builder: Rounds · Sudden death · Settings; Venue settings: Branding ·
-  Holding page · Default prizes · Displays). The builder's Rounds and Sudden death tabs are a slim
-  outline (one line per round or question) + editor. Settings forms are 680 px `.form-card`s with an
+  Holding page · Default prizes · Displays). The builder's Rounds tab is a slim outline (one line per
+  round: number, title, question count) + editor; a round's questions are listed in its editor, and a
+  question has a back link to its round. Sudden death is one page, its questions listed in it. Settings forms are 680 px `.form-card`s with an
   overline title, one field per row, the unit after a short input and the hint under it. The quiz
   Settings tab uses `.form-card.cols` (880 px): the canvas's field grid, label in a 200 px left
   column, control and hint on the right, a hairline between rows. Branding has a live TV and phone

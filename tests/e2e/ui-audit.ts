@@ -85,7 +85,7 @@ async function main() {
     await go("/host", ".home-hero"); await shot(p, "host-home");
     await go("/host/build", ".lib-tools"); await shot(p, "host-quizzes");
     await go("/host/build?quiz=audit", "#round-title"); await shot(p, "host-builder-round");
-    await p.click(".b-qs a.b-q >> nth=0"); await p.waitForSelector("#q-text"); await shot(p, "host-builder-question");
+    await p.click(".q-list a:visible >> nth=0"); await p.waitForSelector("#q-text"); await shot(p, "host-builder-question");
     await p.click('[role=tab]:has-text("Settings")'); await p.waitForSelector("#quiz-title"); await shot(p, "host-builder-settings");
     await go("/host/brand", "#venue-name"); await shot(p, "host-venue-branding");
     for (const t of ["Holding page", "Default prizes", "Quiz defaults", "Displays"]) {
