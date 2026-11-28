@@ -121,6 +121,7 @@ export const HOST_SECTIONS = {
   brand: "Venue settings", // B4 (was "Branding", UI-21)
   run: "Run night",       // B5
   history: "History",     // B5
+  how: "How Lock-In works", // connections diagram (Cas, 2026-11-28), linked from home and Displays
 } as const;
 
 export function registerStatic(app: App): void {

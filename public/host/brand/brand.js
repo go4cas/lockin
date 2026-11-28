@@ -746,7 +746,7 @@ function allTabs() {
 
 function displaysTab() {
   return html`<div>
-    <p class="hint tab-intro">A paired display stays paired across nights and restarts, until you unpair it. You can also pair one from Run night.</p>
+    <p class="hint tab-intro">A paired display stays paired across nights and restarts, until you unpair it. You can also pair one from Run night. <a class="link" href="/host/how">How Lock-In works</a></p>
     <div class="error-box" role="alert" hidden="${() => !hostUi.error}">${() => hostUi.error}</div>
     <div hidden="${() => hostPage.status !== "connecting"}">${loading("Connecting to Lock-In")}</div>
     <p class="hint busy-line" hidden="${() => hostPage.status !== "offline"}">${spinner()}Not connected to Lock-In. Trying again.</p>

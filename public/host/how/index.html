@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Lock-In works · Lock-In host</title>
+<link rel="icon" href="/static/logo/lockin-favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/shared/tokens.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/static/shared/base.css">
+<link rel="stylesheet" href="/static/host/host.css">
+<link rel="stylesheet" href="/static/host/how/how.css">
+</head>
+<body class="host" data-section="how">
+<div class="host-layout">
+  <nav class="host-nav" id="host-nav" aria-label="Host console"></nav>
+  <main class="host-main" id="host-main">
+    <div class="hw-page">
+      <header class="hw-head">
+        <h1>How Lock-In works</h1>
+        <p class="hw-lede">Every screen talks to one place over the internet: <b>Lock-In</b>, at <b data-address>your quiz's web address</b>. The host console, the pub display and the team phones never need to share a network or find each other. There are no ports to open and no Chromecast or AirPlay to set up.</p>
+      </header>
+
+      <div class="hw-diagram" role="img" aria-label="The host console, the pub display and the team phones each connect over the internet to Lock-In at one web address. An optional HDMI cable can run from the host laptop to the display.">
+        <svg viewBox="0 0 1000 660" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- The internet: a ring with the countdown arc -->
+          <circle cx="500" cy="335" r="175" fill="none" stroke="var(--line)" stroke-width="2" stroke-dasharray="3 7"></circle>
+          <path d="M500 160 A175 175 0 0 1 675 335" fill="none" stroke="var(--venue)" stroke-width="2" opacity="0.55"></path>
+          <text class="hw-over" x="500" y="200" text-anchor="middle">THE INTERNET</text>
+
+          <!-- HDMI cable (optional) -->
+          <path class="hw-cable" d="M150 86 V54 H850 V78"></path>
+          <rect x="318" y="34" width="364" height="40" rx="8" fill="var(--ink)"></rect>
+          <text class="hw-sub" x="500" y="50" text-anchor="middle">Or: an HDMI cable from the host laptop</text>
+          <text class="hw-meta" x="500" y="67" text-anchor="middle">second screen, extend not mirror, no pairing</text>
+
+          <!-- Connections, under the devices -->
+          <path class="hw-net-base" d="M204 128 C 320 128 290 320 355 320"></path>
+          <path class="hw-net hw-flow" d="M204 128 C 320 128 290 320 355 320"></path>
+          <path class="hw-net-base" d="M788 128 C 680 128 710 320 645 320"></path>
+          <path class="hw-net hw-flow" d="M788 128 C 680 128 710 320 645 320"></path>
+          <path class="hw-net-base" d="M240 562 C 320 562 420 490 420 408"></path>
+          <path class="hw-net hw-flow" d="M240 562 C 320 562 420 490 420 408"></path>
+
+          <!-- The network each device uses -->
+          <rect x="246" y="208" width="104" height="26" rx="13" fill="var(--ink)" stroke="var(--line-strong)"></rect>
+          <text class="hw-pill" x="298" y="225" text-anchor="middle">staff wifi</text>
+          <rect x="622" y="208" width="146" height="26" rx="13" fill="var(--ink)" stroke="var(--line-strong)"></rect>
+          <text class="hw-pill" x="695" y="225" text-anchor="middle">wired or strong wifi</text>
+          <rect x="282" y="497" width="166" height="26" rx="13" fill="var(--ink)" stroke="var(--line-strong)"></rect>
+          <text class="hw-pill" x="365" y="514" text-anchor="middle">guest wifi or mobile data</text>
+
+          <!-- The server -->
+          <rect x="355" y="264" width="290" height="144" rx="16" fill="var(--smoke)" stroke="var(--line-strong)"></rect>
+          <text class="hw-over" x="500" y="294" text-anchor="middle">THE SERVER</text>
+          <text class="hw-big" x="500" y="332" text-anchor="middle">Lock-In</text>
+          <text class="hw-sub" x="500" y="358" text-anchor="middle"><tspan data-address>one web address</tspan></text>
+          <text class="hw-meta" x="500" y="380" text-anchor="middle">pages + live updates</text>
+
+          <text class="hw-voice" x="560" y="448" text-anchor="middle">The devices never talk to each other</text>
+          <text class="hw-voice" x="560" y="468" text-anchor="middle">or need the same network.</text>
+
+          <!-- Host console: a laptop -->
+          <rect x="100" y="88" width="104" height="66" rx="6" fill="var(--smoke)" stroke="var(--fog)" stroke-width="1.6"></rect>
+          <rect x="110" y="98" width="84" height="8" rx="2" fill="var(--line-strong)"></rect>
+          <rect x="110" y="112" width="52" height="5" rx="2" fill="var(--line-strong)"></rect>
+          <rect x="150" y="132" width="44" height="14" rx="5" fill="var(--venue)"></rect>
+          <path d="M86 158 H218 L210 166 H94 Z" fill="var(--fog)"></path>
+          <text class="hw-title" x="40" y="200">Host console</text>
+          <text class="hw-path" x="40" y="222">/host</text>
+          <text class="hw-sub" x="40" y="242">Laptop or tablet browser</text>
+
+          <!-- Pub display: a TV showing the countdown -->
+          <rect x="788" y="80" width="124" height="76" rx="5" fill="var(--smoke)" stroke="var(--fog)" stroke-width="1.6"></rect>
+          <circle cx="850" cy="118" r="20" fill="none" stroke="var(--line-strong)" stroke-width="4"></circle>
+          <path d="M850 98 A20 20 0 0 1 870 118" fill="none" stroke="var(--venue)" stroke-width="4"></path>
+          <text class="hw-tv-num" x="850" y="124" text-anchor="middle">20</text>
+          <path d="M836 156 L830 168 M864 156 L870 168" stroke="var(--fog)" stroke-width="1.6"></path>
+          <text class="hw-title" x="960" y="200" text-anchor="end">Pub display</text>
+          <text class="hw-path" x="960" y="222" text-anchor="end">/display</text>
+          <text class="hw-sub" x="960" y="242" text-anchor="end">TV browser or Google TV device</text>
+          <text class="hw-meta" x="960" y="261" text-anchor="end">paired once with a 6-digit code</text>
+          <g transform="translate(722 292)">
+            <path d="M0 6 H7 L15 0 V22 L7 16 H0 Z" fill="var(--fog)"></path>
+            <path d="M20 5 Q25 11 20 17 M24 1 Q32 11 24 21" fill="none" stroke="var(--fog)" stroke-width="1.6" stroke-linecap="round"></path>
+          </g>
+          <text class="hw-sub" x="960" y="301" text-anchor="end">Video and audio clips play</text>
+          <text class="hw-sub" x="960" y="319" text-anchor="end">only here, on the pub speakers</text>
+          <text class="hw-meta" x="960" y="337" text-anchor="end">(planned)</text>
+
+          <!-- Team phones -->
+          <rect x="90" y="528" width="40" height="70" rx="8" fill="var(--smoke)" stroke="var(--fog)" stroke-width="1.6"></rect>
+          <circle cx="110" cy="550" r="9" fill="var(--team-1)"></circle><text class="hw-bub" x="110" y="553" text-anchor="middle">QA</text>
+          <rect x="97" y="566" width="26" height="6" rx="3" fill="var(--line-strong)"></rect>
+          <rect x="97" y="578" width="26" height="9" rx="3" fill="var(--venue)"></rect>
+          <rect x="142" y="540" width="40" height="70" rx="8" fill="var(--smoke)" stroke="var(--fog)" stroke-width="1.6"></rect>
+          <circle cx="162" cy="562" r="9" fill="var(--team-2)"></circle><text class="hw-bub" x="162" y="565" text-anchor="middle">LQ</text>
+          <rect x="149" y="578" width="26" height="6" rx="3" fill="var(--line-strong)"></rect>
+          <rect x="149" y="590" width="26" height="9" rx="3" fill="var(--venue)"></rect>
+          <rect x="194" y="528" width="40" height="70" rx="8" fill="var(--smoke)" stroke="var(--fog)" stroke-width="1.6"></rect>
+          <circle cx="214" cy="550" r="9" fill="var(--team-3)"></circle><text class="hw-bub" x="214" y="553" text-anchor="middle">AQ</text>
+          <rect x="201" y="566" width="26" height="6" rx="3" fill="var(--line-strong)"></rect>
+          <rect x="201" y="578" width="26" height="9" rx="3" fill="var(--venue)"></rect>
+          <text class="hw-title" x="40" y="640">Team phones</text>
+          <text class="hw-path" x="196" y="640">/j/:code</text>
+          <text class="hw-sub" x="270" y="574">Any modern phone browser,</text>
+          <text class="hw-sub" x="270" y="593">added to the home screen (PWA)</text>
+          <text class="hw-meta" x="270" y="612">join by QR or room code</text>
+          <text class="hw-meta" x="270" y="630">one phone per team, rejoin code</text>
+
+          <!-- Legend -->
+          <g transform="translate(700 576)">
+            <path class="hw-net" d="M0 8 H40"></path>
+            <text class="hw-meta" x="52" y="12">over the internet (live)</text>
+            <path class="hw-cable" d="M0 38 H40"></path>
+            <text class="hw-meta" x="52" y="42">cable in the room</text>
+          </g>
+        </svg>
+      </div>
+
+      <section class="hw-notes" aria-label="Notes">
+        <div class="hw-note">
+          <span class="overline">Guest wifi</span>
+          <h2>Login pages and filters</h2>
+          <p>If the guest wifi has a sign-in page or blocks sites, it must let through <code data-address>your quiz's web address</code> and its live connection (WebSocket). Teams on mobile data are not affected.</p>
+        </div>
+        <div class="hw-note">
+          <span class="overline">If the internet drops</span>
+          <h2>Nothing is lost</h2>
+          <p>Phones on mobile data carry on. The night lives on the server, so any screen that loses the pub internet picks up the same night when it comes back.</p>
+        </div>
+        <div class="hw-note">
+          <span class="overline">The display</span>
+          <h2>Two ways to show the quiz</h2>
+          <p>A TV browser or Google TV device opens <code>/display</code> and is paired once with a 6-digit code, in <a class="link" href="/host/brand#displays">Venue settings › Displays</a> or on Run night. Or plug the host laptop in by HDMI and drag the display window to the second screen (extend, not mirror). That needs no pairing.</p>
+        </div>
+        <div class="hw-note">
+          <span class="overline">Media</span>
+          <h2>Pictures and clips</h2>
+          <p>Pictures can show on the phones as well as the display. Video and audio clips (planned) play only on the display, through the pub speakers.</p>
+        </div>
+        <div class="hw-note">
+          <span class="overline">Remote quiz</span>
+          <h2>Possible, with a video call</h2>
+          <p>Because everything runs over the internet, teams could play from anywhere. They still need to see the display, for example by sharing it on a video call.</p>
+        </div>
+        <div class="hw-note">
+          <span class="overline">Setup</span>
+          <h2>Nothing to set up on the network</h2>
+          <p>No ports, no casting, no devices finding each other. Each screen just needs a browser and an internet connection.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="/static/shared/source.js"></script>
+<script src="/static/host/nav.js"></script>
+<script src="/static/host/how/how.js"></script>
+</body>
+</html>

@@ -493,3 +493,13 @@ Chalkboard look on all three clients. Decisions and evidence:
   commit still saying 0.3.3; the version check refused it, but it took a delete and retag.
 - Hand tags (`v*.*.*`) still release, and the version check still refuses a mismatch. A
   `package.json` change that keeps the version (a dependency bump) finds the tag and does nothing.
+
+## How Lock-In works page (2026-11-28)
+
+- **Decision (Cas, 2026-11-28):** the connections diagram becomes a console page, `/host/how`
+  ("How Lock-In works"), linked from the home page and the Displays tab in Venue settings
+  (Cas picked "Both"). Not a nav item.
+- Static page: inline SVG in `public/host/how/index.html` drawn with the venue tokens, so it
+  follows the venue colour; `how.js` writes this server's own address (`location.host`) into the
+  `[data-address]` spots. No hosting or stack names on the page, on Cas's request.
+- No data or schema change: the page reads nothing from the server.

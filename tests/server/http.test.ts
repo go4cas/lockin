@@ -101,7 +101,7 @@ describe("static files (TECH-SPEC 9.1, 4.5)", () => {
 
 describe("host console pages (TECH-SPEC 9.1, S-03)", () => {
   test("signed out: /host and its sections redirect to login", async () => {
-    for (const path of ["/host", "/host/build", "/host/brand", "/host/run", "/host/history"]) {
+    for (const path of ["/host", "/host/build", "/host/brand", "/host/run", "/host/history", "/host/how"]) {
       const res = await s.fetch(path);
       expect(res.status).toBe(302);
       expect(res.headers.get("location")).toBe(`/host/login?next=${encodeURIComponent(path)}`);
@@ -109,7 +109,7 @@ describe("host console pages (TECH-SPEC 9.1, S-03)", () => {
   });
 
   test("signed in: the shell and every section page load, with navigation", async () => {
-    for (const path of ["/host", "/host/build", "/host/brand", "/host/run", "/host/history"]) {
+    for (const path of ["/host", "/host/build", "/host/brand", "/host/run", "/host/history", "/host/how"]) {
       const res = await s.fetch(path, { cookie });
       expect(res.status).toBe(200);
       const html = await res.text();

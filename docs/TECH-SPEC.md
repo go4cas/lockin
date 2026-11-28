@@ -129,6 +129,7 @@ public/host/index.html, host.css, nav           B0  console shell, login and set
 public/host/build/                              B3  library and builder
 public/host/brand/                              B4  branding, venue and holding-page settings
 public/host/run/, public/host/history/          B5  run the night, history list
+public/host/how/                                     "How Lock-In works": how the screens connect (linked from home and Displays)
 public/display/                                      B6
 public/phone/                                   B7  phone pages, manifest, service worker, install guide
 public/vendor/                                  contract: vendored third-party browser code (ArrowJS, 3.1); changes only with Cas's agreement
