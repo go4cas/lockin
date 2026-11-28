@@ -284,14 +284,14 @@ async function main() {
     };
     await builder("builder-quiz-settings", "Builder: quiz title and night settings (lock mode, timer, halftime, joker, sudden death).", quiz.id, '[role=tab]:has-text("Settings")');
     await builder("builder-round", "Builder: a round with its question list.", quiz.id, '.b-side a:has-text("General Knowledge")');
-    await builder("builder-question-text", "Builder: a free-text question with accepted answers.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=0');
-    await builder("builder-question-choice", "Builder: a multiple-choice question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=1');
-    await builder("builder-question-picture", "Builder: a picture question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=2');
-    await builder("builder-question-number", "Builder: a number question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=3');
-    await builder("builder-question-year", "Builder: a year (date/time) question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.b-qs a.b-q >> nth=4');
+    await builder("builder-question-text", "Builder: a free-text question with accepted answers.", quiz.id, '.b-side a:has-text("General Knowledge")', '.q-list a:visible >> nth=0');
+    await builder("builder-question-choice", "Builder: a multiple-choice question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.q-list a:visible >> nth=1');
+    await builder("builder-question-picture", "Builder: a picture question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.q-list a:visible >> nth=2');
+    await builder("builder-question-number", "Builder: a number question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.q-list a:visible >> nth=3');
+    await builder("builder-question-year", "Builder: a year (date/time) question.", quiz.id, '.b-side a:has-text("General Knowledge")', '.q-list a:visible >> nth=4');
     await builder("builder-sudden-death", "Builder: the sudden-death questions.", quiz.id, '[role=tab]:has-text("Sudden death")');
     await builder("builder-draft-problems", "Builder: an unfinished quiz with its list of problems.", draftQuiz.id, '[role=tab]:has-text("Settings")');
-    await builder("builder-draft-empty-question", "Builder: an empty multiple-choice question in a draft.", draftQuiz.id, '.b-side a:has-text("Number Ones")', '.b-qs a.b-q >> nth=1');
+    await builder("builder-draft-empty-question", "Builder: an empty multiple-choice question in a draft.", draftQuiz.id, '.b-side a:has-text("Number Ones")', '.q-list a:visible >> nth=1');
 
     for (const [tabName, label] of [["branding", "Branding"], ["holding", "Holding page"], ["prizes", "Default prizes"], ["displays", "Displays"]] as const) {
       for (const c of [con, tab]) {

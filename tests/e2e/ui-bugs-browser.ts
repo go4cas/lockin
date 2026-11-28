@@ -36,6 +36,11 @@
 // UI-46: Quiz defaults' Halftime names Halfway's round and can be set to a round.
 // UI-47: a prize can have a picture: uploaded in Default prizes or Prizes tonight, shown on the display and phones.
 // UI-48..UI-56: the consistency review: section titles, History's head, dialog titles, nav size.
+// UI-57: the builder's left nav lists rounds only, with their titles; a question has a back link to its round.
+// UI-58: deleting a round keeps the builder working (no Arrow error), and the next round is selected.
+// UI-59: "What needs fixing" closes on a click outside it and on Escape.
+// UI-60: options that wrap in a settings card each fill their line, with the card's padding round them.
+// UI-61: the team cap is called "Team limit".
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -74,6 +79,16 @@ const ready: QuizFile = {
   suddenDeath: [],
 };
 
+// Three rounds, for deleting one (UI-58).
+const threeRounds: QuizFile = {
+  format: QUIZ_FORMAT, id: "three-rounds", title: "Three Rounds", updatedAt: "2026-11-24T10:00:00.000Z",
+  settings: { ...DEFAULT_QUIZ_SETTINGS },
+  rounds: ["Music", "Film", "Sport"].map((title, i) => ({ id: `r-ui90000${i}`, title, questions: [
+    { id: `q-ui90000${i}`, text: `${title} question`, answer: { type: "text", accepted: ["x"] } },
+  ] })),
+  suddenDeath: [],
+};
+
 const problems: string[] = [];
 const results: string[] = [];
 const check = (ok: boolean, what: string) => { results.push(`${ok ? "PASS" : "FAIL"} ${what}`); if (!ok) problems.push(what); };
@@ -82,6 +97,7 @@ async function main() {
   const dataDir = tempDataDir("lockin-ui-bugs-");
   writeQuiz(dataDir, notReady);
   writeQuiz(dataDir, ready);
+  writeQuiz(dataDir, threeRounds);
   const night = new Night(dataDir, { port: PORT, publicUrl: PUBLIC });
   await night.start();
   const browser = await chromium.launch();
@@ -267,7 +283,7 @@ async function main() {
 
     // UI-29: "Add a picture" text sits in the middle of its button
     await build.click('[role=tab]:has-text("Rounds")');
-    await build.click(".b-qs a.b-q >> nth=0");
+    await build.click(".q-list a:visible >> nth=0");
     await build.waitForSelector(".file-btn", { timeout: 5000 });
     const off = await build.evaluate(() => {
       const label = document.querySelector(".file-btn") as HTMLElement;
@@ -314,19 +330,100 @@ async function main() {
     await fix.keyboard.press("Escape");
     await fix.evaluate(() => document.querySelector(".fix-pop")?.removeAttribute("open"));
     await fix.click('[role=tab]:has-text("Rounds")');
-    await fix.click(".b-qs a.b-q >> nth=0");
+    await fix.click(".q-list a:visible >> nth=0");
     await fix.waitForSelector("#q-text", { timeout: 5000 });
     await fix.click('button.btn.danger:has-text("Delete")');
     const own = await fix.waitForSelector("dialog.dlg[open]", { timeout: 3000 }).then(() => true, () => false);
     await fix.screenshot({ path: join(OUT, "ui-41-delete-dialog.png") });
-    const qsBefore = await fix.evaluate(() => document.querySelectorAll(".b-qs a.b-q:not(.add)").length);
+    const count = () => fix.evaluate(() => Number(document.querySelector(".b-side .b-round .b-c")?.textContent));
+    const qsBefore = await count();
     await fix.click('dialog.dlg[open] button:has-text("Keep it")');
-    const kept = await fix.evaluate(() => document.querySelectorAll(".b-qs a.b-q:not(.add)").length);
+    const kept = await count();
     await fix.click('button.btn.danger:has-text("Delete")');
     await fix.click('dialog.dlg[open] button:has-text("Delete question")');
-    await fix.waitForFunction((n) => document.querySelectorAll(".b-qs a.b-q:not(.add)").length === n - 1, qsBefore, { timeout: 5000 });
+    await fix.waitForFunction((n) => Number(document.querySelector(".b-side .b-round .b-c")?.textContent) === n - 1, qsBefore, { timeout: 5000 });
     check(own && !browserDialog && kept === qsBefore, `UI-41 delete asks in the console's dialog ${own}, browser dialog ${browserDialog}, "Keep it" keeps ${kept}/${qsBefore}, "Delete question" deletes`);
     await fix.close();
+
+    // UI-59: "What needs fixing" closes on a click outside it and on Escape
+    const pop2 = await hostCtx.newPage();
+    watch("builder-popover", pop2);
+    await pop2.goto(`${PUBLIC}/host/build?quiz=${notReady.id}`);
+    await pop2.waitForSelector(".fix-pop summary", { timeout: 5000 });
+    const isOpen = () => pop2.evaluate(() => !!document.querySelector(".fix-pop[open]"));
+    await pop2.click(".fix-pop summary");
+    const opened = await isOpen();
+    await pop2.mouse.click(700, 600);
+    const outside = !(await isOpen());
+    await pop2.click(".fix-pop summary");
+    await pop2.keyboard.press("Escape");
+    const esc = !(await isOpen());
+    await pop2.click('[role=tab]:has-text("Settings")');
+    await pop2.click('.readiness button:has-text("See what needs fixing")');
+    const fromSettings = await isOpen();
+    await pop2.mouse.click(700, 600);
+    const outside2 = !(await isOpen());
+    check(opened && outside && esc && fromSettings && outside2, `UI-59 "What needs fixing" opens ${opened}, closes on a click outside ${outside}, on Escape ${esc}; from Settings opens ${fromSettings}, closes ${outside2}`);
+
+    // UI-61: "Team limit", in Quiz Settings
+    const teamLabel = await pop2.evaluate(() => document.querySelector('label[for="set-teams"]')?.textContent?.trim());
+    check(teamLabel === "Team limit", `UI-61 Quiz Settings team cap label: "${teamLabel}"`);
+
+    // UI-60: wrapped options fill their lines inside the card
+    await pop2.setViewportSize({ width: 1100, height: 900 });
+    const seg = await pop2.evaluate(() => {
+      const bad: string[] = [];
+      for (const g of document.querySelectorAll<HTMLElement>(".b-settings .form-card .seg")) {
+        const box = g.getBoundingClientRect();
+        const card = (g.closest(".form-card") as HTMLElement).getBoundingClientRect();
+        if (box.right > card.right - 8) bad.push("over the card's edge");
+        const buttons = [...g.querySelectorAll<HTMLElement>("button")].map((b) => b.getBoundingClientRect());
+        const lines = new Map<number, number>();
+        for (const r of buttons) lines.set(Math.round(r.top), (lines.get(Math.round(r.top)) ?? 0) + r.width);
+        if (lines.size > 1) for (const w of lines.values()) if (box.width - 6 - w > 8 * buttons.length) bad.push(`a wrapped line ${Math.round(w)} of ${Math.round(box.width)} px`);
+      }
+      return bad;
+    });
+    await pop2.screenshot({ path: join(OUT, "ui-60-settings-1100.png"), fullPage: true });
+    check(seg.length === 0, `UI-60 wrapped options at 1,100 px: ${seg.length === 0 ? "each line filled" : seg.join(", ")}`);
+    await pop2.close();
+
+    // UI-57, UI-58: the outline lists rounds with titles; deleting a round works
+    const rnd = await hostCtx.newPage();
+    watch("builder-rounds", rnd);
+    await rnd.goto(`${PUBLIC}/host/build?quiz=${threeRounds.id}`);
+    await rnd.waitForSelector("#round-title", { timeout: 5000 });
+    const outline = await rnd.evaluate(() => ({
+      titles: [...document.querySelectorAll(".b-side .b-round .b-t")].map((t) => t.textContent?.trim()),
+      questions: document.querySelectorAll(".b-side .b-q, .b-side .b-qs").length,
+    }));
+    await rnd.click(".q-list a:visible >> nth=0");
+    await rnd.waitForSelector("#q-text", { timeout: 5000 });
+    const back = await rnd.evaluate(() => document.querySelector(".b-pane .b-back")?.textContent?.trim());
+    const heading = await rnd.evaluate(() => document.querySelector(".b-pane h1")?.textContent?.trim());
+    await rnd.click(".b-pane .b-back");
+    const backWent = await rnd.waitForSelector("#round-title", { timeout: 5000 }).then(() => true, () => false);
+    await rnd.screenshot({ path: join(OUT, "ui-57-outline.png") });
+    check(outline.titles.join("/") === "Music/Film/Sport" && outline.questions === 0 && back === "← Music" && heading === "Round 1 · Question 1" && backWent,
+      `UI-57 outline ${outline.titles.join("/")}, question links in it ${outline.questions}; question page "${heading}", back link "${back}" goes back ${backWent}`);
+    await rnd.click('.b-side .b-round:has-text("Film")');
+    await rnd.waitForFunction(() => (document.getElementById("round-title") as HTMLInputElement | null)?.value === "Film", null, { timeout: 5000 });
+    const errsBefore = problems.length;
+    await rnd.click('.b-pane button.btn.danger:has-text("Delete round")');
+    await rnd.click('dialog.dlg[open] button.danger');
+    await rnd.waitForFunction(() => document.querySelectorAll(".b-side .b-round").length === 2, null, { timeout: 5000 });
+    await rnd.waitForTimeout(300);
+    const left = await rnd.evaluate(() => ({
+      titles: [...document.querySelectorAll(".b-side .b-round .b-t")].map((t) => t.textContent?.trim()),
+      nums: [...document.querySelectorAll(".b-side .b-round .b-n")].map((t) => t.textContent?.trim()),
+      current: document.querySelector('.b-side .b-round[aria-current="true"] .b-t')?.textContent?.trim(),
+      editing: (document.getElementById("round-title") as HTMLInputElement | null)?.value,
+    }));
+    await rnd.click('.b-side .b-round:has-text("Music")');
+    const stillWorks = await rnd.waitForFunction(() => (document.getElementById("round-title") as HTMLInputElement | null)?.value === "Music", null, { timeout: 5000 }).then(() => true, () => false);
+    check(problems.length === errsBefore && left.titles.join("/") === "Music/Sport" && left.nums.join("/") === "1/2" && left.current === "Sport" && left.editing === "Sport" && stillWorks,
+      `UI-58 delete "Film": errors ${problems.length - errsBefore}, outline ${left.titles.join("/")} numbered ${left.nums.join("/")}, now on "${left.current}" (${left.editing}), builder still works ${stillWorks}`);
+    await rnd.close();
 
     // UI-42: Quiz Settings on a laptop: cards two by two, page about a screen and a half
     const set = await hostCtx.newPage();
@@ -390,7 +487,7 @@ async function main() {
     const none = await lib.evaluate(() => !(document.querySelector(".lib-none") as HTMLElement).hidden);
     await lib.fill("#lib-search", "");
     await lib.screenshot({ path: join(OUT, "ui-34-quizzes-search.png") });
-    check(all === "Test Quiz, Ready Quiz" || all === "Ready Quiz, Test Quiz", `UI-34 all quizzes: ${all}`);
+    check(all.split(", ").sort().join(", ") === "Ready Quiz, Test Quiz, Three Rounds", `UI-34 all quizzes: ${all}`);
     check(work === "Test Quiz" && searched === "Ready Quiz" && none, `UI-34 Needs work: "${work}", search "ready q": "${searched}", no match says so: ${none}`);
     await lib.close();
 

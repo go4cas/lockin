@@ -201,6 +201,23 @@
     });
   }
 
+  /* Popovers (<details class="problems">, e.g. "What needs fixing"): a click outside or Escape closes them,
+     and opening one closes the others (UI-59). The summary click still toggles, as the browser does. */
+  document.addEventListener("click", (e) => {
+    const inside = e.target instanceof Element ? e.target.closest("details.problems") : null;
+    for (const d of document.querySelectorAll("details.problems[open]")) if (d !== inside) d.removeAttribute("open");
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const open = document.querySelectorAll("details.problems[open]");
+    if (open.length === 0) return;
+    for (const d of open) {
+      d.removeAttribute("open");
+      const s = d.querySelector("summary");
+      if (s && d.contains(document.activeElement)) s.focus();
+    }
+  });
+
   w.LockIn.nav = { setNight, guardUnsaved, ask };
 
   // "Powered by Lock-In", linked to the source (AGPL-3.0 section 13; the address is in shared/source.js).

@@ -121,6 +121,16 @@ Method: `tests/e2e/ui-audit.ts` opens 22 screens on a real server (home, Quizzes
 | UI-55 | Display, Branding preview | A grey that is not in the palette (#8a8a85) on the display's credit, the standings header and the preview's credit. | Fixed: Ash. |
 | UI-56 | Phone | Text between the phone scale's sizes: the team status 14 px, the voice line 17 px, lists, prizes and install steps 16 px, the overline 12 px. | Fixed: 15 (small), 18 (body), 18, 13 (label). |
 
+## Host console review on v0.3.4, batch 8 (Cas, 2026-11-28)
+
+| # | Where | Finding | Status |
+|---|---|---|---|
+| UI-57 | Builder, left nav | Questions were listed under the open round in the nav, and the nav repeated the round's own question list. | Fixed: the nav lists rounds only (number, title, question count). A question page has a back link to its round ("← Music") and its heading follows a move. The Sudden death tab is one page, without the nav. |
+| UI-58 | Builder, Delete round | Deleting a round broke the builder: the nav showed numbers only, with no round or question titles (Arrow error `expressionPool[effect] is not a function`). A nav row read the whole rounds list, and the next round was selected while the deleted row was still being taken down. | Fixed: rows read only their own round; the next round is selected after the nav has redrawn. Same for deleting a question. |
+| UI-59 | Builder, "What needs fixing" | Once open, the popover closed only by clicking its pill again; a click outside or Escape left it open. | Fixed: a click outside or Escape closes it (every console popover), and "See what needs fixing" on Settings no longer closes it in the same click. |
+| UI-60 | Quiz Settings, Quiz defaults | Options that wrap in a narrow card (Lock answers, Closest-number scoring) left a short chip on the first line and an unboxed one under it, with no padding. | Fixed: wrapped options each fill their line. |
+| UI-61 | Quiz Settings, Quiz defaults | "Most teams" read oddly. | Renamed "Team limit", hint "2 to 30. Joining closes when the quiz is full." |
+
 Kept as they are, on purpose:
 
 - Page titles are 44 px (title-l), not the design system's 64 px title-xl for Library and Marking: one title size for every console page was agreed in UI-36.
