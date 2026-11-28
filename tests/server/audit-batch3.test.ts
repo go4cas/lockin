@@ -231,7 +231,7 @@ describe("SA-16: CI and release", () => {
 
   test("a tag builds both binaries with checksums and an attestation", () => {
     const release = workflows.find(([f]) => f === "release.yml")![1];
-    for (const s of ["tags:", "bun run build", "--baseline", "sha256sum", "attest-build-provenance", "gh release create"]) expect(release).toContain(s);
+    for (const s of ["tags:", "branches: [main]", "paths: [package.json]", "git ls-remote --exit-code --tags", "bun run build", "--baseline", "sha256sum", "attest-build-provenance", "gh release create"]) expect(release).toContain(s);
     expect(readFileSync(join(root, ".github/dependabot.yml"), "utf8")).toContain("github-actions");
   });
 
