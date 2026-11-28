@@ -130,6 +130,8 @@ Method: `tests/e2e/ui-audit.ts` opens 22 screens on a real server (home, Quizzes
 | UI-59 | Builder, "What needs fixing" | Once open, the popover closed only by clicking its pill again; a click outside or Escape left it open. | Fixed: a click outside or Escape closes it (every console popover), and "See what needs fixing" on Settings no longer closes it in the same click. |
 | UI-60 | Quiz Settings, Quiz defaults | Options that wrap in a narrow card (Lock answers, Closest-number scoring) left a short chip on the first line and an unboxed one under it, with no padding. | Fixed: wrapped options each fill their line. |
 | UI-61 | Quiz Settings, Quiz defaults | "Most teams" read oddly. | Renamed "Team limit", hint "2 to 30. Joining closes when the quiz is full." |
+| UI-62 | Builder, Sudden death | Sudden-death questions had fewer settings than round questions. | Answer types stay text, choice and closest (H-14: a tie-breaker needs one decisive answer); Cas agreed. A sudden-death question can now have a picture, shown on the display's Deadlock screen and the tied teams' phones. The quiz format already allowed it; REQUIREMENTS H-14 and TECH-SPEC say so now. |
+| UI-63 | Builder | Found while testing: clicking a round in the outline (or any in-page link) while a change was still being saved asked "Leave without saving?", though nothing was being left. | Fixed: links within the page are not guarded. |
 
 Kept as they are, on purpose:
 

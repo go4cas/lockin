@@ -41,6 +41,8 @@
 // UI-59: "What needs fixing" closes on a click outside it and on Escape.
 // UI-60: options that wrap in a settings card each fill their line, with the card's padding round them.
 // UI-61: the team cap is called "Team limit".
+// UI-62: a sudden-death question can have a picture (builder; display and phones show it).
+// UI-63: in-page "#" links (the builder outline, back links) never ask "Leave without saving?".
 // UI-02: a phone that has joined does not show the lobby pool ("Name your team...") on its
 //        lobby screen; that pool is for the join page and the display (copy-review.md).
 
@@ -423,6 +425,19 @@ async function main() {
     const stillWorks = await rnd.waitForFunction(() => (document.getElementById("round-title") as HTMLInputElement | null)?.value === "Music", null, { timeout: 5000 }).then(() => true, () => false);
     check(problems.length === errsBefore && left.titles.join("/") === "Music/Sport" && left.nums.join("/") === "1/2" && left.current === "Sport" && left.editing === "Sport" && stillWorks,
       `UI-58 delete "Film": errors ${problems.length - errsBefore}, outline ${left.titles.join("/")} numbered ${left.nums.join("/")}, now on "${left.current}" (${left.editing}), builder still works ${stillWorks}`);
+    // UI-63: clicking an outline round while a change is still unsaved does not ask "Leave without saving?"
+    await rnd.fill("#round-title", "Music!");
+    await rnd.click('.b-side .b-round:has-text("Sport")');
+    await rnd.waitForTimeout(200);
+    const leaveAsked = await rnd.evaluate(() => !!document.querySelector("dialog.leave-dlg[open]"));
+    check(!leaveAsked, `UI-63 outline click with an unsaved change asks "Leave without saving?": ${leaveAsked}`);
+    // UI-62: a sudden-death question can have a picture
+    await rnd.click('[role=tab]:has-text("Sudden death")');
+    await rnd.click('text=+ Add sudden-death question');
+    await rnd.waitForSelector("#q-text", { timeout: 5000 });
+    const sdPicture = await rnd.evaluate(() => [...document.querySelectorAll(".b-pane .field .l")].some((l) => l.textContent?.trim() === "Picture"));
+    const sdBack = await rnd.evaluate(() => document.querySelector(".b-pane .b-back")?.textContent?.trim());
+    check(sdPicture && sdBack === "← Sudden death", `UI-62 sudden-death question has a Picture field ${sdPicture}, back link "${sdBack}"`);
     await rnd.close();
 
     // UI-42: Quiz Settings on a laptop: cards two by two, page about a screen and a half

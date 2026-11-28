@@ -181,6 +181,8 @@
     if (!a || !(a instanceof HTMLAnchorElement) || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
     const url = new URL(a.href, location.href);
     if (url.origin !== location.origin) return;
+    // A link within this page ("#tab", or "#" on an in-page control such as the builder's outline) never leaves it (UI-63).
+    if ((a.getAttribute("href") || "").startsWith("#")) return;
     if (url.pathname === location.pathname && url.search === location.search && url.hash) return;   // a tab on this page
     if (!isDirty()) return;
     e.preventDefault();

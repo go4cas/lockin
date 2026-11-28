@@ -89,4 +89,35 @@ describe("question image identity (LI-003)", () => {
     expect((await s.fetch(hostImage, { cookie })).status).toBe(200);
     expect((await s.fetch(`/media/q/${img.id}`)).status).toBe(404);
   });
+
+  test("a sudden-death question can have a picture: shown to the tied phones once asked (the display gets the same question view) (UI-62)", async () => {
+    const s = await startTestServer({ clock: new FakeClock(), services: { rules: fakeRules, copyPicker: fakeCopy() } });
+    servers.push(s);
+    const sdq = q(text("Abbey Road"), { media: { kind: "image", file: "cover.png" } });
+    const quiz = makeQuiz("img-sd", [[q(text("x"))]], {}, [sdq]);
+    writeQuiz(s.dataDir, quiz, { "cover.png": PNG_A });
+    const cookie = await s.signIn();
+    const host = await client(s, "host", cookie);
+    const { roomCode } = await ok(host, "night.open", { quizId: quiz.id });
+    const phones = [await client(s, "team"), await client(s, "team")];
+    for (const [i, p] of phones.entries()) await ok(p, "team.join", { roomCode, name: `Team ${i}` });
+    await ok(host, "quiz.start");
+    await ok(host, "round.start");
+    await ok(host, "question.next");
+    await ok(host, "lock");
+    await ok(host, "round.finish");
+    await ok(host, "leaderboard.show");
+    await ok(host, "sd.start");
+    await Bun.sleep(50);
+    expect(view(phones[0]!).suddenDeath.question).toBeNull();
+    expect((await s.fetch(`/media/q/${sdq.id}`)).status).toBe(404);   // not asked yet
+    await ok(host, "sd.ask");
+    await Bun.sleep(100);
+    const url = view(phones[0]!).suddenDeath.question.image as string;
+    expect(url.startsWith(`/media/q/${sdq.id}?`)).toBe(true);
+    expect(view(phones[1]!).suddenDeath.question.image).toBe(url);
+    const res = await s.fetch(url);
+    expect(res.status).toBe(200);
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(PNG_A);
+  });
 });

@@ -21,7 +21,7 @@ export const AUTOSAVE_MS = 1000;
 const ANSWER_TYPES = /** @type {const} */ ([
   ["text", "Text"], ["choice", "Choice"], ["number", "Number"], ["closest", "Closest"], ["datetime", "Date or time"],
 ]);
-/** Sudden death allows typed answers, multiple choice and closest number only (H-14). */
+/** Sudden death allows typed answers, multiple choice and closest number only (H-14); a picture is allowed (UI-62). */
 const SD_TYPES = ["text", "choice", "closest"];
 
 const ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -676,7 +676,7 @@ export function mountBuilder(root, quizId) {
               value="${() => q.timerSeconds ?? ""}" @input="${(/** @type {Event} */ e) => { const n = num(val(e)); if (n !== null) q.timerSeconds = n; }}"> <span class="muted s">s</span>`)}
           </div></div>
       </div>
-      ${f.sd ? "" : mediaEditor(q)}
+      ${mediaEditor(q)}
       ${() => answerEditor(q)}
       <div class="field">
         <label class="l" for="q-note">Note for the host (not shown to teams)</label>
