@@ -365,6 +365,7 @@ img.idle-mark.small { height: 14vh; }
 .side.out { opacity: 0.4; }
 .dl-question { padding-top: 2vh; }
 .dl-q-row { align-items: center; min-height: 0; }
+.dl-img { height: 44vh; width: 38vw; }   /* a sudden-death picture leaves room for the face-off under it */
 .dl-answered { margin-top: 2vh; text-align: center; }
 .dl-muted { color: var(--fog); max-width: 80vw; }
 .dl-outcome { font-family: var(--font-display); font-weight: 300; font-size: var(--display-text-l); letter-spacing: -0.04em; }

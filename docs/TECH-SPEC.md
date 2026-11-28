@@ -275,7 +275,7 @@ export interface QuizFile {
   updatedAt: string;               // ISO 8601, set by the server on every save
   settings: QuizSettings;
   rounds: Round[];                 // 1..20
-  suddenDeath: Question[];         // 0..20; answer types "text", "choice" or "closest" only (H-14)
+  suddenDeath: Question[];         // 0..20; answer types "text", "choice" or "closest" only (H-14); media allowed
 }
 
 export interface QuizSettings {

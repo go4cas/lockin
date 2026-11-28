@@ -29,6 +29,7 @@ describe("screenFor: every display fixture has a screen (T-01..T-12)", async () 
     "display/leaderboard-30": "leaderboard",
     "display/halftime": "halftime",
     "display/sudden_death": "dl-question",
+    "display/sudden_death-image": "dl-question",
     "display/sudden_death-revealed": "dl-result",
     "display/ended": "ended",
   };

@@ -795,8 +795,9 @@ function createDisplay(root, now) {
     const many = () => sdq().input.type === "choice" && /** @type {any} */ (sdq().input).options.length > 4;
     return html`<div class="display-main col dl-question">
       <div class="row grow dl-q-row">
+        ${() => (sdq().image ? html`<div class="q-img dl-img"><img src="${() => sdq().image || ""}" alt=""></div>` : "")}
         <div class="grow col">
-          <div class="${() => "q-text t-" + questionSize(sdq().text, many())}">${() => sdq().text}</div>
+          <div class="${() => "q-text t-" + questionSize(sdq().text, many() || !!sdq().image)}">${() => sdq().text}</div>
           ${() => (sdq().input.type === "choice" ? html`<div class="${() => "opts" + (many() ? " many" : "")}">${() => { const qq = sdq(); return qq.input.type === "choice" ? qq.input.options.map(function (o, i) { return html`<div class="opt"><b>${letter(i)}</b><span class="opt-text">${o}</span></div>`.key(i); }) : []; }}</div>` : "")}
         </div>
         <div class="q-cd dl-cd"><div class="q-cd-in">${tvCountdown(() => sdq().timer)}</div></div>

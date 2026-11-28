@@ -181,6 +181,8 @@
     if (!a || !(a instanceof HTMLAnchorElement) || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
     const url = new URL(a.href, location.href);
     if (url.origin !== location.origin) return;
+    // A link within this page ("#tab", or "#" on an in-page control such as the builder's outline) never leaves it (UI-63).
+    if ((a.getAttribute("href") || "").startsWith("#")) return;
     if (url.pathname === location.pathname && url.search === location.search && url.hash) return;   // a tab on this page
     if (!isDirty()) return;
     e.preventDefault();
@@ -200,6 +202,23 @@
       e.returnValue = "";
     });
   }
+
+  /* Popovers (<details class="problems">, e.g. "What needs fixing"): a click outside or Escape closes them,
+     and opening one closes the others (UI-59). The summary click still toggles, as the browser does. */
+  document.addEventListener("click", (e) => {
+    const inside = e.target instanceof Element ? e.target.closest("details.problems") : null;
+    for (const d of document.querySelectorAll("details.problems[open]")) if (d !== inside) d.removeAttribute("open");
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const open = document.querySelectorAll("details.problems[open]");
+    if (open.length === 0) return;
+    for (const d of open) {
+      d.removeAttribute("open");
+      const s = d.querySelector("summary");
+      if (s && d.contains(document.activeElement)) s.focus();
+    }
+  });
 
   w.LockIn.nav = { setNight, guardUnsaved, ask };
 

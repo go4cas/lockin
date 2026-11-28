@@ -659,7 +659,7 @@ function quizDefaultsTab() {
       <div class="field"><span class="l">Joker</span>
         <div class="ctl">${seg("Joker", [["false", "Off"], ["true", "On"]], () => String(venue.qdJoker), (v) => { venue.qdJoker = v === "true"; })}
         <p class="hint">Each team picks one round to score double.</p></div></div>
-      ${numberField("qd-teams", "Most teams", "qdTeams", 2, 30, "teams", "2 to 30.")}
+      ${numberField("qd-teams", "Team limit", "qdTeams", 2, 30, "teams", "2 to 30. Joining closes when the quiz is full.")}
     </section>
     <section class="card form-card cols">
       <h2>Ties and closest numbers</h2>
